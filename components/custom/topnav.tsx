@@ -126,45 +126,45 @@ export function NavigationMenuDemo() {
               <li className="my-1 h-px bg-border" />
               {user ? (
                 <>
-                  <li className="px-3 py-3">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="size-10">
-                        {userProfile?.avatar_url && (
-                          <AvatarImage src={userProfile.avatar_url} alt={getDisplayName()} />
-                        )}
-                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                          {getUserInitials()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{getDisplayName()}</p>
-                        {user.email && (
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                        )}
+                  <li className="mx-2 my-2">
+                    <div className="rounded-lg border bg-card p-3 shadow-sm">
+                      <div className="flex items-start gap-3 pb-3">
+                        <Avatar className="size-12">
+                          {userProfile?.avatar_url && (
+                            <AvatarImage src={userProfile.avatar_url} alt={getDisplayName()} />
+                          )}
+                          <AvatarFallback className="bg-primary/10 text-primary font-medium text-base">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <p className="text-sm font-semibold truncate">{getDisplayName()}</p>
+                          {user.email && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 border-t pt-2">
+                        <NavigationMenuLink asChild>
+                          <Link
+                            href="/profile"
+                            className="flex-1 text-center select-none rounded-sm px-2 py-1.5 text-xs font-medium no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          >
+                            Edit Profile
+                          </Link>
+                        </NavigationMenuLink>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            href="/preferences"
+                            className="flex-1 text-center select-none rounded-sm px-2 py-1.5 text-xs font-medium no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          >
+                            Preferences
+                          </Link>
+                        </NavigationMenuLink>
                       </div>
                     </div>
                   </li>
                   <li className="my-1 h-px bg-border" />
-                  <li>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/profile"
-                        className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        Edit Profile
-                      </Link>
-                    </NavigationMenuLink>
-                  </li>
-                  <li>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/preferences"
-                        className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        Preferences
-                      </Link>
-                    </NavigationMenuLink>
-                  </li>
                   <li>
                     <NavigationMenuLink asChild>
                       <button
