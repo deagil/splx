@@ -103,7 +103,7 @@ export function NavigationMenuDemo() {
   const getDisplayName = () => {
     if (!userProfile) return user?.email ?? "User"
     const fullName = `${userProfile.firstname ?? ""} ${userProfile.lastname ?? ""}`.trim()
-    return fullName || user?.email ?? "User"
+    return fullName || (user?.email ?? "User")
   }
 
   return (
