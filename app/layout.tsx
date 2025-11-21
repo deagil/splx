@@ -57,6 +57,16 @@ const THEME_COLOR_SCRIPT = `\
   updateThemeColor();
 })();`;
 
+const COLOR_THEME_SCRIPT = `\
+(function() {
+  try {
+    var theme = localStorage.getItem('splx-color-theme');
+    if (theme && theme !== 'default') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  } catch (e) {}
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -77,6 +87,12 @@ export default function RootLayout({
           // biome-ignore lint/security/noDangerouslySetInnerHtml: "Required"
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
+          }}
+        />
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: "Required"
+          dangerouslySetInnerHTML={{
+            __html: COLOR_THEME_SCRIPT,
           }}
         />
       </head>
