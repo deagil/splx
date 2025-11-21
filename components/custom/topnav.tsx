@@ -16,6 +16,8 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type { User as DbUser } from "@/lib/db/schema"
 
 const buildOptions: { title: string; href: string; description: string }[] = [
   {
@@ -33,13 +35,28 @@ const buildOptions: { title: string; href: string; description: string }[] = [
 export function NavigationMenuDemo() {
   const isMobile = useIsMobile()
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<DbUser | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
-    
+
     // Get initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
+
+      // Fetch user profile data
+      if (user) {
+        fetch('/api/profile')
+          .then(res => res.json())
+          .then(data => {
+            if (data.profile) {
+              setUserProfile(data.profile)
+            }
+          })
+          .catch(err => {
+            console.error('Failed to fetch user profile:', err)
+          })
+      }
     })
 
     // Listen for auth changes
@@ -47,6 +64,22 @@ export function NavigationMenuDemo() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+
+      // Refetch profile on auth change
+      if (session?.user) {
+        fetch('/api/profile')
+          .then(res => res.json())
+          .then(data => {
+            if (data.profile) {
+              setUserProfile(data.profile)
+            }
+          })
+          .catch(err => {
+            console.error('Failed to fetch user profile:', err)
+          })
+      } else {
+        setUserProfile(null)
+      }
     })
 
     return () => {
@@ -58,23 +91,28 @@ export function NavigationMenuDemo() {
     await signOut()
   }
 
+  // Get user initials from firstname and lastname
+  const getUserInitials = () => {
+    if (!userProfile) return "?"
+    const firstInitial = userProfile.firstname?.charAt(0) ?? ""
+    const lastInitial = userProfile.lastname?.charAt(0) ?? ""
+    return (firstInitial + lastInitial).toUpperCase() || "?"
+  }
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!userProfile) return user?.email ?? "User"
+    const fullName = `${userProfile.firstname ?? ""} ${userProfile.lastname ?? ""}`.trim()
+    return fullName || (user?.email ?? "User")
+  }
+
   return (
     <NavigationMenu viewport={isMobile}>
       <NavigationMenuList className="flex-wrap">
         <NavigationMenuItem>
           <NavigationMenuTrigger>Home</NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[250px] gap-1 p-2">
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    href="/preferences"
-                    className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                  >
-                    Preferences
-                  </Link>
-                </NavigationMenuLink>
-              </li>
+            <ul className="grid w-[280px] gap-1 p-2">
               <li>
                 <NavigationMenuLink asChild>
                   <Link
@@ -88,16 +126,45 @@ export function NavigationMenuDemo() {
               <li className="my-1 h-px bg-border" />
               {user ? (
                 <>
-                  <li>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/profile"
-                        className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        My Profile
-                      </Link>
-                    </NavigationMenuLink>
+                  <li className="mx-2 my-2">
+                    <div className="rounded-lg border bg-card p-3 shadow-sm">
+                      <div className="flex items-start gap-3 pb-3">
+                        <Avatar className="size-12">
+                          {userProfile?.avatar_url && (
+                            <AvatarImage src={userProfile.avatar_url} alt={getDisplayName()} />
+                          )}
+                          <AvatarFallback className="bg-primary/10 text-primary font-medium text-base">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <p className="text-sm font-semibold truncate">{getDisplayName()}</p>
+                          {user.email && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 border-t pt-2">
+                        <NavigationMenuLink asChild>
+                          <Link
+                            href="/profile"
+                            className="flex-1 text-center select-none rounded-sm px-2 py-1.5 text-xs font-medium no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          >
+                            Edit Profile
+                          </Link>
+                        </NavigationMenuLink>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            href="/preferences"
+                            className="flex-1 text-center select-none rounded-sm px-2 py-1.5 text-xs font-medium no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          >
+                            Preferences
+                          </Link>
+                        </NavigationMenuLink>
+                      </div>
+                    </div>
                   </li>
+                  <li className="my-1 h-px bg-border" />
                   <li>
                     <NavigationMenuLink asChild>
                       <button
