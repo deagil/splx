@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ThemeSelector } from "@/components/settings/theme-selector";
 
 const sections: SettingsSection[] = [
   {
@@ -117,48 +118,39 @@ const sections: SettingsSection[] = [
     description:
       "Personalise the interface to make working more comfortable.",
     content: (
-      <form className="space-y-6" action="#">
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="theme">Theme</FieldLabel>
-            <Input
-              id="theme"
-              name="theme"
-              type="text"
-              defaultValue="Follow system"
-            />
-            <FieldDescription>
-              Choose between light, dark, or automatically match your device.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="content-density">Content density</FieldLabel>
-            <Input
-              id="content-density"
-              name="content-density"
-              type="text"
-              defaultValue="Comfortable"
-            />
-            <FieldDescription>
-              Controls spacing for tables, lists, and other data-heavy views.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="accessibility-notes">
-              Accessibility notes
-            </FieldLabel>
-            <Textarea
-              id="accessibility-notes"
-              name="accessibility-notes"
-              rows={4}
-              placeholder="Describe any assistive technologies or preferences we should consider."
-            />
-          </Field>
-        </FieldGroup>
-        <div className="flex justify-end">
-          <Button type="submit">Save appearance settings</Button>
-        </div>
-      </form>
+      <div className="space-y-6">
+        <ThemeSelector />
+        <form className="space-y-6" action="#">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="content-density">Content density</FieldLabel>
+              <Input
+                id="content-density"
+                name="content-density"
+                type="text"
+                defaultValue="Comfortable"
+              />
+              <FieldDescription>
+                Controls spacing for tables, lists, and other data-heavy views.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="accessibility-notes">
+                Accessibility notes
+              </FieldLabel>
+              <Textarea
+                id="accessibility-notes"
+                name="accessibility-notes"
+                rows={4}
+                placeholder="Describe any assistive technologies or preferences we should consider."
+              />
+            </Field>
+          </FieldGroup>
+          <div className="flex justify-end">
+            <Button type="submit">Save appearance settings</Button>
+          </div>
+        </form>
+      </div>
     ),
   },
 ];
