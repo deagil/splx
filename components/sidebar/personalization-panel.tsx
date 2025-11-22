@@ -6,20 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "@/components/shared/toast";
-import { X, Settings, MessageSquare, Code, Zap, Plus, Trash2 } from "lucide-react";
+import { X, Settings, MessageSquare, Code, Zap, Trash2, Edit2, Sparkles, Code2, FileText, FileCode, Table } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type PersonalizationPanelProps = {
   open: boolean;
@@ -28,12 +23,15 @@ type PersonalizationPanelProps = {
   proficiency?: string | null;
   aiTone?: string | null;
   aiGuidance?: string | null;
+  personalizationEnabled?: boolean;
+  onPersonalizationToggle?: (enabled: boolean) => void;
 };
 
 type Skill = {
   id: string;
   name: string;
-  description: string;
+  command: string;
+  description: string | null;
   prompt: string;
 };
 
@@ -44,6 +42,8 @@ export function PersonalizationPanel({
   proficiency = "regular",
   aiTone = "balanced",
   aiGuidance = "",
+  personalizationEnabled = false,
+  onPersonalizationToggle,
 }: PersonalizationPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({
@@ -53,8 +53,11 @@ export function PersonalizationPanel({
     ai_guidance: aiGuidance || "",
   });
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [newSkill, setNewSkill] = useState({ name: "", description: "", prompt: "" });
-  const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [newSkillDescription, setNewSkillDescription] = useState("");
+  const [learningSkillId, setLearningSkillId] = useState<string | null>(null);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
+  const [editSkill, setEditSkill] = useState({ name: "", command: "", description: "", prompt: "" });
 
   // Update form data when props change
   useEffect(() => {
@@ -100,7 +103,7 @@ export function PersonalizationPanel({
 
         toast({
           type: "success",
-          description: "Personalization preferences saved successfully",
+          description: "Preferences saved successfully",
         });
         onOpenChange(false);
       } catch (error) {
@@ -113,8 +116,86 @@ export function PersonalizationPanel({
     });
   };
 
-  const handleAddSkill = async () => {
-    if (!newSkill.name || !newSkill.prompt) {
+  const handleLearnSkill = async (description: string) => {
+    if (!description || description.trim().length === 0) {
+      toast({
+        type: "error",
+        description: "Please describe what you want to accomplish",
+      });
+      return;
+    }
+
+    const tempId = `temp-${Date.now()}`;
+    setLearningSkillId(tempId);
+    setIsGeneratingPrompt(true);
+
+    try {
+      const response = await fetch("/api/user/skills/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate skill");
+      }
+
+      const data = await response.json();
+
+      // Create skill immediately
+      const createResponse = await fetch("/api/user/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name.trim(),
+          command: data.command.trim(),
+          description: data.description.trim() || null,
+          prompt: data.prompt.trim(),
+        }),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error("Failed to create skill");
+      }
+
+      const createData = await createResponse.json();
+      setSkills([...skills, createData.skill]);
+      setNewSkillDescription("");
+      
+      toast({
+        type: "success",
+        description: "Skill learned successfully",
+      });
+    } catch (error) {
+      toast({
+        type: "error",
+        description: error instanceof Error ? error.message : "Failed to learn skill. Please try again.",
+      });
+      console.error("Error learning skill:", error);
+    } finally {
+      setIsGeneratingPrompt(false);
+      setLearningSkillId(null);
+    }
+  };
+
+  const handleStartEdit = (skill: Skill) => {
+    setEditingSkillId(skill.id);
+    setEditSkill({
+      name: skill.name,
+      command: skill.command,
+      description: skill.description || "",
+      prompt: skill.prompt,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSkillId(null);
+    setEditSkill({ name: "", command: "", description: "", prompt: "" });
+  };
+
+  const handleUpdateSkill = async () => {
+    if (!editSkill.name || !editSkill.prompt) {
       toast({
         type: "error",
         description: "Please provide a name and prompt for the skill",
@@ -122,32 +203,38 @@ export function PersonalizationPanel({
       return;
     }
 
+    if (!editingSkillId) return;
+
     try {
-      const response = await fetch("/api/user/skills", {
-        method: "POST",
+      const response = await fetch(`/api/user/skills/${editingSkillId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSkill),
+        body: JSON.stringify({
+          name: editSkill.name.trim(),
+          command: editSkill.command.trim(),
+          description: editSkill.description.trim() || null,
+          prompt: editSkill.prompt.trim(),
+        }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to add skill");
+        throw new Error("Failed to update skill");
       }
 
       const data = await response.json();
-      setSkills([...skills, data.skill]);
-      setNewSkill({ name: "", description: "", prompt: "" });
-      setIsAddingSkill(false);
+      setSkills(skills.map((s) => (s.id === editingSkillId ? data.skill : s)));
+      handleCancelEdit();
 
       toast({
         type: "success",
-        description: "Skill added successfully",
+        description: "Skill updated successfully",
       });
     } catch (error) {
       toast({
         type: "error",
-        description: "Failed to add skill. Please try again.",
+        description: "Failed to update skill. Please try again.",
       });
-      console.error("Error adding skill:", error);
+      console.error("Error updating skill:", error);
     }
   };
 
@@ -186,6 +273,12 @@ export function PersonalizationPanel({
     { value: "friendly", label: "Friendly", description: "Bubbly and playful" },
     { value: "balanced", label: "Balanced", description: "Professional yet approachable" },
     { value: "efficient", label: "Efficient", description: "Direct and concise" },
+  ];
+
+  const artifactTypes = [
+    { value: "text", label: "Text", icon: FileText, description: "Documents, essays, articles" },
+    { value: "code", label: "Code", icon: FileCode, description: "Code snippets, scripts, functions" },
+    { value: "sheet", label: "Sheet", icon: Table, description: "Spreadsheets, tables, data" },
   ];
 
   if (!open) return null;
@@ -247,281 +340,310 @@ export function PersonalizationPanel({
               </div>
 
               {/* General Tab */}
-              <TabsContent value="general" className="p-6 mt-0">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>General Preferences</CardTitle>
-                    <CardDescription>
-                      Help the AI understand your background and interests
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="ai_context">
-                        Who inspires you or shapes your taste?
-                      </Label>
-                      <Textarea
-                        id="ai_context"
-                        placeholder="e.g., Nilay Patel and The Verge / Vergecast"
-                        value={formData.ai_context}
-                        onChange={(e) =>
-                          setFormData({ ...formData, ai_context: e.target.value })
-                        }
-                        className="min-h-[80px] resize-none"
-                        maxLength={2000}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Share your influences to help personalize responses
+              <TabsContent value="general" className="p-6 mt-0 space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>AI Personalization</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Enable personalized AI responses based on your preferences
                       </p>
                     </div>
+                    <Button
+                      variant={personalizationEnabled ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onPersonalizationToggle?.(!personalizationEnabled)}
+                    >
+                      {personalizationEnabled ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+                </div>
 
-                    <div className="space-y-3">
-                      <Label htmlFor="ai_guidance">
-                        What else should the AI know about you?
-                      </Label>
-                      <Textarea
-                        id="ai_guidance"
-                        placeholder="e.g., I'm a software engineer / product manager"
-                        value={formData.ai_guidance}
-                        onChange={(e) =>
-                          setFormData({ ...formData, ai_guidance: e.target.value })
-                        }
-                        className="min-h-[100px] resize-none"
-                        maxLength={4000}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Any additional context that will help the AI assist you better
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-3">
+                  <Label htmlFor="ai_context">Background & Context</Label>
+                  <Textarea
+                    id="ai_context"
+                    placeholder="Tell the AI about your background, role, or interests..."
+                    value={formData.ai_context}
+                    onChange={(e) =>
+                      setFormData({ ...formData, ai_context: e.target.value })
+                    }
+                    className="min-h-[80px] resize-none"
+                    maxLength={2000}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="ai_guidance">Additional Instructions</Label>
+                  <Textarea
+                    id="ai_guidance"
+                    placeholder="Any specific preferences or instructions for the AI..."
+                    value={formData.ai_guidance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, ai_guidance: e.target.value })
+                    }
+                    className="min-h-[100px] resize-none"
+                    maxLength={4000}
+                  />
+                </div>
               </TabsContent>
 
               {/* Conversation Tab */}
-              <TabsContent value="conversation" className="p-6 mt-0">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Conversation Style</CardTitle>
-                    <CardDescription>
-                      Customize how the AI communicates with you
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <Label>Technical proficiency</Label>
-                      <div className="grid gap-2">
-                        {proficiencyOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() =>
-                              setFormData({ ...formData, proficiency: option.value })
-                            }
-                            className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                              formData.proficiency === option.value
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-muted-foreground/50"
-                            }`}
-                          >
+              <TabsContent value="conversation" className="p-6 mt-0 space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-3 block">Technical Proficiency</Label>
+                    <ToggleGroup
+                      type="single"
+                      value={formData.proficiency}
+                      onValueChange={(value) => {
+                        if (value) {
+                          setFormData({ ...formData, proficiency: value });
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      {proficiencyOptions.map((option) => (
+                        <ToggleGroupItem
+                          key={option.value}
+                          value={option.value}
+                          className="flex-1"
+                        >
+                          <div className="text-center">
                             <div className="font-medium text-sm">{option.label}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {option.description}
                             </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                          </div>
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
 
-                    <div className="space-y-3">
-                      <Label>Tone of voice</Label>
-                      <div className="grid gap-2">
-                        {toneOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() =>
-                              setFormData({ ...formData, ai_tone: option.value })
-                            }
-                            className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                              formData.ai_tone === option.value
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-muted-foreground/50"
-                            }`}
-                          >
+                  <div>
+                    <Label className="mb-3 block">Tone of Voice</Label>
+                    <ToggleGroup
+                      type="single"
+                      value={formData.ai_tone}
+                      onValueChange={(value) => {
+                        if (value) {
+                          setFormData({ ...formData, ai_tone: value });
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      {toneOptions.map((option) => (
+                        <ToggleGroupItem
+                          key={option.value}
+                          value={option.value}
+                          className="flex-1"
+                        >
+                          <div className="text-center">
                             <div className="font-medium text-sm">{option.label}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {option.description}
                             </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                          </div>
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+                </div>
               </TabsContent>
 
               {/* Generation Tab */}
-              <TabsContent value="generation" className="p-6 mt-0">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Output Generation</CardTitle>
-                    <CardDescription>
-                      Configure how the AI generates code and other outputs
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="code_style">Code style preferences</Label>
-                      <Textarea
-                        id="code_style"
-                        placeholder="e.g., Use TypeScript, prefer functional programming, include comments"
-                        className="min-h-[80px] resize-none"
-                        maxLength={1000}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Describe your preferred coding style and conventions
-                      </p>
+              <TabsContent value="generation" className="p-6 mt-0 space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-3 block">Artifact Types</Label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Configure preferences for different types of generated content
+                    </p>
+                    <div className="grid gap-3">
+                      {artifactTypes.map((type) => {
+                        const Icon = type.icon;
+                        return (
+                          <div
+                            key={type.value}
+                            className="flex items-start gap-3 p-3 rounded-lg border"
+                          >
+                            <Icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{type.label}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {type.description}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    <div className="space-y-3">
-                      <Label htmlFor="output_format">Default output format</Label>
-                      <Input
-                        id="output_format"
-                        placeholder="e.g., markdown, code blocks, step-by-step"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        How you prefer responses to be formatted
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="language_preference">Primary programming language</Label>
-                      <Input
-                        id="language_preference"
-                        placeholder="e.g., TypeScript, Python, Rust"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Default language for code examples (coming soon)
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <div className="space-y-3">
+                    <Label htmlFor="ai_guidance">Generation Instructions</Label>
+                    <Textarea
+                      id="generation_guidance"
+                      placeholder="e.g., Use TypeScript, prefer functional programming, include comments"
+                      value={formData.ai_guidance}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ai_guidance: e.target.value })
+                      }
+                      className="min-h-[100px] resize-none"
+                      maxLength={2000}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      General instructions for how the AI should generate content
+                    </p>
+                  </div>
+                </div>
               </TabsContent>
 
               {/* Skills Tab */}
-              <TabsContent value="skills" className="p-6 mt-0">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Custom Skills</CardTitle>
-                    <CardDescription>
-                      Create reusable prompts and shortcuts for common tasks
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {skills.length === 0 && !isAddingSkill && (
-                      <div className="text-center py-8 text-sm text-muted-foreground">
-                        No skills created yet. Add your first skill to get started.
-                      </div>
-                    )}
-
-                    {skills.map((skill) => (
-                      <div
-                        key={skill.id}
-                        className="rounded-lg border p-4 space-y-2"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm">{skill.name}</h4>
-                            {skill.description && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {skill.description}
-                              </p>
-                            )}
+              <TabsContent value="skills" className="p-6 mt-0 space-y-4">
+                <AnimatePresence mode="popLayout">
+                  {skills.map((skill) => (
+                    <motion.div
+                      key={skill.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="relative"
+                    >
+                      {editingSkillId === skill.id ? (
+                        <div className="space-y-4 p-4 rounded-lg border">
+                          <div className="space-y-2">
+                            <Label>Skill Name</Label>
+                            <Input
+                              value={editSkill.name}
+                              onChange={(e) =>
+                                setEditSkill({ ...editSkill, name: e.target.value })
+                              }
+                            />
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => handleDeleteSkill(skill.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="space-y-2">
+                            <Label>Command</Label>
+                            <Input
+                              value={editSkill.command}
+                              onChange={(e) =>
+                                setEditSkill({ ...editSkill, command: e.target.value })
+                              }
+                              className="font-mono"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Prompt</Label>
+                            <Textarea
+                              value={editSkill.prompt}
+                              onChange={(e) =>
+                                setEditSkill({ ...editSkill, prompt: e.target.value })
+                              }
+                              className="min-h-[100px] font-mono text-xs"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelEdit}
+                              className="flex-1"
+                            >
+                              Cancel
+                            </Button>
+                            <Button size="sm" onClick={handleUpdateSkill} className="flex-1">
+                              Save
+                            </Button>
+                          </div>
                         </div>
-                        <div className="text-xs font-mono bg-muted p-2 rounded">
-                          {skill.prompt}
+                      ) : (
+                        <div className="group relative p-4 rounded-lg border bg-gradient-to-br from-background to-muted/20 hover:shadow-md transition-all">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-semibold text-sm">{skill.name}</h4>
+                                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">
+                                  /{skill.command}
+                                </span>
+                              </div>
+                              {skill.description && (
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {skill.description}
+                                </p>
+                              )}
+                              <p className="text-xs font-mono text-muted-foreground line-clamp-2">
+                                {skill.prompt}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleStartEdit(skill)}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => handleDeleteSkill(skill.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {/* Skill Input */}
+                <motion.div
+                  key="skill-input"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative"
+                >
+                  {learningSkillId && isGeneratingPrompt ? (
+                    <div className="p-4 rounded-lg border bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="h-5 w-5 text-primary animate-spin" />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">Learning skill...</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            AI is creating your skill
+                          </div>
                         </div>
                       </div>
-                    ))}
-
-                    {isAddingSkill && (
-                      <div className="rounded-lg border p-4 space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="skill_name">Skill name</Label>
-                          <Input
-                            id="skill_name"
-                            placeholder="e.g., Code Review"
-                            value={newSkill.name}
-                            onChange={(e) =>
-                              setNewSkill({ ...newSkill, name: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="skill_description">
-                            Description (optional)
-                          </Label>
-                          <Input
-                            id="skill_description"
-                            placeholder="What does this skill do?"
-                            value={newSkill.description}
-                            onChange={(e) =>
-                              setNewSkill({ ...newSkill, description: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="skill_prompt">Prompt</Label>
-                          <Textarea
-                            id="skill_prompt"
-                            placeholder="The prompt to execute when this skill is invoked"
-                            value={newSkill.prompt}
-                            onChange={(e) =>
-                              setNewSkill({ ...newSkill, prompt: e.target.value })
-                            }
-                            className="min-h-[100px] resize-none font-mono text-xs"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setIsAddingSkill(false);
-                              setNewSkill({ name: "", description: "", prompt: "" });
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button size="sm" onClick={handleAddSkill}>
-                            Add Skill
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!isAddingSkill && (
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="What are you trying to accomplish? (e.g., 'boil a webpage down to a really simple sentence or two, extracting the main point or opinion')"
+                        value={newSkillDescription}
+                        onChange={(e) => setNewSkillDescription(e.target.value)}
+                        className="min-h-[100px] resize-none"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            handleLearnSkill(newSkillDescription);
+                          }
+                        }}
+                      />
                       <Button
-                        variant="outline"
                         size="sm"
+                        onClick={() => handleLearnSkill(newSkillDescription)}
+                        disabled={isGeneratingPrompt || !newSkillDescription.trim()}
                         className="w-full"
-                        onClick={() => setIsAddingSkill(true)}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add New Skill
+                        <Sparkles className="h-3 w-3 mr-2" />
+                        Learn Skill
                       </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                    </div>
+                  )}
+                </motion.div>
               </TabsContent>
             </Tabs>
           </div>

@@ -361,6 +361,7 @@ export const aiSkill = pgTable("ai_skills", {
     onDelete: "cascade",
   }),
   name: text("name").notNull(),
+  command: text("command"),
   description: text("description"),
   prompt: text("prompt").notNull(),
   created_at: timestamp("created_at", { withTimezone: true })

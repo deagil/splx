@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, prompt } = body;
+    const { name, command, description, prompt } = body;
 
     if (!name || !prompt) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: user.id,
         name,
+        command: command || name.toLowerCase().replace(/[^a-z0-9-_]/g, "-"),
         description: description || null,
         prompt,
       })

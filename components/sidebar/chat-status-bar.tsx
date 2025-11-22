@@ -5,13 +5,6 @@ import { saveChatModelAsCookie } from "@/app/(legacy-chat)/actions";
 import { Button } from "@/components/ui/button";
 import { PersonalizationPanel } from "@/components/sidebar/personalization-panel";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -239,31 +232,7 @@ function PersonalizationButton() {
   });
   const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
 
-  const handleToggle = async () => {
-    const newEnabled = !isEnabled;
-    setIsEnabled(newEnabled);
-    localStorage.setItem("personalization-enabled", newEnabled.toString());
-
-    // Dispatch custom event to notify other components
-    window.dispatchEvent(new Event("personalization-changed"));
-
-    // If enabling for the first time, load preferences and show panel
-    if (newEnabled && !hasLoadedPreferences) {
-      try {
-        const response = await fetch("/api/user/preferences");
-        if (response.ok) {
-          const data = await response.json();
-          setPreferences(data);
-          setHasLoadedPreferences(true);
-        }
-      } catch (error) {
-        console.error("Error loading preferences:", error);
-      }
-      setShowPanel(true);
-    }
-  };
-
-  const handleOpenSettings = async () => {
+  const handleOpenPanel = async () => {
     if (!hasLoadedPreferences) {
       try {
         const response = await fetch("/api/user/preferences");
@@ -279,38 +248,31 @@ function PersonalizationButton() {
     setShowPanel(true);
   };
 
+  const handlePersonalizationToggle = (enabled: boolean) => {
+    setIsEnabled(enabled);
+    localStorage.setItem("personalization-enabled", enabled.toString());
+    window.dispatchEvent(new Event("personalization-changed"));
+  };
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            type="button"
-            variant="ghost"
-          >
-            <SignatureIcon size={12} />
-            <span className="ml-1 hidden sm:inline text-[10px]">
-              Personalise
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem className="cursor-pointer" onClick={handleToggle}>
-            <span>{isEnabled ? "Disable" : "Enable"} Personalization</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={handleOpenSettings}
-          >
-            <span>Customization Settings</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button
+        className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+        type="button"
+        variant="ghost"
+        onClick={handleOpenPanel}
+      >
+        <SignatureIcon size={12} />
+        <span className="ml-1 hidden sm:inline text-[10px]">
+          Personalise
+        </span>
+      </Button>
 
       <PersonalizationPanel
         open={showPanel}
         onOpenChange={setShowPanel}
+        personalizationEnabled={isEnabled}
+        onPersonalizationToggle={handlePersonalizationToggle}
         {...preferences}
       />
     </>

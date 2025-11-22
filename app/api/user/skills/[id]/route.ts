@@ -57,12 +57,13 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, prompt } = body;
+    const { name, command, description, prompt } = body;
 
     const { data: skill, error } = await supabase
       .from("ai_skills")
       .update({
         name,
+        command: command || name?.toLowerCase().replace(/[^a-z0-9-_]/g, "-"),
         description: description || null,
         prompt,
       })
