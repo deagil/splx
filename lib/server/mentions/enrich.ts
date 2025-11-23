@@ -8,24 +8,21 @@ import type { MentionPart } from "@/lib/types/mentions";
 import { extractMentionData } from "./extract";
 
 /**
- * Extract mentions from message data
+ * Extract mentions from message
+ * Mentions are sent as a custom field on the message object
  */
 export function extractMentionsFromMessage(
-  message: ChatMessage
+  message: any
 ): MentionPart[] {
-  const mentions: MentionPart[] = [];
-
-  if (!message.data) {
-    return mentions;
+  // Check if message has mentions field (sent from client)
+  if (message.mentions && Array.isArray(message.mentions)) {
+    return message.mentions.map((mention: any) => ({
+      type: "mention" as const,
+      mention,
+    }));
   }
 
-  for (const dataItem of message.data) {
-    if (dataItem.type === "mention" && "mention" in dataItem) {
-      mentions.push(dataItem as MentionPart);
-    }
-  }
-
-  return mentions;
+  return [];
 }
 
 /**

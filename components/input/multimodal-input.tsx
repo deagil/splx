@@ -150,7 +150,9 @@ function PureMultimodalInput({
       return true;
     });
 
-    sendMessage({
+    // Include mentions in the message - using type assertion since
+    // the AI SDK transport will preserve custom fields even if not in the type
+    const messageToSend: any = {
       role: "user",
       parts: [
         ...attachments.map((attachment) => ({
@@ -164,11 +166,14 @@ function PureMultimodalInput({
           text: input,
         },
       ],
-      data: validMentions.map((mention) => ({
-        type: "mention" as const,
-        mention,
-      })),
-    });
+    };
+
+    // Add mentions as custom field (will be preserved and sent to server)
+    if (validMentions.length > 0) {
+      messageToSend.mentions = validMentions;
+    }
+
+    sendMessage(messageToSend);
 
     setAttachments([]);
     setMentions([]);
