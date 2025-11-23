@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "@/components/shared/toast";
 import { X, Settings, MessageSquare, Code, Zap, Trash2, Edit2, Sparkles, Code2, FileText, FileCode, Table } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { SkillUI } from "@/lib/ai/skills-ui-schema";
+import { SkillQuestion } from "@/components/skills-training/skill-question";
+import { SkillVariants } from "@/components/skills-training/skill-variants";
+import { SkillPreview } from "@/components/skills-training/skill-preview";
+import { SkillClarification } from "@/components/skills-training/skill-clarification";
 
 type PersonalizationPanelProps = {
   open: boolean;
@@ -45,7 +50,6 @@ export function PersonalizationPanel({
   personalizationEnabled = false,
   onPersonalizationToggle,
 }: PersonalizationPanelProps) {
-  const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState({
     ai_context: aiContext || "",
     proficiency: proficiency || "regular",
@@ -58,6 +62,12 @@ export function PersonalizationPanel({
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
   const [editSkill, setEditSkill] = useState({ name: "", command: "", description: "", prompt: "" });
+  const [currentUIState, setCurrentUIState] = useState<SkillUI | null>(null);
+  const [isSavingSkill, setIsSavingSkill] = useState(false);
+  const [previousSkill, setPreviousSkill] = useState<SkillUI["skill"] | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<
+    Array<{ role: "user" | "assistant"; content: string }>
+  >([]);
 
   // Update form data when props change
   useEffect(() => {
@@ -88,24 +98,30 @@ export function PersonalizationPanel({
     }
   };
 
-  const handleSave = async () => {
-    startTransition(async () => {
+  // Debounce timer ref for auto-save
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save preferences with debouncing
+  const autoSave = (newFormData: typeof formData) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout to save after 500ms of no changes
+    saveTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await fetch("/api/user/preferences", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(newFormData),
         });
 
         if (!response.ok) {
           throw new Error("Failed to save preferences");
         }
 
-        toast({
-          type: "success",
-          description: "Preferences saved successfully",
-        });
-        onOpenChange(false);
+        // Silent save - no toast notification to avoid spam
       } catch (error) {
         toast({
           type: "error",
@@ -113,8 +129,17 @@ export function PersonalizationPanel({
         });
         console.error("Error saving preferences:", error);
       }
-    });
+    }, 500);
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleLearnSkill = async (description: string) => {
     if (!description || description.trim().length === 0) {
@@ -128,40 +153,200 @@ export function PersonalizationPanel({
     const tempId = `temp-${Date.now()}`;
     setLearningSkillId(tempId);
     setIsGeneratingPrompt(true);
+    setCurrentUIState(null);
+    setPreviousSkill(null);
+    setConversationHistory([{ role: "user", content: description.trim() }]);
+
+    try {
+      await processSkillGeneration(description.trim(), "auto", null);
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Failed to start skill training. Please try again.";
+      
+      toast({
+        type: "error",
+        description: errorMessage,
+      });
+      console.error("Error starting skill training:", error);
+      setIsGeneratingPrompt(false);
+      setLearningSkillId(null);
+      setCurrentUIState(null);
+      
+      // Offer fallback to simple creation
+      if (errorMessage.includes("timeout") || errorMessage.includes("No UI response")) {
+        // Could add a fallback button here to try simple creation
+      }
+    }
+  };
+
+  const processSkillGeneration = async (
+    description: string,
+    mode: "auto" | "create" | "refine",
+    previousSkillData: SkillUI["skill"] | null,
+  ) => {
+    const timeoutId = setTimeout(() => {
+      setIsGeneratingPrompt(false);
+      toast({
+        type: "error",
+        description: "Request timed out. Please try again.",
+      });
+    }, 30000); // 30 second timeout
 
     try {
       const response = await fetch("/api/user/skills/generate-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate skill");
-      }
-
-      const data = await response.json();
-
-      // Create skill immediately
-      const createResponse = await fetch("/api/user/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: data.name.trim(),
-          command: data.command.trim(),
-          description: data.description.trim() || null,
-          prompt: data.prompt.trim(),
+          description,
+          mode,
+          previous_skill: previousSkillData,
+          conversation_history: conversationHistory,
         }),
       });
 
-      if (!createResponse.ok) {
+      if (!response.ok) {
+        clearTimeout(timeoutId);
+        let errorMessage = "Failed to generate skill";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
+      }
+
+      if (!response.body) {
+        clearTimeout(timeoutId);
+        throw new Error("No response from server");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let hasReceivedUI = false;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim() || !line.startsWith("data: ")) continue;
+
+            try {
+              // Parse SSE format: "data: {...}"
+              const jsonStr = line.slice(6); // Remove "data: " prefix
+              const data = JSON.parse(jsonStr);
+              
+              // Handle our custom skill-ui events
+              if (data.type === "skill-ui" && data.data) {
+                const uiState = data.data as SkillUI;
+                if (uiState && uiState.type) {
+                  setCurrentUIState(uiState);
+                  setIsGeneratingPrompt(false);
+                  hasReceivedUI = true;
+                  clearTimeout(timeoutId);
+                }
+              }
+              
+              // Handle error events
+              if (data.type === "error") {
+                clearTimeout(timeoutId);
+                throw new Error(data.error || "Unknown error occurred");
+              }
+            } catch (e) {
+              // Ignore parse errors for non-JSON lines
+              if (e instanceof SyntaxError) {
+                continue;
+              }
+              throw e;
+            }
+          }
+        }
+
+        // If we didn't receive a UI state, show an error
+        if (!hasReceivedUI) {
+          clearTimeout(timeoutId);
+          throw new Error("No UI response received from AI");
+        }
+      } finally {
+        reader.releaseLock();
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      setIsGeneratingPrompt(false);
+      throw error;
+    }
+  };
+
+  const handleCancelTraining = () => {
+    setLearningSkillId(null);
+    setIsGeneratingPrompt(false);
+    setCurrentUIState(null);
+    setPreviousSkill(null);
+    setConversationHistory([]);
+    setNewSkillDescription("");
+  };
+
+  const handleUIResponse = async (value: string) => {
+    if (!learningSkillId) return;
+
+    setIsGeneratingPrompt(true);
+    setCurrentUIState(null);
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: "assistant" as const, content: currentUIState?.message || "" },
+      { role: "user" as const, content: value },
+    ];
+    setConversationHistory(updatedHistory);
+
+    try {
+      await processSkillGeneration(value, "auto", previousSkill);
+    } catch (error) {
+      toast({
+        type: "error",
+        description: "Failed to send response. Please try again.",
+      });
+      console.error("Error sending response:", error);
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  const handleSaveSkill = async (skill: SkillUI["skill"]) => {
+    if (!skill) return;
+
+    setIsSavingSkill(true);
+    try {
+      const response = await fetch("/api/user/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: skill.name.trim(),
+          command: skill.slug.trim(),
+          description: skill.description.trim() || null,
+          prompt: skill.prompt.trim(),
+        }),
+      });
+
+      if (!response.ok) {
         throw new Error("Failed to create skill");
       }
 
-      const createData = await createResponse.json();
-      setSkills([...skills, createData.skill]);
+      const data = await response.json();
+      setSkills([...skills, data.skill]);
       setNewSkillDescription("");
+      setCurrentUIState(null);
+      setPreviousSkill(null);
+      setConversationHistory([]);
+      setLearningSkillId(null);
+      setIsGeneratingPrompt(false);
       
       toast({
         type: "success",
@@ -170,12 +355,40 @@ export function PersonalizationPanel({
     } catch (error) {
       toast({
         type: "error",
-        description: error instanceof Error ? error.message : "Failed to learn skill. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save skill. Please try again.",
       });
-      console.error("Error learning skill:", error);
+      console.error("Error saving skill:", error);
     } finally {
+      setIsSavingSkill(false);
+    }
+  };
+
+  const handleImproveSkill = async (skill: SkillUI["skill"]) => {
+    if (!skill || !learningSkillId) return;
+
+    setPreviousSkill(skill);
+    setIsGeneratingPrompt(true);
+    setCurrentUIState(null);
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: "assistant" as const, content: "Skill generated" },
+      { role: "user" as const, content: "Please improve this skill further" },
+    ];
+    setConversationHistory(updatedHistory);
+
+    try {
+      await processSkillGeneration(
+        conversationHistory[0]?.content || "",
+        "refine",
+        skill,
+      );
+    } catch (error) {
+      toast({
+        type: "error",
+        description: "Failed to request improvement. Please try again.",
+      });
+      console.error("Error requesting improvement:", error);
       setIsGeneratingPrompt(false);
-      setLearningSkillId(null);
     }
   };
 
@@ -365,9 +578,11 @@ export function PersonalizationPanel({
                     id="ai_context"
                     placeholder="Tell the AI about your background, role, or interests..."
                     value={formData.ai_context}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ai_context: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const newFormData = { ...formData, ai_context: e.target.value };
+                      setFormData(newFormData);
+                      autoSave(newFormData);
+                    }}
                     className="min-h-[80px] resize-none"
                     maxLength={2000}
                   />
@@ -379,9 +594,11 @@ export function PersonalizationPanel({
                     id="ai_guidance"
                     placeholder="Any specific preferences or instructions for the AI..."
                     value={formData.ai_guidance}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ai_guidance: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const newFormData = { ...formData, ai_guidance: e.target.value };
+                      setFormData(newFormData);
+                      autoSave(newFormData);
+                    }}
                     className="min-h-[100px] resize-none"
                     maxLength={4000}
                   />
@@ -398,7 +615,9 @@ export function PersonalizationPanel({
                       value={formData.proficiency}
                       onValueChange={(value) => {
                         if (value) {
-                          setFormData({ ...formData, proficiency: value });
+                          const newFormData = { ...formData, proficiency: value };
+                          setFormData(newFormData);
+                          autoSave(newFormData);
                         }
                       }}
                       className="w-full"
@@ -427,7 +646,9 @@ export function PersonalizationPanel({
                       value={formData.ai_tone}
                       onValueChange={(value) => {
                         if (value) {
-                          setFormData({ ...formData, ai_tone: value });
+                          const newFormData = { ...formData, ai_tone: value };
+                          setFormData(newFormData);
+                          autoSave(newFormData);
                         }
                       }}
                       className="w-full"
@@ -481,14 +702,16 @@ export function PersonalizationPanel({
                   </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="ai_guidance">Generation Instructions</Label>
+                    <Label htmlFor="generation_guidance">Generation Instructions</Label>
                     <Textarea
                       id="generation_guidance"
                       placeholder="e.g., Use TypeScript, prefer functional programming, include comments"
                       value={formData.ai_guidance}
-                      onChange={(e) =>
-                        setFormData({ ...formData, ai_guidance: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const newFormData = { ...formData, ai_guidance: e.target.value };
+                        setFormData(newFormData);
+                        autoSave(newFormData);
+                      }}
                       className="min-h-[100px] resize-none"
                       maxLength={2000}
                     />
@@ -606,17 +829,68 @@ export function PersonalizationPanel({
                   animate={{ opacity: 1, y: 0 }}
                   className="relative"
                 >
-                  {learningSkillId && isGeneratingPrompt ? (
-                    <div className="p-4 rounded-lg border bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 animate-pulse">
-                      <div className="flex items-center gap-3">
-                        <Sparkles className="h-5 w-5 text-primary animate-spin" />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">Learning skill...</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            AI is creating your skill
+                  {learningSkillId && (isGeneratingPrompt || currentUIState) ? (
+                    <div className="space-y-3">
+                      {/* Loading state */}
+                      {isGeneratingPrompt && !currentUIState && (
+                        <div className="p-4 rounded-lg border bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 animate-pulse">
+                          <div className="flex items-center gap-3">
+                            <Sparkles className="h-5 w-5 text-primary animate-spin" />
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">Learning skill...</div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                AI is analyzing your request
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+
+                      {/* Render UI components based on currentUIState */}
+                      {currentUIState && (
+                        <div className="space-y-3">
+                          {currentUIState.type === "question" && (
+                            <SkillQuestion
+                              message={currentUIState.message}
+                              options={currentUIState.options}
+                              onSelect={handleUIResponse}
+                            />
+                          )}
+
+                          {currentUIState.type === "variants" && (
+                            <SkillVariants
+                              message={currentUIState.message}
+                              options={currentUIState.options}
+                              onSelect={handleUIResponse}
+                            />
+                          )}
+
+                          {currentUIState.type === "final-skill" && currentUIState.skill && (
+                            <SkillPreview
+                              skill={currentUIState.skill}
+                              onSave={() => handleSaveSkill(currentUIState.skill!)}
+                              onImprove={() => handleImproveSkill(currentUIState.skill!)}
+                              isSaving={isSavingSkill}
+                            />
+                          )}
+
+                          {currentUIState.type === "clarification" && (
+                            <SkillClarification
+                              message={currentUIState.message}
+                              onSubmit={handleUIResponse}
+                            />
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancelTraining}
+                            className="w-full"
+                          >
+                            Cancel Training
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -648,24 +922,6 @@ export function PersonalizationPanel({
             </Tabs>
           </div>
 
-          {/* Footer */}
-          <div className="bg-background border-t px-6 py-4 flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="flex-1"
-              disabled={isPending}
-            >
-              {isPending ? "Saving..." : "Save Preferences"}
-            </Button>
-          </div>
         </div>
       </div>
     </>

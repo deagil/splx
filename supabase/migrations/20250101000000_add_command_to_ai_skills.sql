@@ -10,3 +10,4 @@ UPDATE public.ai_skills
 SET command = LOWER(REGEXP_REPLACE(name, '[^a-z0-9-_]', '-', 'g'))
 WHERE command IS NULL;
 
+
