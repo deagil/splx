@@ -119,6 +119,32 @@ const roles = await getUserRoles(supabase, userId);
 - Contains branding, AI context, and global configuration
 - Loaded in `src/routes/app/+layout.server.ts` for all app routes
 
+### Table Categorization
+
+The application distinguishes between system tables and user data tables with mode-aware filtering:
+
+**System/Config Tables** (queried via `/api/tables?type=config`):
+- **Platform tables**: `users`, `workspaces`, `roles`, `teams`, `workspace_users`, `workspace_invites`, `workspace_apps`
+- **Application metadata**: `pages`, `tables`, `chats`, `messages`, `votes`, `documents`, `suggestions`, `streams`, `ai_skills`
+- In **HOSTED mode**: Queried from main DB (`POSTGRES_URL`)
+- In **LOCAL mode**: Filtered by name from main DB
+
+**User Data Tables** (queried via `/api/tables?type=data`):
+- Any tables created by users or from connected external databases
+- In **HOSTED mode**: All tables from resource store (user's connected database) - NO name filtering
+- In **LOCAL mode**: Tables NOT in the system tables list - uses name-based filtering
+
+**Reserved Table Names** (LOCAL mode only):
+- Users cannot create tables with system table names in local mode
+- Validation enforced in `lib/server/tables/repository.ts` via `ReservedTableNameError`
+- In hosted mode, users CAN use any table name since their tables live in a separate database
+
+**Implementation**:
+- API endpoint: `app/(app)/api/tables/route.ts`
+- Mode-aware filtering based on `tenant.mode` (`local` vs `hosted`)
+- System table list maintained in `SYSTEM_TABLES` constant
+- See `docs/DATABASE_ARCHITECTURE.md` for detailed architecture documentation
+
 ### Visual Workflow System
 
 **Architecture**:

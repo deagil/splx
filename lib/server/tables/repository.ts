@@ -16,6 +16,52 @@ export class TableNotFoundError extends Error {
   }
 }
 
+export class ReservedTableNameError extends Error {
+  constructor(tableName: string) {
+    super(
+      `Table name '${tableName}' is reserved for system use. Please choose a different name.`
+    );
+    this.name = "ReservedTableNameError";
+  }
+}
+
+// System table names that are reserved in LOCAL mode
+// These tables support the application's functionality
+const RESERVED_TABLE_NAMES = new Set([
+  // Platform tables
+  "users",
+  "workspaces",
+  "roles",
+  "teams",
+  "workspace_users",
+  "workspace_invites",
+  "workspace_apps",
+  // Application metadata tables
+  "pages",
+  "tables",
+  "chats",
+  "messages",
+  "votes",
+  "documents",
+  "suggestions",
+  "streams",
+  "ai_skills",
+]);
+
+/**
+ * Validates that a table name is not reserved in LOCAL mode.
+ * In HOSTED mode, users can use any table name since their tables live in a separate database.
+ */
+function validateTableName(tenant: TenantContext, tableName: string): void {
+  if (tenant.mode === "local") {
+    const normalizedName = tableName.toLowerCase();
+    if (RESERVED_TABLE_NAMES.has(normalizedName)) {
+      throw new ReservedTableNameError(tableName);
+    }
+  }
+  // In hosted mode, no validation needed - user tables live in separate database
+}
+
 type RawTableRow = Record<string, unknown>;
 
 async function getSupabaseClient() {
@@ -113,6 +159,10 @@ export async function createTableConfig(
   payload: unknown
 ): Promise<TableRecord> {
   const input = createTableSchema.parse(payload);
+
+  // Validate table name is not reserved (only in local mode)
+  validateTableName(tenant, input.name);
+
   const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
@@ -143,6 +193,11 @@ export async function updateTableConfig(
   const id = tableIdSchema.parse(tableId);
   const input: UpdateTableInput = updateTableSchema.parse(payload);
   const targetId = input.id ?? id;
+
+  // Validate table name is not reserved if name is being changed (only in local mode)
+  if (input.name !== undefined) {
+    validateTableName(tenant, input.name);
+  }
 
   const supabase = await getSupabaseClient();
   const { data, error } = await supabase

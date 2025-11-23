@@ -98,23 +98,85 @@ try {
 ## Table Classification
 
 ### System Tables (Main DB in hosted mode)
-- `users`
-- `workspaces`
-- `workspace_users`
-- `workspace_invites`
-- `workspace_apps`
-- `roles`
-- `teams`
+Platform tables that manage the application infrastructure:
+- `users` - User profiles and authentication
+- `workspaces` - Workspace definitions
+- `workspace_users` - Workspace membership and roles
+- `workspace_invites` - Invitation tokens
+- `workspace_apps` - Database connection configurations
+- `roles` - Role definitions per workspace
+- `teams` - Team definitions per workspace
 
-### Application Tables (Resource Store in hosted mode)
-- `chats`
-- `messages`
-- `documents`
-- `suggestions`
-- `votes`
-- `streams`
-- `tables`
-- `pages`
+### Application Metadata Tables (Main DB in hosted mode)
+Application tables that support app functionality:
+- `chats` - AI chat conversations
+- `messages` - Chat messages
+- `documents` - User documents
+- `suggestions` - Document suggestions
+- `votes` - Message votes
+- `streams` - Stream data
+- `tables` - Dynamic table metadata/configuration
+- `pages` - Page configurations
+- `ai_skills` - Custom AI skill definitions
+
+### User Data Tables (Resource Store)
+Tables created by users or from their connected external databases:
+- Any table NOT in the system/application metadata lists above
+- Can have ANY name in hosted mode (no name collisions possible)
+- In local mode, reserved table names are blocked with validation error
+
+## Table Categorization API
+
+The `/api/tables` endpoint provides mode-aware table filtering:
+
+### Query Parameters
+- `?type=data` - Returns user data tables
+- `?type=config` - Returns system/application metadata tables
+
+### Behavior by Mode
+
+**Local Mode (`APP_MODE=local`)**:
+```typescript
+// Both requests query POSTGRES_URL and use name-based filtering
+
+GET /api/tables?type=data
+// Returns: All tables in public schema EXCEPT those in SYSTEM_TABLES set
+// Example: custom_users, products, orders (user-created tables)
+
+GET /api/tables?type=config
+// Returns: All tables in SYSTEM_TABLES set
+// Example: users, workspaces, chats, messages (system tables)
+```
+
+**Hosted Mode (`APP_MODE=hosted`)**:
+```typescript
+// Different data sources for each type
+
+GET /api/tables?type=data
+// Queries: Resource store (tenant's connected database)
+// Returns: ALL tables from resource store (no filtering)
+// Example: Any tables from user's external PostgreSQL/Neon/PlanetScale database
+
+GET /api/tables?type=config
+// Queries: Main database (POSTGRES_URL)
+// Returns: Only tables in SYSTEM_TABLES set
+// Example: users, workspaces, chats, messages (system tables)
+```
+
+### Reserved Table Names (Local Mode Only)
+
+In local mode, users cannot create tables with these reserved names:
+- Platform: `users`, `workspaces`, `roles`, `teams`, `workspace_users`, `workspace_invites`, `workspace_apps`
+- Application: `pages`, `tables`, `chats`, `messages`, `votes`, `documents`, `suggestions`, `streams`, `ai_skills`
+
+Attempting to create a table with a reserved name will return:
+```json
+{
+  "error": "Table name 'chats' is reserved for system use. Please choose a different name."
+}
+```
+
+**Note**: In hosted mode, users CAN have tables with these names in their external database because they're stored separately from system tables.
 
 ## Problematic Patterns to Avoid
 
