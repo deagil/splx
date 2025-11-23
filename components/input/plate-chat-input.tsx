@@ -60,10 +60,6 @@ export function PlateChatInput({
       BaseMentionPlugin.configure({
         options: {
           trigger: "@",
-          createMentionNode: (item) => ({
-            value: item.value,
-            children: [{ text: item.text }],
-          }),
         },
       }),
     ],
