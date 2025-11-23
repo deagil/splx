@@ -5,6 +5,7 @@ export {
   updateTableConfig,
   deleteTableConfig,
   TableNotFoundError,
+  ReservedTableNameError,
 } from "./repository";
 export type {
   TableRecord,
