@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import type { Attachment, ChatMessage } from "@/lib/types";
+import type { MentionableItem } from "@/lib/types/mentions";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import {
@@ -38,6 +39,9 @@ import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "../shared/suggested-actions";
 import { Button } from "@/components/ui/button";
 import type { VisibilityType } from "../shared/visibility-selector";
+import { PlateChatInput } from "./plate-chat-input";
+import { useMentionableItems } from "@/hooks/use-mentionable-items";
+import { MentionChip } from "./mention-chip";
 
 function PureMultimodalInput({
   chatId,
@@ -76,6 +80,12 @@ function PureMultimodalInput({
   const { width } = useWindowSize();
   const pathname = usePathname();
   const isDashboardRoute = pathname === "/";
+
+  // Get mentionable items for @ mentions
+  const mentionableItems = useMentionableItems();
+
+  // Track mentions separately from input text
+  const [mentions, setMentions] = useState<MentionableItem["mention"][]>([]);
 
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -129,6 +139,17 @@ function PureMultimodalInput({
       window.history.pushState({}, "", `/chat/${chatId}`);
     }
 
+    // Validate mentions before sending
+    const validMentions = mentions.filter((mention) => {
+      // Basic validation
+      if (!mention.type || !mention.label) return false;
+      // Type-specific validation
+      if (mention.type === "table" && !("tableName" in mention)) return false;
+      if (mention.type === "record" && (!("tableName" in mention) || !("recordId" in mention))) return false;
+      if (mention.type === "block" && !("blockId" in mention)) return false;
+      return true;
+    });
+
     sendMessage({
       role: "user",
       parts: [
@@ -138,6 +159,11 @@ function PureMultimodalInput({
           name: attachment.name,
           mediaType: attachment.contentType,
         })),
+        // Add mention parts
+        ...validMentions.map((mention) => ({
+          type: "mention" as const,
+          mention,
+        })),
         {
           type: "text",
           text: input,
@@ -146,6 +172,7 @@ function PureMultimodalInput({
     });
 
     setAttachments([]);
+    setMentions([]);
     setLocalStorageInput("");
     resetHeight();
     setInput("");
@@ -156,6 +183,7 @@ function PureMultimodalInput({
   }, [
     input,
     setInput,
+    mentions,
     attachments,
     sendMessage,
     setAttachments,
@@ -308,6 +336,22 @@ function PureMultimodalInput({
             }
           }}
         >
+        {mentions.length > 0 && (
+          <div
+            className="flex flex-row flex-wrap items-center gap-2 pb-2"
+            data-testid="mentions-preview"
+          >
+            {mentions.map((mention, idx) => (
+              <MentionChip
+                key={`${mention.type}-${mention.id || mention.label}-${idx}`}
+                mention={mention}
+                onRemove={() => {
+                  setMentions((prev) => prev.filter((_, i) => i !== idx));
+                }}
+              />
+            ))}
+          </div>
+        )}
         {(attachments.length > 0 || uploadQueue.length > 0) && (
           <div
             className="flex flex-row items-end gap-2 overflow-x-scroll"
@@ -342,18 +386,15 @@ function PureMultimodalInput({
           </div>
         )}
         <div className="flex flex-row items-start gap-1 sm:gap-2">
-          <PromptInputTextarea
-            autoFocus
-            className="grow resize-none border-0! border-none! bg-transparent p-3 text-sm outline-none ring-0 [-ms-overflow-style:none] [scrollbar-width:none] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
-            data-testid="multimodal-input"
-            disableAutoResize={true}
-            maxHeight={200}
-            minHeight={56}
-            onChange={handleInput}
-            placeholder="Send a message..."
-            ref={textareaRef}
-            rows={1}
+          <PlateChatInput
             value={input}
+            onChange={setInput}
+            onMentionsChange={setMentions}
+            mentionableItems={mentionableItems}
+            placeholder="Send a message..."
+            disabled={status !== "ready"}
+            autoFocus={width !== undefined && width > 768}
+            className="grow"
           />
         </div>
         <PromptInputToolbar className="border-top-0! border-t-0! p-0 shadow-none dark:border-0 dark:border-transparent!">
@@ -387,21 +428,11 @@ function PureMultimodalInput({
 export const MultimodalInput = memo(
   PureMultimodalInput,
   (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) {
-      return false;
-    }
-    if (prevProps.status !== nextProps.status) {
-      return false;
-    }
-    if (!equal(prevProps.attachments, nextProps.attachments)) {
-      return false;
-    }
-    if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) {
-      return false;
-    }
-    if (prevProps.selectedModelId !== nextProps.selectedModelId) {
-      return false;
-    }
+    if (prevProps.input !== nextProps.input) return false;
+    if (prevProps.status !== nextProps.status) return false;
+    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
+    if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) return false;
+    if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
 
     return true;
   }
