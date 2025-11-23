@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plate, usePlateEditor } from "platejs/react";
+import { Plate, usePlateEditor, ParagraphPlugin } from "platejs/react";
 import { normalizeNodeId } from "platejs";
-import { ParagraphPlugin } from "@platejs/basic-nodes/react";
 import { BaseMentionPlugin } from "@platejs/mention";
 import { MentionElement } from "@/components/ui/mention-node";
 import { MentionInputElement } from "@/components/input/mention-input-element";
