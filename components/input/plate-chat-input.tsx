@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plate, usePlateEditor } from "platejs/react";
 import { normalizeNodeId } from "platejs";
-import { createParagraphPlugin } from "@platejs/paragraph";
-import { createTextPlugin } from "@platejs/text";
-import { createMentionPlugin } from "@platejs/mention";
+import { ParagraphPlugin } from "@platejs/basic-nodes/react";
+import { BaseMentionPlugin } from "@platejs/mention";
 import { MentionElement } from "@/components/ui/mention-node";
 import { MentionInputElement } from "@/components/input/mention-input-element";
 import { Editor, EditorContainer } from "@/components/ui/editor";
@@ -58,26 +57,14 @@ export function PlateChatInput({
 
   const editor = usePlateEditor({
     plugins: [
-      createParagraphPlugin(),
-      createTextPlugin(),
-      createMentionPlugin({
+      ParagraphPlugin,
+      BaseMentionPlugin.configure({
         options: {
           trigger: "@",
           createMentionNode: (item) => ({
             value: item.value,
             children: [{ text: item.text }],
           }),
-          input: {
-            Component: (props) => (
-              <MentionInputElement
-                {...props}
-                mentionableItems={mentionableItems}
-              />
-            ),
-          },
-          mentionable: {
-            items: plateMentions,
-          },
         },
       }),
     ],
