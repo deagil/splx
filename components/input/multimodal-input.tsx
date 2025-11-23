@@ -159,16 +159,15 @@ function PureMultimodalInput({
           name: attachment.name,
           mediaType: attachment.contentType,
         })),
-        // Add mention parts
-        ...validMentions.map((mention) => ({
-          type: "mention" as const,
-          mention,
-        })),
         {
           type: "text",
           text: input,
         },
       ],
+      data: validMentions.map((mention) => ({
+        type: "mention" as const,
+        mention,
+      })),
     });
 
     setAttachments([]);

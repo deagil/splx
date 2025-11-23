@@ -8,20 +8,20 @@ import type { MentionPart } from "@/lib/types/mentions";
 import { extractMentionData } from "./extract";
 
 /**
- * Extract mentions from message parts
+ * Extract mentions from message data
  */
 export function extractMentionsFromMessage(
   message: ChatMessage
 ): MentionPart[] {
   const mentions: MentionPart[] = [];
 
-  if (!message.parts) {
+  if (!message.data) {
     return mentions;
   }
 
-  for (const part of message.parts) {
-    if (part.type === "mention") {
-      mentions.push(part as MentionPart);
+  for (const dataItem of message.data) {
+    if (dataItem.type === "mention" && "mention" in dataItem) {
+      mentions.push(dataItem as MentionPart);
     }
   }
 
