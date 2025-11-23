@@ -11,6 +11,7 @@ import {
   TriggerBlockView,
 } from "./blocks";
 import type { PageBlockDraft } from "./types";
+import { MentionContextProvider } from "./mention-context";
 
 export type PageViewerProps = {
   page: PageRecord;
@@ -30,18 +31,20 @@ export function PageViewer({ page, urlParams }: PageViewerProps) {
   }
 
   return (
-    <div className="grid grid-cols-12 gap-4 lg:grid-cols-6 sm:grid-cols-1">
-      {draft.blocks.map((block) => (
-        <ViewBlock
-          key={block.id}
-          id={block.id}
-          type={block.type}
-          position={block.position}
-        >
-          {renderBlock(block, urlParams)}
-        </ViewBlock>
-      ))}
-    </div>
+    <MentionContextProvider page={page}>
+      <div className="grid grid-cols-12 gap-4 lg:grid-cols-6 sm:grid-cols-1">
+        {draft.blocks.map((block) => (
+          <ViewBlock
+            key={block.id}
+            id={block.id}
+            type={block.type}
+            position={block.position}
+          >
+            {renderBlock(block, urlParams)}
+          </ViewBlock>
+        ))}
+      </div>
+    </MentionContextProvider>
   );
 }
 

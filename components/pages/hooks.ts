@@ -6,6 +6,7 @@ import type {
   RecordBlockDraft,
   TriggerBlockDraft,
 } from "./types";
+import { useMentionableData } from "./mention-context";
 
 export type ListBlockData = {
   columns: string[];
@@ -108,6 +109,24 @@ export function useListBlockData(
     return () => controller.abort();
   }, [fetchData, requestId]);
 
+  // Register block data with mention context
+  const { registerBlockData, unregisterBlockData } = useMentionableData();
+  useEffect(() => {
+    if (data && block.tableName) {
+      registerBlockData({
+        blockId: block.id,
+        blockType: "list",
+        tableName: block.tableName,
+        label: `List: ${block.tableName}`,
+        description: `${data.rows.length} rows from ${block.tableName}`,
+        data,
+      });
+    }
+    return () => {
+      unregisterBlockData(block.id);
+    };
+  }, [data, block.id, block.tableName, registerBlockData, unregisterBlockData]);
+
   const reload = useCallback(() => {
     setRequestId((current) => current + 1);
   }, []);
@@ -191,6 +210,24 @@ export function useRecordBlockData(
     fetchData(controller.signal);
     return () => controller.abort();
   }, [fetchData, requestId]);
+
+  // Register block data with mention context
+  const { registerBlockData, unregisterBlockData } = useMentionableData();
+  useEffect(() => {
+    if (data && block.tableName && data.record) {
+      registerBlockData({
+        blockId: block.id,
+        blockType: "record",
+        tableName: block.tableName,
+        label: `Record: ${block.tableName}`,
+        description: `Record from ${block.tableName}`,
+        data,
+      });
+    }
+    return () => {
+      unregisterBlockData(block.id);
+    };
+  }, [data, block.id, block.tableName, registerBlockData, unregisterBlockData]);
 
   const reload = useCallback(() => {
     setRequestId((current) => current + 1);

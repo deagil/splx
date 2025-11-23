@@ -50,6 +50,7 @@ import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
+import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 
 export const maxDuration = 60;
 
@@ -199,7 +200,26 @@ export async function POST(request: Request) {
       // New chat - no need to fetch messages, it's empty
     }
 
-    const uiMessages = [...convertToUIMessages(messagesFromDb), message];
+    // Enrich the user message with mention data if present
+    let enrichedMessage = message;
+    const mentionContext = await createEnrichedMessageContent(message);
+    
+    // If we have mention context, prepend it to the message text
+    if (mentionContext && mentionContext.trim() && message.parts) {
+      const textParts = message.parts.filter((part) => part.type === "text");
+      if (textParts.length > 0 && "text" in textParts[0]) {
+        // Replace the first text part with enriched content
+        enrichedMessage = {
+          ...message,
+          parts: [
+            { type: "text", text: mentionContext },
+            ...message.parts.filter((part) => part.type !== "text"),
+          ],
+        };
+      }
+    }
+
+    const uiMessages = [...convertToUIMessages(messagesFromDb), enrichedMessage];
 
     const { longitude, latitude, city, country } = geolocation(request);
 
