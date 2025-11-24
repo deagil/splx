@@ -436,6 +436,7 @@ export async function POST(request: Request) {
             attachments: [],
             chat_id: id,
             workspace_id: workspaceId,
+            mentions: null,
           })),
         });
 

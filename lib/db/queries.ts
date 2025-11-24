@@ -375,6 +375,7 @@ export async function getMessagesByChatId(
                 attachments: message.attachments,
                 created_at: message.created_at,
                 workspace_id: message.workspace_id,
+                mentions: null as any,
               })
               .from(message)
               .where(eq(message.chat_id, id))

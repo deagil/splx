@@ -40,12 +40,8 @@ export function DataTablesView() {
   );
 
   // Normalize tables to always be an array (defensive handling)
-  // Handle case where SWR might return the response object instead of the array
-  const tables = Array.isArray(tablesRaw)
-    ? tablesRaw
-    : tablesRaw && typeof tablesRaw === "object" && "tables" in tablesRaw && Array.isArray(tablesRaw.tables)
-    ? tablesRaw.tables
-    : [];
+  // The fetcher already handles unwrapping, so tablesRaw should be TableInfo[] or undefined
+  const tables = tablesRaw ?? [];
 
   if (error) {
     return (

@@ -373,10 +373,7 @@ const PurePreviewMessage = ({
                       }
                     >
                       <Response>
-                        {renderTextWithMentions(
-                          sanitizeText(part.text),
-                          (message as any).mentions
-                        )}
+                        {sanitizeText(part.text)}
                       </Response>
                     </MessageContent>
                   </div>

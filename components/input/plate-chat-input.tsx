@@ -134,7 +134,7 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
         // Try to parse as mention if it has a value (even if type doesn't match, in case structure is different)
         if (hasValue || isMentionType) {
           try {
-            const valueStr = String(child.value || "");
+            const valueStr = String((hasValue && "value" in child) ? child.value : "");
             let mentionValue: MentionableItem["mention"] | null = null;
             
             // First, try to parse as JSON (mention values should be JSON stringified)
