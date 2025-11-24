@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  pageMentionSchema,
+  blockMentionSchema,
+  tableMentionSchema,
+  recordMentionSchema,
+  userMentionSchema,
+  lookupMentionSchema,
+} from "@/lib/types/mentions";
 
 const textPartSchema = z.object({
   type: z.enum(["text"]),
@@ -14,12 +22,23 @@ const filePartSchema = z.object({
 
 const partSchema = z.union([textPartSchema, filePartSchema]);
 
+// Mention schema - union of all mention types
+const mentionSchema = z.union([
+  pageMentionSchema,
+  blockMentionSchema,
+  tableMentionSchema,
+  recordMentionSchema,
+  userMentionSchema,
+  lookupMentionSchema,
+]);
+
 export const postRequestBodySchema = z.object({
   id: z.string().uuid(),
   message: z.object({
     id: z.string().uuid(),
     role: z.enum(["user"]),
     parts: z.array(partSchema),
+    mentions: z.array(mentionSchema).optional(), // Allow mentions as optional field
   }),
   selectedChatModel: z.enum(["chat-model", "chat-model-reasoning"]),
   selectedVisibilityType: z.enum(["public", "private"]),

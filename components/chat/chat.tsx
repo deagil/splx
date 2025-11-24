@@ -32,6 +32,7 @@ import { MultimodalInput } from "../input/multimodal-input";
 import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
 import { toast } from "../shared/toast";
 import type { VisibilityType } from "../shared/visibility-selector";
+import { ChatStatusBar } from "../sidebar/chat-status-bar";
 
 export function Chat({
   id,
@@ -85,10 +86,15 @@ export function Chat({
       api: "/api/chat",
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest(request) {
+        const lastMessage = request.messages.at(-1);
         return {
           body: {
             id: request.id,
-            message: request.messages.at(-1),
+            message: {
+              ...lastMessage,
+              // Explicitly preserve mentions field if present
+              mentions: (lastMessage as any)?.mentions,
+            },
             selectedChatModel: currentModelIdRef.current,
             selectedVisibilityType: visibilityType,
             ...request.body,
@@ -175,24 +181,31 @@ export function Chat({
           votes={votes}
         />
 
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
+        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl flex-col border-t-0 bg-background">
           {!isReadonly && (
-            <MultimodalInput
-              attachments={attachments}
-              chatId={id}
-              input={input}
-              messages={messages}
-              onModelChange={setCurrentModelId}
-              selectedModelId={currentModelId}
-              selectedVisibilityType={visibilityType}
-              sendMessage={sendMessage}
-              setAttachments={setAttachments}
-              setInput={setInput}
-              setMessages={setMessages}
-              status={status}
-              stop={stop}
-              usage={usage}
-            />
+            <>
+              <MultimodalInput
+                attachments={attachments}
+                chatId={id}
+                input={input}
+                messages={messages}
+                onModelChange={setCurrentModelId}
+                selectedModelId={currentModelId}
+                selectedVisibilityType={visibilityType}
+                sendMessage={sendMessage}
+                setAttachments={setAttachments}
+                setInput={setInput}
+                setMessages={setMessages}
+                status={status}
+                stop={stop}
+                usage={usage}
+              />
+              <ChatStatusBar
+                onModelChange={setCurrentModelId}
+                selectedModelId={currentModelId}
+                usage={usage}
+              />
+            </>
           )}
         </div>
       </div>

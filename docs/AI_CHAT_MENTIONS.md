@@ -1,4 +1,4 @@
-# AI Chat Mentions System Documentation
+# AI Chat Mentions System
 
 ## Overview
 
@@ -11,7 +11,7 @@ The AI Chat Mentions system allows users to reference data from the current page
 - **@ Table Mentions**: Lookup data from tables
 - **@ Record Mentions**: Reference specific records
 - **@ User Mentions**: Reference user profile data
-- **Visual Affordances**: Mentions appear as chips/attachments in the UI
+- **Visual Affordances**: Mentions appear as chips in the UI
 - **Server-Side Enrichment**: Mentions are converted to text context before sending to AI
 
 ## Architecture
@@ -20,7 +20,7 @@ The AI Chat Mentions system allows users to reference data from the current page
 
 ```
 User types @ → Plate editor shows mention dropdown → User selects mention → 
-Mention chip appears → Message sent → Server extracts mention data → 
+Mention chip appears → Message sent with mentions → Server extracts mention data → 
 Data formatted as text → AI receives enriched message
 ```
 
@@ -29,13 +29,13 @@ Data formatted as text → AI receives enriched message
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Chat Input Component                     │
-│  (multimodal-input.tsx - needs Plate integration)          │
+│              (multimodal-input.tsx)                        │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Plate Editor with Mentions                     │
-│  (plate-chat-input.tsx - basic structure exists)           │
+│              (plate-chat-input.tsx)                         │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
@@ -48,7 +48,7 @@ Data formatted as text → AI receives enriched message
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Block Hooks (hooks.ts)                         │
+│              Block Hooks                                     │
 │  - useListBlockData registers list block data               │
 │  - useRecordBlockData registers record block data           │
 └─────────────────────────────────────────────────────────────┘
@@ -63,7 +63,91 @@ createEnrichedMessageContent() →
 Enriched text prepended to message → AI model
 ```
 
-## Current Implementation Status
+## Data Flow
+
+### 1. Client Side (Input)
+
+When a user types a mention:
+
+1. **Plate Editor** (`components/input/plate-chat-input.tsx`):
+   - User types `@` to trigger mention dropdown
+   - User selects a mention from the dropdown
+   - Mention is stored in Plate editor as a mention node with `type: "mention"` and `value: "@userProfile"` (or JSON stringified mention data)
+   - Editor extracts both text and mentions from the editor state
+
+2. **Mention Extraction**:
+   - `extractContent()` function traverses the Plate editor tree
+   - Finds mention nodes by type and `key` property
+   - Looks up mention metadata from `mentionableItems` using the `key`
+   - Returns both text (with `@mentionText` included) and mention metadata array
+
+3. **Message Construction** (`components/input/multimodal-input.tsx`):
+   - Mentions are stored in component state
+   - When message is sent, mentions are added as a custom `mentions` field on the message object
+   - Message is sent via AI SDK's `DefaultChatTransport`
+
+### 2. Transport Layer
+
+The `prepareSendMessagesRequest` function in `components/chat/chat.tsx` explicitly preserves the `mentions` field:
+
+```typescript
+prepareSendMessagesRequest(request) {
+  const lastMessage = request.messages.at(-1);
+  return {
+    body: {
+      id: request.id,
+      message: {
+        ...lastMessage,
+        mentions: (lastMessage as any)?.mentions, // Explicitly preserve
+      },
+      // ... other fields
+    },
+  };
+}
+```
+
+### 3. Server Side (API Route)
+
+When the message arrives at `/api/chat`:
+
+1. **Request Validation** (`app/(legacy-chat)/api/chat/schema.ts`):
+   - Zod schema validates the request body
+   - `mentions` field is optional and validated against mention schemas
+
+2. **Mention Extraction** (`lib/server/mentions/enrich.ts`):
+   - `extractMentionsFromMessage()` extracts mentions from the `mentions` field
+   - Returns array of `MentionPart` objects
+
+3. **Data Enrichment**:
+   - `enrichMessageWithMentions()` calls `extractMentionData()` for each mention
+   - Each mention type has a specific extraction function that fetches actual data
+   - Data is formatted as readable text
+
+4. **Message Enrichment**:
+   - `createEnrichedMessageContent()` combines mention contexts with original message text
+   - Format: `[Mention contexts]\n\nUser message: [original text]`
+   - Enriched message replaces the original text parts
+
+5. **Database Storage**:
+   - Enriched message (with actual data) is saved to the database
+   - Original message with mentions is also preserved in the message object
+
+6. **AI Model**:
+   - Enriched message is sent to the AI model
+   - AI receives actual data, not just mention placeholders
+
+### 4. Data Extraction (`lib/server/mentions/extract.ts`)
+
+Each mention type has a dedicated extraction function:
+
+- **`extractUserMentionData()`**: Fetches user profile from `users` table
+- **`extractTableMentionData()`**: Fetches first 10 rows from specified table
+- **`extractRecordMentionData()`**: Fetches specific record by ID
+- **`extractBlockMentionData()`**: Fetches data from list/record blocks
+- **`extractPageMentionData()`**: Fetches page metadata and block data
+- **`extractLookupMentionData()`**: Placeholder for custom lookups
+
+## Implementation Status
 
 ### ✅ Completed
 
@@ -72,500 +156,294 @@ Enriched text prepended to message → AI model
    - Zod schemas for validation
    - TypeScript types for type safety
 
-2. **Page Context System**
-   - `MentionContextProvider` - Collects data from blocks
-   - Block hooks register their data automatically
-   - `PageViewer` wrapped with context provider
+2. **Plate Editor Integration**
+   - `PlateChatInput` component fully integrated
+   - Mention extraction from editor state working
+   - Text and mentions properly extracted
+   - Mentions included in message when sent
 
 3. **Server-Side Processing**
    - Mention extraction utilities
    - Mention enrichment system
    - Chat API integration
+   - Data extraction for all mention types
+   - Enriched messages saved to database
 
-4. **Plate Components (Basic)**
-   - Custom `MentionInputElement` component
-   - Basic `PlateChatInput` structure
-   - Mention configuration utilities
+4. **Transport Layer**
+   - Mentions preserved through AI SDK transport
+   - Request schema includes mentions field
+
+5. **Authentication**
+   - All API routes use Supabase authentication
+   - User context properly resolved
 
 ### ⚠️ Partially Implemented
 
-1. **Plate Editor Integration**
-   - Basic structure exists but not integrated into `multimodal-input.tsx`
-   - Text/mention extraction logic needs refinement
-   - Editor state management incomplete
+1. **UI Polish**
+   - Mention chips display in input area ✅
+   - Visual feedback for mentions ✅
+   - Mention removal functionality ✅
+   - Could use more visual polish
 
-2. **Data Extraction**
-   - Placeholder implementations in `extract.ts`
-   - Need to implement actual data fetching from database/APIs
+2. **Error Handling**
+   - Basic error handling in place
+   - Could use more user-friendly error messages
+   - Could add loading states for data fetching
 
 ### ❌ Not Started
 
-1. **UI Polish**
-   - Mention chips display in input area
-   - Visual feedback for mentions
-   - Mention removal functionality
-
-2. **Error Handling**
-   - Handle missing mention data gracefully
-   - User-friendly error messages
-
-3. **Testing**
+1. **Testing**
    - Unit tests for mention extraction
    - Integration tests for mention flow
    - E2E tests for mention selection
 
-## Implementation Guide
+2. **Performance Optimization**
+   - Mention data caching
+   - Batch data fetching for multiple mentions
 
-### Step 1: Complete Plate Editor Integration
+## Quick Reference
 
-**File**: `components/input/multimodal-input.tsx`
+### Getting Mentionable Items
 
-**Current State**: Uses basic textarea (`PromptInputTextarea`)
-
-**Required Changes**:
-
-1. **Replace textarea with Plate editor**:
-   ```tsx
-   // Import the Plate chat input
-   import { PlateChatInput } from "./plate-chat-input";
-   import { useMentionableItems } from "@/hooks/use-mentionable-items";
-   
-   // In PureMultimodalInput component:
-   const mentionableItems = useMentionableItems();
-   
-   // Replace PromptInputTextarea with:
-   <PlateChatInput
-     value={input}
-     onChange={setInput}
-     onMentionsChange={(mentions) => {
-       // Store mentions for later use
-       setMentions(mentions);
-     }}
-     mentionableItems={mentionableItems}
-     placeholder="Send a message..."
-     disabled={status !== "ready"}
-     autoFocus={width && width > 768}
-   />
-   ```
-
-2. **Store mentions in component state**:
-   ```tsx
-   const [mentions, setMentions] = useState<MentionableItem["mention"][]>([]);
-   ```
-
-3. **Include mentions in message parts when sending**:
-   ```tsx
-   const submitForm = useCallback(() => {
-     const messageParts = [
-       ...attachments.map((attachment) => ({
-         type: "file" as const,
-         url: attachment.url,
-         name: attachment.name,
-         mediaType: attachment.contentType,
-       })),
-       // Add mention parts
-       ...mentions.map((mention) => ({
-         type: "mention" as const,
-         mention,
-       })),
-       {
-         type: "text",
-         text: input,
-       },
-     ];
-     
-     sendMessage({
-       role: "user",
-       parts: messageParts,
-     });
-     
-     // Reset state
-     setAttachments([]);
-     setMentions([]);
-     setInput("");
-   }, [input, mentions, attachments, sendMessage]);
-   ```
-
-**Key Considerations**:
-- Plate editor needs proper initialization with mention plugin
-- Text extraction from Plate editor state must handle mentions correctly
-- Editor should maintain focus and cursor position
-- Handle edge cases (empty input, only mentions, etc.)
-
-### Step 2: Fix Plate Editor Text Extraction
-
-**File**: `components/input/plate-chat-input.tsx`
-
-**Current Issue**: The `extractContent` function needs to properly traverse Plate's editor state and extract both text and mentions.
-
-**Required Changes**:
-
-1. **Use Plate's built-in serialization**:
-   ```tsx
-   import { getPlateEditorValue } from "platejs/react";
-   
-   const extractContent = useCallback(() => {
-     if (!editor) return { text: "", mentions: [] };
-     
-     const value = getPlateEditorValue(editor);
-     const textParts: string[] = [];
-     const mentions: MentionableItem["mention"][] = [];
-     
-     // Traverse Plate value structure
-     function traverse(node: any) {
-       if (node.type === "mention" && node.value) {
-         const mention = parsePlateMentionValue(node.value);
-         if (mention) {
-           mentions.push(mention);
-           // Get mention text from children
-           const mentionText = node.children
-             ?.map((child: any) => child.text || "")
-             .join("") || "";
-           textParts.push(`@${mentionText}`);
-         }
-       } else if (node.children) {
-         node.children.forEach(traverse);
-       } else if (node.text) {
-         textParts.push(node.text);
-       }
-     }
-     
-     value.forEach(traverse);
-     
-     return {
-       text: textParts.join(" ").trim(),
-       mentions,
-     };
-   }, [editor]);
-   ```
-
-2. **Handle editor changes properly**:
-   ```tsx
-   useEffect(() => {
-     if (!editor) return;
-     
-     const handleChange = () => {
-       const { text, mentions } = extractContent();
-       onChange(text);
-       onMentionsChange?.(mentions);
-     };
-     
-     // Use Plate's onChange event
-     editor.onChange = handleChange;
-   }, [editor, onChange, onMentionsChange, extractContent]);
-   ```
-
-**Key Considerations**:
-- Plate uses Slate under the hood, so editor state is a tree structure
-- Mentions are nodes with type "mention" and a value property
-- Text nodes have type "text" or are children of paragraph nodes
-- Need to handle nested structures correctly
-
-### Step 3: Implement Data Extraction
-
-**File**: `lib/server/mentions/extract.ts`
-
-**Current State**: Placeholder implementations return static text
-
-**Required Changes**:
-
-1. **Implement `extractPageMentionData`**:
-   ```tsx
-   export async function extractPageMentionData(
-     mention: PageMention
-   ): Promise<string> {
-     try {
-       const tenant = await resolveTenantContext();
-       const page = await getPageById(tenant, mention.id || "");
-       
-       if (!page) {
-         return `[Page: ${mention.label}]\n\nPage not found.`;
-       }
-       
-       // Get all blocks from the page
-       const blocks = page.blocks || [];
-       const blockData: string[] = [];
-       
-       for (const block of blocks) {
-         if (block.type === "list" && block.tableName) {
-           // Fetch list block data
-           const data = await fetchListBlockData(block);
-           blockData.push(`List Block (${block.tableName}):\n${formatListData(data)}`);
-         } else if (block.type === "record" && block.tableName) {
-           // Fetch record block data
-           const data = await fetchRecordBlockData(block);
-           blockData.push(`Record Block (${block.tableName}):\n${formatRecordData(data)}`);
-         }
-       }
-       
-       return `[Page: ${mention.label}]\n\n${blockData.join("\n\n")}`;
-     } catch (error) {
-       console.error("Error extracting page mention data:", error);
-       return `[Page: ${mention.label}]\n\nError loading page data.`;
-     }
-   }
-   ```
-
-2. **Implement `extractTableMentionData`**:
-   ```tsx
-   export async function extractTableMentionData(
-     mention: TableMention
-   ): Promise<string> {
-     try {
-       const tenant = await resolveTenantContext();
-       const resourceStore = await getResourceStore(tenant);
-       
-       if (!isSqlAdapter(resourceStore)) {
-         return `[Table: ${mention.tableName}]\n\nDatabase connection not available.`;
-       }
-       
-       // Use existing API endpoint or direct database query
-       // Option 1: Use existing API
-       const response = await fetch(
-         `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/supabase/table?table=${mention.tableName}&page=1&limit=10`
-       );
-       
-       if (!response.ok) {
-         throw new Error("Failed to fetch table data");
-       }
-       
-       const data = await response.json();
-       
-       // Format data
-       const rows = data.rows?.slice(0, 10).map((row: any, idx: number) => {
-         const fields = Object.entries(row)
-           .map(([key, value]) => `  ${key}: ${String(value)}`)
-           .join("\n");
-         return `Row ${idx + 1}:\n${fields}`;
-       }).join("\n\n") || "No data";
-       
-       return `[Table: ${mention.tableName}]\n\n${rows}`;
-     } catch (error) {
-       console.error("Error extracting table mention data:", error);
-       return `[Table: ${mention.tableName}]\n\nError loading data: ${error instanceof Error ? error.message : "Unknown error"}`;
-     }
-   }
-   ```
-
-3. **Implement `extractRecordMentionData`**:
-   ```tsx
-   export async function extractRecordMentionData(
-     mention: RecordMention
-   ): Promise<string> {
-     try {
-       // Use existing API endpoint
-       const response = await fetch(
-         `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/supabase/record?table=${mention.tableName}&id=${mention.recordId}`
-       );
-       
-       if (!response.ok) {
-         throw new Error("Failed to fetch record data");
-       }
-       
-       const data = await response.json();
-       
-       if (!data.record) {
-         return `[Record: ${mention.tableName}:${mention.recordId}]\n\nRecord not found.`;
-       }
-       
-       const fields = Object.entries(data.record)
-         .map(([key, value]) => `  ${key}: ${String(value)}`)
-         .join("\n");
-       
-       return `[Record: ${mention.tableName}:${mention.recordId}]\n\n${fields}`;
-     } catch (error) {
-       console.error("Error extracting record mention data:", error);
-       return `[Record: ${mention.tableName}:${mention.recordId}]\n\nError loading data: ${error instanceof Error ? error.message : "Unknown error"}`;
-     }
-   }
-   ```
-
-**Key Considerations**:
-- Use existing API endpoints where possible to maintain consistency
-- Handle errors gracefully with user-friendly messages
-- Limit data size to avoid token limits (e.g., first 10 rows)
-- Consider caching for frequently accessed data
-- Respect user permissions (don't expose data user can't access)
-
-### Step 4: Add Mention Chips UI
-
-**File**: `components/input/multimodal-input.tsx`
-
-**Required Changes**:
-
-1. **Create mention chip component** (new file: `components/input/mention-chip.tsx`):
-   ```tsx
-   "use client";
-   
-   import { X } from "lucide-react";
-   import type { MentionMetadata } from "@/lib/types/mentions";
-   import { Button } from "@/components/ui/button";
-   import { cn } from "@/lib/utils";
-   
-   export function MentionChip({
-     mention,
-     onRemove,
-   }: {
-     mention: MentionMetadata;
-     onRemove: () => void;
-   }) {
-     return (
-       <div
-         className={cn(
-           "inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-sm",
-           "border border-border"
-         )}
-       >
-         <span className="font-medium">{mention.label}</span>
-         <Button
-           type="button"
-           variant="ghost"
-           size="sm"
-           className="h-4 w-4 p-0"
-           onClick={onRemove}
-         >
-           <X className="h-3 w-3" />
-         </Button>
-       </div>
-     );
-   }
-   ```
-
-2. **Display mention chips above input**:
-   ```tsx
-   // In PureMultimodalInput component, before the input:
-   {mentions.length > 0 && (
-     <div className="flex flex-wrap gap-2 px-2">
-       {mentions.map((mention, idx) => (
-         <MentionChip
-           key={`${mention.type}-${mention.id || idx}`}
-           mention={mention}
-           onRemove={() => {
-             setMentions((prev) => prev.filter((_, i) => i !== idx));
-           }}
-         />
-       ))}
-     </div>
-   )}
-   ```
-
-**Key Considerations**:
-- Chips should be visually distinct from attachments
-- Remove button should be clear and accessible
-- Handle overflow (many mentions) gracefully
-- Maintain mention order
-
-### Step 5: Handle Edge Cases
-
-**Files**: Multiple
-
-**Required Changes**:
-
-1. **Empty mentions**: Don't send mention parts if array is empty
-2. **Invalid mentions**: Validate mentions before sending
-3. **Missing data**: Handle cases where mention data can't be fetched
-4. **Permission errors**: Don't expose data user can't access
-5. **Large data**: Truncate or summarize large datasets
-
-**Example validation**:
 ```tsx
-// In submitForm:
-const validMentions = mentions.filter((mention) => {
-  // Basic validation
-  if (!mention.type || !mention.label) return false;
-  // Type-specific validation
-  if (mention.type === "table" && !mention.tableName) return false;
-  if (mention.type === "record" && (!mention.tableName || !mention.recordId)) return false;
-  return true;
-});
+import { useMentionableItems } from "@/hooks/use-mentionable-items";
+
+function MyComponent() {
+  const mentionableItems = useMentionableItems();
+  // Returns array of MentionableItem objects
+}
 ```
-
-### Step 6: Testing
-
-**Required Tests**:
-
-1. **Unit Tests**:
-   - Mention type validation
-   - Mention extraction from Plate editor
-   - Data extraction functions
-   - Mention enrichment
-
-2. **Integration Tests**:
-   - Full mention flow (select → send → enrich)
-   - Multiple mentions in one message
-   - Mention with text
-
-3. **E2E Tests**:
-   - User selects mention from dropdown
-   - Mention appears as chip
-   - Message sent with mention
-   - AI receives enriched context
-
-**Test Files to Create**:
-- `__tests__/lib/server/mentions/enrich.test.ts`
-- `__tests__/lib/server/mentions/extract.test.ts`
-- `__tests__/components/input/plate-chat-input.test.tsx`
-- `__tests__/e2e/mentions.spec.ts`
-
-## Code Patterns and Examples
 
 ### Registering Block Data
 
-Blocks automatically register their data when they mount:
-
 ```tsx
-// In useListBlockData hook (already implemented):
-useEffect(() => {
-  if (data && block.tableName) {
-    registerBlockData({
-      blockId: block.id,
-      blockType: "list",
-      tableName: block.tableName,
-      label: `List: ${block.tableName}`,
-      description: `${data.rows.length} rows from ${block.tableName}`,
-      data,
-    });
-  }
-  return () => {
-    unregisterBlockData(block.id);
-  };
-}, [data, block.id, block.tableName, registerBlockData, unregisterBlockData]);
+import { useMentionableData } from "@/components/pages/mention-context";
+
+function MyBlock() {
+  const { registerBlockData, unregisterBlockData } = useMentionableData();
+  
+  useEffect(() => {
+    if (data) {
+      registerBlockData({
+        blockId: "my-block",
+        blockType: "list",
+        tableName: "users",
+        label: "Users List",
+        description: "List of all users",
+        data: myData,
+      });
+    }
+    return () => unregisterBlockData("my-block");
+  }, [data]);
+}
 ```
 
-### Adding New Mention Types
+### Extracting Mentions from Message (Server-Side)
+
+```tsx
+import { extractMentionsFromMessage } from "@/lib/server/mentions/enrich";
+
+const mentions = extractMentionsFromMessage(message);
+// Returns array of MentionPart objects
+```
+
+### Enriching Message with Mentions (Server-Side)
+
+```tsx
+import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
+
+const enrichedText = await createEnrichedMessageContent(message);
+// Returns text with mention context prepended
+// Format: "[Mention contexts]\n\nUser message: [original text]"
+```
+
+### Type Definitions
+
+```tsx
+// Mention types
+type MentionType = 
+  | "page"      // Current page data
+  | "block"     // Specific block
+  | "table"     // Table lookup
+  | "record"    // Specific record
+  | "user"      // User profile
+  | "lookup";   // Custom lookup
+
+// Mention metadata
+type MentionMetadata = {
+  type: MentionType;
+  id?: string;
+  label: string;
+  description?: string;
+};
+
+// Mentionable item (for UI)
+type MentionableItem = {
+  key: string;           // Unique identifier
+  text: string;          // Display text (e.g., "@userProfile")
+  description?: string;  // Optional description
+  icon?: string;         // Optional icon
+  mention: MentionMetadata;
+};
+```
+
+## File Structure
+
+### Core Files
+
+| Component | File Path |
+|-----------|-----------|
+| Type definitions | `lib/types/mentions.ts` |
+| Context provider | `components/pages/mention-context.tsx` |
+| Block hooks | `components/pages/hooks.ts` |
+| Plate input | `components/input/plate-chat-input.tsx` |
+| Mention input element | `components/input/mention-input-element.tsx` |
+| Mention chip | `components/input/mention-chip.tsx` |
+| Server enrichment | `lib/server/mentions/enrich.ts` |
+| Data extraction | `lib/server/mentions/extract.ts` |
+| Chat API | `app/(legacy-chat)/api/chat/route.ts` |
+| Chat API schema | `app/(legacy-chat)/api/chat/schema.ts` |
+| Multimodal input | `components/input/multimodal-input.tsx` |
+| Chat component | `components/chat/chat.tsx` |
+| Mentionable items hook | `hooks/use-mentionable-items.ts` |
+| Plate config | `lib/plate/mention-config.ts` |
+
+## API Endpoints Used
+
+### Get Table Data
+```
+GET /api/supabase/table?table={tableName}&page=1&limit=10
+```
+
+### Get Record Data
+```
+GET /api/supabase/record?table={tableName}&id={recordId}
+```
+
+## Troubleshooting
+
+### Mentions Not Appearing in Dropdown
+
+**Possible Causes:**
+- `MentionContextProvider` not wrapping the page
+- Blocks not registering their data
+- `useMentionableItems` hook not being called
+
+**Solutions:**
+- Check that `MentionContextProvider` wraps the page component
+- Verify blocks are calling `registerBlockData` in their `useEffect`
+- Check browser console for errors
+- Verify `mentionableItems` array is being passed to `PlateChatInput`
+
+### Mentions Not Being Extracted
+
+**Possible Causes:**
+- Mention node structure doesn't match expected format
+- `key` property missing or incorrect
+- Mention not found in `mentionableItems` lookup
+
+**Solutions:**
+- Check browser console for extraction logs
+- Verify mention node has `type: "mention"` and `key` property
+- Ensure `mentionableItems` includes the mention with matching `key`
+- Check that `extractContent` function is being called on editor changes
+
+### Mentions Not Enriching Message
+
+**Possible Causes:**
+- Mentions not included in message when sent
+- Transport not preserving mentions field
+- Server schema not accepting mentions
+- Mentions not in request body
+
+**Solutions:**
+- Check browser network tab to see if mentions are in request
+- Verify `prepareSendMessagesRequest` preserves mentions
+- Check server logs for `[Chat API] Received mentions:`
+- Ensure Zod schema includes `mentions` field
+- Verify `messageWithMentions` includes mentions from request body
+
+### AI Not Receiving Enriched Data
+
+**Possible Causes:**
+- Enrichment not happening
+- Enriched text not replacing original text
+- Data extraction failing
+
+**Solutions:**
+- Check server logs for `[Chat API] Message enriched with mention data`
+- Verify `createEnrichedMessageContent` is being called
+- Check that `enrichedMessage` is used in `uiMessages` array
+- Verify data extraction functions are working (check server logs for errors)
+- Check database to see if enriched message was saved
+
+### Input Field Not Working After Sending Message
+
+**Possible Causes:**
+- Plate editor not resetting properly
+- Editor focus not being restored
+- Editor disabled state not clearing
+
+**Solutions:**
+- Check that `value` prop is being cleared after submit
+- Verify `isExternalUpdate` flag is working correctly
+- Check that editor focus is being restored when enabled
+- Ensure `status` returns to `"ready"` after message is sent
+
+## Code Patterns
+
+### Adding a New Mention Type
 
 1. **Add type to `lib/types/mentions.ts`**:
    ```tsx
-   export type NewMentionType = "newType";
-   
    export const newMentionSchema = mentionMetadataSchema.extend({
      type: z.literal("newType"),
      // Add type-specific fields
+     customField: z.string(),
    });
+   
+   export type NewMention = z.infer<typeof newMentionSchema>;
    ```
 
-2. **Add extraction function in `lib/server/mentions/extract.ts`**:
+2. **Add to Mention union**:
+   ```tsx
+   export type Mention = 
+     | PageMention
+     | BlockMention
+     | // ... existing types
+     | NewMention;
+   ```
+
+3. **Add extraction function in `lib/server/mentions/extract.ts`**:
    ```tsx
    export async function extractNewMentionData(
      mention: NewMention
    ): Promise<string> {
-     // Implementation
+     // Fetch and format data
+     return `[New Type: ${mention.label}]\n\n${formattedData}`;
    }
    ```
 
-3. **Add case in `extractMentionData`**:
+4. **Add case in `extractMentionData`**:
    ```tsx
    case "newType":
      return extractNewMentionData(mention);
+   ```
+
+5. **Update API schema** (`app/(legacy-chat)/api/chat/schema.ts`):
+   ```tsx
+   const mentionSchema = z.union([
+     // ... existing schemas
+     newMentionSchema,
+   ]);
    ```
 
 ### Adding Mentions to Non-Page Routes
 
 For routes that aren't custom pages (e.g., `/app/tables/[table]`):
 
-1. **Create route-specific mention context**:
+1. **Wrap route with MentionContextProvider**:
    ```tsx
-   // In the route component
    <MentionContextProvider>
      {/* Route content */}
    </MentionContextProvider>
@@ -586,28 +464,25 @@ For routes that aren't custom pages (e.g., `/app/tables/[table]`):
    }, [tableName, tableData]);
    ```
 
-## Troubleshooting
+## Example: Complete Mention Flow
 
-### Mentions Not Appearing in Dropdown
+### User Types "@userProfile"
 
-- Check that `MentionContextProvider` wraps the page
-- Verify blocks are registering data (check console logs)
-- Ensure `useMentionableItems` hook is being called
-- Check that mentionable items are being passed to Plate editor
-
-### Mentions Not Enriching Message
-
-- Verify mention parts are included in message parts array
-- Check server logs for extraction errors
-- Ensure `createEnrichedMessageContent` is being called
-- Verify mention data extraction functions are working
-
-### Plate Editor Not Working
-
-- Check that Plate dependencies are installed
-- Verify editor plugins are configured correctly
-- Check browser console for errors
-- Ensure mention plugin is properly initialized
+1. **Client**: User types `@` in Plate editor
+2. **Client**: Dropdown shows "User Profile" option
+3. **Client**: User selects "User Profile"
+4. **Client**: Mention chip appears with "User Profile" label
+5. **Client**: Editor extracts: `{ text: "@User Profile", mentions: [{ type: "user", label: "User Profile" }] }`
+6. **Client**: Message sent with `mentions: [{ type: "user", label: "User Profile" }]`
+7. **Server**: Receives message with mentions field
+8. **Server**: Calls `extractUserMentionData()` which:
+   - Gets current user ID from Supabase auth
+   - Fetches user profile from `users` table
+   - Formats as: `[User Profile: User Profile]\n\n  id: ...\n  email: ...\n  firstname: ...`
+9. **Server**: Combines with original message: `[User Profile data]\n\nUser message: what about after this hyphen - @User Profile`
+10. **Server**: Saves enriched message to database
+11. **Server**: Sends enriched message to AI model
+12. **AI**: Receives actual user profile data, not just "@User Profile" text
 
 ## Future Enhancements
 
@@ -617,32 +492,20 @@ For routes that aren't custom pages (e.g., `/app/tables/[table]`):
 4. **Mention Permissions**: Only show mentions user has access to
 5. **Mention Caching**: Cache mention data for performance
 6. **Mention Analytics**: Track which mentions are used most
+7. **Batch Data Fetching**: Optimize when multiple mentions are in one message
+8. **Mention Preview**: Show data preview in dropdown before selection
 
-## Related Files
+## Related Documentation
 
-### Core Files
-- `lib/types/mentions.ts` - Type definitions
-- `components/pages/mention-context.tsx` - Context provider
-- `components/pages/hooks.ts` - Block data registration
-- `lib/server/mentions/enrich.ts` - Server-side enrichment
-- `lib/server/mentions/extract.ts` - Data extraction
-
-### Integration Points
-- `components/input/multimodal-input.tsx` - Chat input (needs Plate integration)
-- `components/input/plate-chat-input.tsx` - Plate editor component
-- `app/(legacy-chat)/api/chat/route.ts` - Chat API (enrichment integrated)
-
-### Supporting Files
-- `lib/plate/mention-config.ts` - Plate configuration utilities
-- `components/input/mention-input-element.tsx` - Custom mention input
-- `hooks/use-mentionable-items.ts` - Hook for getting mentionable items
+- [Database Architecture](./DATABASE_ARCHITECTURE.md) - For understanding table structure and data access
+- [Pages System](./pages-migration.md) - For understanding how pages and blocks work
 
 ## Questions or Issues?
 
-If you encounter issues or have questions:
+If you encounter issues:
 
 1. Check the troubleshooting section above
-2. Review the code patterns and examples
-3. Check existing implementations in similar features
-4. Consult the Plate.js documentation: https://platejs.org/docs
-
+2. Review server logs for error messages
+3. Check browser console for client-side errors
+4. Verify all components are properly connected
+5. Check that authentication is working (mentions require authenticated user)

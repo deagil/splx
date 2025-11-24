@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -15,6 +16,7 @@ import type {
   BlockMention,
 } from "@/lib/types/mentions";
 import type { PageRecord } from "@/lib/server/pages";
+import { globalMentionRegistry } from "@/lib/mentions/global-registry";
 
 /**
  * Data that can be mentioned from a block
@@ -62,6 +64,7 @@ const MentionContext = createContext<MentionContextValue | null>(null);
 
 /**
  * Hook to access mention context
+ * Throws if context is not available
  */
 export function useMentionableData() {
   const context = useContext(MentionContext);
@@ -71,6 +74,15 @@ export function useMentionableData() {
     );
   }
   return context;
+}
+
+/**
+ * Safe hook to access mention context
+ * Returns null if context is not available (doesn't throw)
+ * Use this when you need to conditionally use the context
+ */
+export function useMentionableDataSafe() {
+  return useContext(MentionContext);
 }
 
 /**
@@ -151,6 +163,12 @@ export function MentionContextProvider({
 
     return items;
   }, [page, blockDataMap]);
+
+  // Register items with global registry whenever they change
+  useEffect(() => {
+    const items = getMentionableItems();
+    globalMentionRegistry.registerItems(items);
+  }, [getMentionableItems]);
 
   const value = useMemo(
     () => ({

@@ -55,7 +55,7 @@ export type BlockMention = z.infer<typeof blockMentionSchema>;
 export const tableMentionSchema = mentionMetadataSchema.extend({
   type: z.literal("table"),
   tableName: z.string(),
-  filter: z.record(z.unknown()).optional(), // Optional filter criteria
+  filter: z.record(z.string(), z.unknown()).optional(), // Optional filter criteria
 });
 
 export type TableMention = z.infer<typeof tableMentionSchema>;
@@ -87,7 +87,7 @@ export type UserMention = z.infer<typeof userMentionSchema>;
 export const lookupMentionSchema = mentionMetadataSchema.extend({
   type: z.literal("lookup"),
   lookupType: z.string(), // Type of lookup (e.g., "errorLogs", "customers")
-  query: z.record(z.unknown()).optional(), // Query parameters
+  query: z.record(z.string(), z.unknown()).optional(), // Query parameters
 });
 
 export type LookupMention = z.infer<typeof lookupMentionSchema>;
@@ -105,10 +105,18 @@ export type Mention =
 
 /**
  * Mention part for message parts array
+ * Uses a union of all mention schemas to preserve type-specific fields
  */
 export const mentionPartSchema = z.object({
   type: z.literal("mention"),
-  mention: mentionMetadataSchema,
+  mention: z.union([
+    pageMentionSchema,
+    blockMentionSchema,
+    tableMentionSchema,
+    recordMentionSchema,
+    userMentionSchema,
+    lookupMentionSchema,
+  ]),
 });
 
 export type MentionPart = z.infer<typeof mentionPartSchema>;

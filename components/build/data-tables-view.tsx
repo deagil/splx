@@ -26,14 +26,26 @@ const fetcher = async (url: string): Promise<TableInfo[]> => {
   }
 
   const payload = (await response.json()) as TablesResponse;
-  return payload.tables;
+  
+  // Handle case where payload might be the array directly or wrapped in {tables: [...]}
+  const tables = Array.isArray(payload) ? payload : (payload.tables ?? []);
+  
+  return tables;
 };
 
 export function DataTablesView() {
-  const { data: tables, error, isLoading } = useSWR<TableInfo[]>(
+  const { data: tablesRaw, error, isLoading } = useSWR<TableInfo[]>(
     "/api/tables?type=data",
     fetcher
   );
+
+  // Normalize tables to always be an array (defensive handling)
+  // Handle case where SWR might return the response object instead of the array
+  const tables = Array.isArray(tablesRaw)
+    ? tablesRaw
+    : tablesRaw && typeof tablesRaw === "object" && "tables" in tablesRaw && Array.isArray(tablesRaw.tables)
+    ? tablesRaw.tables
+    : [];
 
   if (error) {
     return (
@@ -84,7 +96,7 @@ export function DataTablesView() {
     );
   }
 
-  if (!tables || tables.length === 0) {
+  if (tables.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border/60 bg-background p-3 text-xs text-muted-foreground">
         <div className="text-center py-12">

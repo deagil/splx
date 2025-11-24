@@ -58,10 +58,10 @@ export function MentionInputElement({
         value={search}
         element={element}
         setValue={setSearch}
-        showTrigger={false}
+        showTrigger={true}
         trigger="@"
       >
-        <span className="inline-block rounded-md bg-muted px-1.5 py-0.5 align-baseline text-sm ring-ring focus-within:ring-2">
+        <span className="inline-block align-baseline text-sm">
           <InlineComboboxInput />
         </span>
 

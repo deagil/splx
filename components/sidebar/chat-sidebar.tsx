@@ -249,7 +249,7 @@ export function ChatSidebar({
             </div>
           </SidebarMenu>
         </SidebarHeader>
-        <SidebarContent className="flex flex-col overflow-hidden">
+        <SidebarContent className="relative flex flex-col overflow-hidden">
           <div className={isArtifactVisible ? "flex h-full flex-row overflow-hidden" : "flex h-full flex-col overflow-hidden"}>
             <div className={isArtifactVisible ? "flex min-w-0 flex-1 flex-col overflow-hidden border-r border-border" : "flex h-full flex-1 flex-col overflow-hidden"}>
               <ChatSidebarContent

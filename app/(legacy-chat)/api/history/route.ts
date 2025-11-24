@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { auth } from "@/app/(legacy-auth)/auth";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { getChatsByUserId, deleteAllChatsByUserId } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
 
@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const authUser = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     return new ChatSDKError("unauthorized:chat").toResponse();
   }
 
   const chats = await getChatsByUserId({
-    id: session.user.id,
+    id: authUser.id,
     limit,
     startingAfter,
     endingBefore,
@@ -34,13 +34,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE() {
-  const session = await auth();
+  const authUser = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     return new ChatSDKError("unauthorized:chat").toResponse();
   }
 
-  const result = await deleteAllChatsByUserId({ userId: session.user.id });
+  const result = await deleteAllChatsByUserId({ userId: authUser.id });
 
   return Response.json(result, { status: 200 });
 }

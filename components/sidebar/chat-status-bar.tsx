@@ -18,6 +18,7 @@ import { Trigger } from "@radix-ui/react-select";
 import { ContextIcon } from "@/components/elements/context";
 import { CpuIcon, PenIcon } from "@/components/shared/icons";
 import { SignatureIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AppUsage } from "@/lib/usage";
 import { startTransition } from "react";
 
@@ -65,7 +66,7 @@ function ContextUsageButton({ usage }: { usage?: AppUsage }) {
     <HoverCard>
       <HoverCardTrigger asChild>
         <Button
-          className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2"
           type="button"
           variant="ghost"
         >
@@ -159,6 +160,7 @@ function ModelSelectorButton({
   onModelChange?: (modelId: string) => void;
 }) {
   const selectedModel = chatModels.find((model) => model.id === selectedModelId);
+  const IconComponent = selectedModel?.icon;
 
   return (
     <PromptInputModelSelect
@@ -175,12 +177,18 @@ function ModelSelectorButton({
     >
       <Trigger asChild>
         <Button
-          className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className={cn(
+            "h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2",
+            "rounded-md transition-colors",
+            selectedModelId === "chat-model"
+              ? "bg-muted/30 hover:bg-muted/50"
+              : "bg-slate-800/40 hover:bg-slate-800/50 dark:bg-slate-700/30 dark:hover:bg-slate-700/40"
+          )}
           type="button"
           variant="ghost"
         >
-          <span className="text-xs">{selectedModel?.icon}</span>
-          <span className="ml-1 hidden sm:inline text-[10px]">{selectedModel?.name}</span>
+          {IconComponent && <IconComponent size={12} className="mr-0.5" />}
+          <span className="hidden sm:inline text-[10px]">{selectedModel?.name}</span>
         </Button>
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[280px] p-1">
@@ -188,28 +196,31 @@ function ModelSelectorButton({
           What are you working on?
         </div>
         <div className="flex flex-col gap-0.5">
-          {chatModels.map((model) => (
-            <SelectItem
-              key={model.id}
-              value={model.name}
-              className="cursor-pointer"
-            >
-              <div className="flex items-start gap-2 py-0.5">
-                <span className="text-sm mt-0.5">{model.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-xs">{model.name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      • {model.description}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
-                    {model.useCases}
+          {chatModels.map((model) => {
+            const ModelIcon = model.icon;
+            return (
+              <SelectItem
+                key={model.id}
+                value={model.name}
+                className="cursor-pointer"
+              >
+                <div className="flex items-start gap-2 py-0.5">
+                  <ModelIcon size={14} className="mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-xs">{model.name}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        • {model.description}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
+                      {model.useCases}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </SelectItem>
-          ))}
+              </SelectItem>
+            );
+          })}
         </div>
       </PromptInputModelSelectContent>
     </PromptInputModelSelect>
@@ -257,13 +268,13 @@ function PersonalizationButton() {
   return (
     <>
       <Button
-        className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+        className="h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2"
         type="button"
         variant="ghost"
         onClick={handleOpenPanel}
       >
-        <SignatureIcon size={12} />
-        <span className="ml-1 hidden sm:inline text-[10px]">
+        <SignatureIcon size={12} className="mr-0.5" />
+        <span className="hidden sm:inline text-[10px]">
           Personalise
         </span>
       </Button>
@@ -279,6 +290,8 @@ function PersonalizationButton() {
   );
 }
 
+import { ChatHelpDialog } from "@/components/chat/chat-help-dialog";
+
 export function ChatStatusBar({
   usage,
   selectedModelId,
@@ -289,13 +302,19 @@ export function ChatStatusBar({
   onModelChange?: (modelId: string) => void;
 }) {
   return (
-    <div className="flex h-5 items-center justify-start gap-1.5 px-2 pb-2 text-xs">
-      <ContextUsageButton usage={usage} />
-      <ModelSelectorButton
-        onModelChange={onModelChange}
-        selectedModelId={selectedModelId}
-      />
-      <PersonalizationButton />
+    <div className="flex items-center justify-between gap-2 px-2 pb-2 text-xs">
+      <div className="flex items-center gap-2">
+        {/* TODO: Show context length meter when usage > 50% */}
+        {/* <ContextUsageButton usage={usage} /> */}
+        <ModelSelectorButton
+          onModelChange={onModelChange}
+          selectedModelId={selectedModelId}
+        />
+        <PersonalizationButton />
+      </div>
+      <div className="flex items-center">
+        <ChatHelpDialog />
+      </div>
     </div>
   );
 }

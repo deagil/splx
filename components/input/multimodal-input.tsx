@@ -35,6 +35,8 @@ import {
   PaperclipIcon,
   StopIcon,
 } from "../shared/icons";
+import { AtSign } from "lucide-react";
+import type { PlateChatInputRef } from "./plate-chat-input";
 import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "../shared/suggested-actions";
 import { Button } from "@/components/ui/button";
@@ -77,6 +79,7 @@ function PureMultimodalInput({
   usage?: AppUsage;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const plateInputRef = useRef<PlateChatInputRef>(null);
   const { width } = useWindowSize();
   const pathname = usePathname();
   const isDashboardRoute = pathname === "/";
@@ -179,11 +182,10 @@ function PureMultimodalInput({
     setMentions([]);
     setLocalStorageInput("");
     resetHeight();
-    setInput("");
-
-    if (width && width > 768) {
-      textareaRef.current?.focus();
-    }
+    // Clear input after a small delay to ensure message is sent first
+    setTimeout(() => {
+      setInput("");
+    }, 0);
   }, [
     input,
     setInput,
@@ -306,11 +308,11 @@ function PureMultimodalInput({
   }, [handlePaste]);
 
   return (
-    <div className={cn("relative flex w-full flex-col gap-4", className)}>
+    <div className={cn("relative flex w-full flex-col", className)}>
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
-          <div className="px-2 md:px-4">
+          <div className="px-2 pb-2 md:px-4">
             <SuggestedActions
               chatId={chatId}
               selectedVisibilityType={selectedVisibilityType}
@@ -328,21 +330,11 @@ function PureMultimodalInput({
         type="file"
       />
 
-      <div className="flex flex-col">
-        <PromptInput
-          className="rounded-xl border border-border bg-background p-4 shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (status !== "ready") {
-              toast.error("Please wait for the model to finish its response!");
-            } else {
-              submitForm();
-            }
-          }}
-        >
+      <div className="flex flex-col gap-2 w-full">
+        {/* Mentions above input area */}
         {mentions.length > 0 && (
           <div
-            className="flex flex-row flex-wrap items-center gap-2 pb-2"
+            className="flex flex-row flex-wrap items-center gap-2 px-2 md:px-4"
             data-testid="mentions-preview"
           >
             {mentions.map((mention, idx) => (
@@ -356,74 +348,107 @@ function PureMultimodalInput({
             ))}
           </div>
         )}
-        {(attachments.length > 0 || uploadQueue.length > 0) && (
-          <div
-            className="flex flex-row items-end gap-2 overflow-x-scroll"
-            data-testid="attachments-preview"
-          >
-            {attachments.map((attachment) => (
-              <PreviewAttachment
-                attachment={attachment}
-                key={attachment.url}
-                onRemove={() => {
-                  setAttachments((currentAttachments) =>
-                    currentAttachments.filter((a) => a.url !== attachment.url)
-                  );
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                }}
-              />
-            ))}
-
-            {uploadQueue.map((filename) => (
-              <PreviewAttachment
-                attachment={{
-                  url: "",
-                  name: filename,
-                  contentType: "",
-                }}
-                isUploading={true}
-                key={filename}
-              />
-            ))}
-          </div>
-        )}
-        <div className="flex flex-row items-start gap-1 sm:gap-2">
-          <PlateChatInput
-            value={input}
-            onChange={setInput}
-            onMentionsChange={setMentions}
-            mentionableItems={mentionableItems}
-            placeholder="Send a message..."
-            disabled={status !== "ready"}
-            autoFocus={width !== undefined && width > 768}
-            className="grow"
-          />
-        </div>
-        <PromptInputToolbar className="border-top-0! border-t-0! p-0 shadow-none dark:border-0 dark:border-transparent!">
-          <PromptInputTools className="gap-0 sm:gap-0.5">
-            <AttachmentsButton
-              fileInputRef={fileInputRef}
-              selectedModelId={selectedModelId}
-              status={status}
-            />
-          </PromptInputTools>
-
-          {status === "submitted" ? (
-            <StopButton setMessages={setMessages} stop={stop} />
-          ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
-              disabled={!input.trim() || uploadQueue.length > 0}
-              status={status}
-	      data-testid="send-button"
+        
+        <PromptInput
+          className="rounded-xl border border-border bg-background shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (status !== "ready") {
+              toast.error("Please wait for the model to finish its response!");
+            } else {
+              submitForm();
+            }
+          }}
+        >
+          {/* Attachments preview */}
+          {(attachments.length > 0 || uploadQueue.length > 0) && (
+            <div
+              className="flex flex-row items-center gap-2 overflow-x-auto px-3 pt-3"
+              data-testid="attachments-preview"
             >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
+              {attachments.map((attachment) => (
+                <PreviewAttachment
+                  attachment={attachment}
+                  key={attachment.url}
+                  onRemove={() => {
+                    setAttachments((currentAttachments) =>
+                      currentAttachments.filter((a) => a.url !== attachment.url)
+                    );
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = "";
+                    }
+                  }}
+                />
+              ))}
+
+              {uploadQueue.map((filename) => (
+                <PreviewAttachment
+                  attachment={{
+                    url: "",
+                    name: filename,
+                    contentType: "",
+                  }}
+                  isUploading={true}
+                  key={filename}
+                />
+              ))}
+            </div>
           )}
-        </PromptInputToolbar>
-      </PromptInput>
+          
+          {/* Input area - full width */}
+          <div className="px-3 pt-3">
+            <PlateChatInput
+              ref={plateInputRef}
+              value={input}
+              onChange={setInput}
+              onMentionsChange={setMentions}
+              mentionableItems={mentionableItems}
+              placeholder="Send a message..."
+              disabled={status !== "ready"}
+              autoFocus={width !== undefined && width > 768}
+              className="w-full min-h-[80px]"
+            />
+          </div>
+          
+          {/* Bottom control bar */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <div className="flex items-center gap-1">
+              <AttachmentsButton
+                fileInputRef={fileInputRef}
+                selectedModelId={selectedModelId}
+                status={status}
+              />
+              <Button
+                className="aspect-square h-7 w-7 rounded-md p-0 transition-colors hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground"
+                data-testid="mention-trigger-button"
+                disabled={status !== "ready"}
+                onClick={(event) => {
+                  event.preventDefault();
+                  plateInputRef.current?.triggerMention();
+                }}
+                variant="ghost"
+                type="button"
+              >
+                <AtSign size={12} style={{ width: 12, height: 12 }} />
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              {status === "submitted" ? (
+                <StopButton setMessages={setMessages} stop={stop} />
+              ) : (
+                <PromptInputSubmit
+                  className="size-7 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+                  disabled={!input.trim() || uploadQueue.length > 0}
+                  status={status}
+                  data-testid="send-button"
+                >
+                  <ArrowUpIcon size={12} />
+                </PromptInputSubmit>
+              )}
+            </div>
+          </div>
+        </PromptInput>
       </div>
     </div>
   );
@@ -455,7 +480,7 @@ function PureAttachmentsButton({
 
   return (
     <Button
-      className="aspect-square h-8 rounded-lg p-1 transition-colors hover:bg-accent"
+      className="aspect-square h-7 w-7 rounded-md p-0 transition-colors hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground"
       data-testid="attachments-button"
       disabled={status !== "ready" || isReasoningModel}
       onClick={(event) => {
@@ -464,7 +489,7 @@ function PureAttachmentsButton({
       }}
       variant="ghost"
     >
-      <PaperclipIcon size={14} style={{ width: 14, height: 14 }} />
+      <PaperclipIcon size={12} style={{ width: 12, height: 12 }} />
     </Button>
   );
 }
@@ -488,7 +513,7 @@ function PureStopButton({
         setMessages((messages) => messages);
       }}
     >
-      <StopIcon size={14} />
+      <StopIcon size={12} />
     </Button>
   );
 }
