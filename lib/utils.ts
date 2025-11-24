@@ -98,14 +98,23 @@ export function sanitizeText(text: string) {
 }
 
 export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
-  return messages.map((message) => ({
-    id: message.id,
-    role: message.role as 'user' | 'assistant' | 'system',
-    parts: message.parts as UIMessagePart<CustomUIDataTypes, ChatTools>[],
-    metadata: {
-      createdAt: formatISO(message.created_at),
-    },
-  }));
+  return messages.map((message) => {
+    const chatMessage: ChatMessage = {
+      id: message.id,
+      role: message.role as 'user' | 'assistant' | 'system',
+      parts: message.parts as UIMessagePart<CustomUIDataTypes, ChatTools>[],
+      metadata: {
+        createdAt: formatISO(message.created_at),
+      },
+    };
+    
+    // Include mentions if present (for displaying as chips in UI)
+    if (message.mentions && Array.isArray(message.mentions) && message.mentions.length > 0) {
+      (chatMessage as any).mentions = message.mentions;
+    }
+    
+    return chatMessage;
+  });
 }
 
 export function getTextFromMessage(message: ChatMessage | UIMessage): string {

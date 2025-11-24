@@ -7,6 +7,7 @@ import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { Action, Actions } from "../elements/actions";
 import { CopyIcon, PencilEditIcon, ThumbDownIcon, ThumbUpIcon } from "../shared/icons";
+import { ClipboardCopyIcon, ClipboardIcon, HeartIcon } from "lucide-react";
 
 export function PureMessageActions({
   chatId,
@@ -68,10 +69,7 @@ export function PureMessageActions({
   }
 
   return (
-    <Actions className="-ml-0.5">
-      <Action onClick={handleCopy} tooltip="Copy">
-        <CopyIcon />
-      </Action>
+    <Actions className="-ml-0.5 opacity-0 transition-opacity group-hover/message:opacity-100">
 
       <Action
         data-testid="message-upvote"
@@ -87,7 +85,7 @@ export function PureMessageActions({
           });
 
           toast.promise(upvote, {
-            loading: "Upvoting Response...",
+            loading: "Saving recommendation...",
             success: () => {
               mutate<Vote[]>(
                 `/api/vote?chatId=${chatId}`,
@@ -116,14 +114,14 @@ export function PureMessageActions({
                 { revalidate: false }
               );
 
-              return "Upvoted Response!";
+              return "Liked Message!";
             },
-            error: "Failed to upvote response.",
+            error: "Failed to like message.",
           });
         }}
-        tooltip="Upvote Response"
+        tooltip="Like Message"
       >
-        <ThumbUpIcon />
+        <HeartIcon />
       </Action>
 
       <Action
@@ -140,7 +138,7 @@ export function PureMessageActions({
           });
 
           toast.promise(downvote, {
-            loading: "Downvoting Response...",
+            loading: "Updating recommendations...",
             success: () => {
               mutate<Vote[]>(
                 `/api/vote?chatId=${chatId}`,
@@ -169,14 +167,17 @@ export function PureMessageActions({
                 { revalidate: false }
               );
 
-              return "Downvoted Response!";
+              return "Disliked Message.";
             },
-            error: "Failed to downvote response.",
+            error: "Failed to save recommendation.",
           });
         }}
-        tooltip="Downvote Response"
+        tooltip="Dislike Message"
       >
         <ThumbDownIcon />
+      </Action>
+            <Action onClick={handleCopy} tooltip="Copy">
+        <ClipboardIcon />
       </Action>
     </Actions>
   );

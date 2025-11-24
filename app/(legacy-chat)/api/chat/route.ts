@@ -16,13 +16,19 @@ import {
 import type { ModelCatalog } from "tokenlens/core";
 import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
-import { auth, type UserType } from "@/app/(legacy-auth)/auth";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import type { UserType } from "@/app/(legacy-auth)/auth";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { getReasoningOpenAIOptions } from "@/lib/ai/openai-config";
-import { type RequestHints, type UserPreferences, systemPrompt } from "@/lib/ai/prompts";
+import {
+  type RequestHints,
+  systemPrompt,
+  type UserPreferences,
+} from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
+import { openai } from "@ai-sdk/openai";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -50,6 +56,7 @@ import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
+import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 
 export const maxDuration = 60;
 
@@ -116,11 +123,13 @@ export async function POST(request: Request) {
       personalizationEnabled?: boolean;
     } = requestBody;
 
-    const session = await auth();
+    const authUser = await getAuthenticatedUser();
 
-    if (!session?.user) {
+    if (!authUser) {
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
+
+    const userId = authUser.id;
 
     // Fetch user preferences for personalization
     let userPreferences: UserPreferences | undefined;
@@ -138,7 +147,7 @@ export async function POST(request: Request) {
               ai_guidance: user.ai_guidance,
             })
             .from(user)
-            .where(eq(user.id, session.user.id))
+            .where(eq(user.id, userId))
             .limit(1);
 
           if (userData) {
@@ -159,10 +168,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const userType: UserType = session.user.type;
+    // Authenticated users via Supabase are "regular" users
+    const userType: UserType = "regular";
 
     const messageCount = await getMessageCountByUserId({
-      id: session.user.id,
+      id: userId,
       differenceInHours: 24,
     });
 
@@ -175,7 +185,7 @@ export async function POST(request: Request) {
     let workspaceId: string;
 
     if (chat) {
-      if (chat.user_id !== session.user.id) {
+      if (chat.user_id !== userId) {
         return new ChatSDKError("forbidden:chat").toResponse();
       }
       workspaceId = chat.workspace_id;
@@ -192,14 +202,64 @@ export async function POST(request: Request) {
 
       await saveChat({
         id,
-        userId: session.user.id,
+        userId,
         title,
         visibility: selectedVisibilityType,
       });
       // New chat - no need to fetch messages, it's empty
     }
 
-    const uiMessages = [...convertToUIMessages(messagesFromDb), message];
+    // Enrich the user message with mention data if present
+    // Mentions are converted to text and included with the user's message before sending to AI
+    // Ensure mentions are passed from request body to the message object
+    const messageWithMentions = {
+      ...message,
+      mentions: requestBody.message.mentions,
+    };
+
+    // Debug: Log mentions received from client
+    if (
+      messageWithMentions.mentions && messageWithMentions.mentions.length > 0
+    ) {
+      console.log(
+        "[Chat API] Received mentions:",
+        messageWithMentions.mentions,
+      );
+    }
+
+    // Create enriched message for AI (with mention data as text)
+    let enrichedMessageForAI = messageWithMentions;
+    const enrichedText = await createEnrichedMessageContent(
+      messageWithMentions,
+    );
+
+    // Debug: Log enrichment result
+    if (enrichedText && enrichedText.trim()) {
+      console.log(
+        "[Chat API] Message enriched with mention data, length:",
+        enrichedText.length,
+      );
+    }
+
+    // If we have enriched text (mentions converted to text), create version for AI
+    if (enrichedText && enrichedText.trim() && message.parts) {
+      // Replace all text parts with the enriched text (which includes mention context + user message)
+      const nonTextParts = message.parts.filter((part) => part.type !== "text");
+      enrichedMessageForAI = {
+        ...messageWithMentions,
+        parts: [
+          { type: "text", text: enrichedText },
+          ...nonTextParts,
+        ],
+      };
+    }
+
+    // For UI display, use original message with mentions (not enriched text)
+    // For AI, use enriched message
+    const uiMessages = [
+      ...convertToUIMessages(messagesFromDb),
+      messageWithMentions,
+    ];
 
     const { longitude, latitude, city, country } = geolocation(request);
 
@@ -210,14 +270,17 @@ export async function POST(request: Request) {
       country,
     };
 
+    // Save the original message to database (preserve original text and mentions separately)
+    // This allows us to display mentions as chips in the UI while sending enriched text to AI
     await saveMessages({
       messages: [
         {
           chat_id: id,
           id: message.id,
           role: "user",
-          parts: message.parts,
+          parts: message.parts, // Use original parts (not enriched) for display
           attachments: [],
+          mentions: messageWithMentions.mentions || null, // Store mentions separately
           created_at: new Date(),
           workspace_id: workspaceId,
         },
@@ -233,8 +296,15 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints, userPreferences }),
-          messages: convertToModelMessages(uiMessages),
+          system: systemPrompt({
+            selectedChatModel,
+            requestHints,
+            userPreferences,
+          }),
+          messages: convertToModelMessages(
+            // Replace the last message (user message) with enriched version for AI
+            uiMessages.slice(0, -1).concat([enrichedMessageForAI]),
+          ),
           stopWhen: stepCountIs(5),
           experimental_activeTools: selectedChatModel === "chat-model-reasoning"
             ? []
@@ -243,6 +313,7 @@ export async function POST(request: Request) {
               "createDocument",
               "updateDocument",
               "requestSuggestions",
+              "web_search",
             ],
           experimental_transform: smoothStream({ chunking: "word" }),
           // Enable reasoning visibility for reasoning models
@@ -253,12 +324,19 @@ export async function POST(request: Request) {
             : undefined,
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session,
+            createDocument: createDocument({
+              session: { user: { id: userId } } as any,
               dataStream,
             }),
+            updateDocument: updateDocument({
+              session: { user: { id: userId } } as any,
+              dataStream,
+            }),
+            requestSuggestions: requestSuggestions({
+              session: { user: { id: userId } } as any,
+              dataStream,
+            }),
+            web_search: openai.tools.webSearch({}) as any,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
@@ -358,6 +436,7 @@ export async function POST(request: Request) {
             attachments: [],
             chat_id: id,
             workspace_id: workspaceId,
+            mentions: null,
           })),
         });
 
@@ -418,15 +497,15 @@ export async function DELETE(request: Request) {
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
-  const session = await auth();
+  const authUser = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     return new ChatSDKError("unauthorized:chat").toResponse();
   }
 
   const chat = await getChatById({ id });
 
-  if (chat?.user_id !== session.user.id) {
+  if (chat?.user_id !== authUser.id) {
     return new ChatSDKError("forbidden:chat").toResponse();
   }
 

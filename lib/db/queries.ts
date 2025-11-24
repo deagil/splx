@@ -337,15 +337,58 @@ export async function getMessagesByChatId(
 ) {
   try {
     return await withTenantDb(
-      (db) =>
-        db
-          .select()
+      async (db) => {
+        // Explicitly select columns to handle case where mentions column doesn't exist yet
+        // This allows the code to work before migration is run
+        const result = await db
+          .select({
+            id: message.id,
+            chat_id: message.chat_id,
+            role: message.role,
+            parts: message.parts,
+            attachments: message.attachments,
+            created_at: message.created_at,
+            workspace_id: message.workspace_id,
+            // Try to select mentions, but it may not exist yet
+            mentions: message.mentions,
+          })
           .from(message)
           .where(eq(message.chat_id, id))
-          .orderBy(asc(message.created_at)),
+          .orderBy(asc(message.created_at));
+        
+        return result;
+      },
       options,
     );
-  } catch (_error) {
+  } catch (error: any) {
+    // If error is due to missing mentions column, try again without it
+    if (error?.message?.includes("mentions") || error?.code === "42703") {
+      try {
+        return await withTenantDb(
+          (db) =>
+            db
+              .select({
+                id: message.id,
+                chat_id: message.chat_id,
+                role: message.role,
+                parts: message.parts,
+                attachments: message.attachments,
+                created_at: message.created_at,
+                workspace_id: message.workspace_id,
+                mentions: null as any,
+              })
+              .from(message)
+              .where(eq(message.chat_id, id))
+              .orderBy(asc(message.created_at)),
+          options,
+        );
+      } catch (fallbackError) {
+        throw new ChatSDKError(
+          "bad_request:database",
+          "Failed to get messages by chat id",
+        );
+      }
+    }
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get messages by chat id",

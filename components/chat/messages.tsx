@@ -66,7 +66,7 @@ function PureMessages({
       style={{ overflowAnchor: "none" }}
     >
       <Conversation className="mx-auto flex min-w-0 max-w-4xl flex-col gap-4 md:gap-6">
-        <ConversationContent className="flex flex-col gap-4 px-2 py-4 md:gap-6 md:px-4">
+        <ConversationContent className="flex flex-col gap-4 px-2 pt-4 pb-2 md:gap-6 md:px-2">
           {messages.length === 0 && <Greeting />}
 
           {messages.map((message, index) => (
@@ -80,7 +80,7 @@ function PureMessages({
               message={message}
               regenerate={regenerate}
               requiresScrollPadding={
-                hasSentMessage && index === messages.length - 1
+                hasSentMessage && index === messages.length - 1 && status !== "streaming"
               }
               setMessages={setMessages}
               vote={
@@ -91,8 +91,10 @@ function PureMessages({
             />
           ))}
 
-          <AnimatePresence mode="wait">
-            {status === "submitted" && <ThinkingMessage key="thinking" />}
+          <AnimatePresence mode="popLayout">
+            {status === "submitted" && (
+              <ThinkingMessage key="thinking" />
+            )}
           </AnimatePresence>
 
           <div

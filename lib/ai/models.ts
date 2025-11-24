@@ -1,10 +1,13 @@
+import { Sparkles, Telescope } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 export const DEFAULT_CHAT_MODEL: string = "chat-model";
 
 export type ChatModel = {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   useCases: string;
   speed: "fast" | "thorough";
 };
@@ -12,17 +15,17 @@ export type ChatModel = {
 export const chatModels: ChatModel[] = [
   {
     id: "chat-model",
-    name: "Everyday tasks",
+    name: "Assistant",
     description: "Fast, efficient responses",
-    icon: "⚡",
+    icon: Sparkles,
     useCases: "Quick answers, code writing, general questions",
     speed: "fast",
   },
   {
     id: "chat-model-reasoning",
-    name: "Complex problems",
+    name: "Deep It",
     description: "Thorough reasoning, takes longer",
-    icon: "🧠",
+    icon: Telescope,
     useCases: "Multi-step planning, deep analysis, tough debugging",
     speed: "thorough",
   },

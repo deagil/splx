@@ -245,6 +245,7 @@ export const message = pgTable("messages", {
   role: varchar("role").notNull(),
   parts: json("parts").notNull(),
   attachments: json("attachments").notNull(),
+  mentions: jsonb("mentions").$type<Array<{ type: string; label: string; [key: string]: unknown }>>(),
   created_at: timestamp("created_at").notNull(),
   workspace_id: uuid("workspace_id")
     .notNull()

@@ -1,4 +1,4 @@
-import { auth } from "@/app/(legacy-auth)/auth";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { getChatById, getVotesByChatId, voteMessage } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
 
@@ -13,9 +13,9 @@ export async function GET(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const authUser = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     return new ChatSDKError("unauthorized:vote").toResponse();
   }
 
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     return new ChatSDKError("not_found:chat").toResponse();
   }
 
-  if (chat.user_id !== session.user.id) {
+  if (chat.user_id !== authUser.id) {
     return new ChatSDKError("forbidden:vote").toResponse();
   }
 
@@ -49,9 +49,9 @@ export async function PATCH(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const authUser = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     return new ChatSDKError("unauthorized:vote").toResponse();
   }
 
@@ -61,7 +61,7 @@ export async function PATCH(request: Request) {
     return new ChatSDKError("not_found:vote").toResponse();
   }
 
-  if (chat.user_id !== session.user.id) {
+  if (chat.user_id !== authUser.id) {
     return new ChatSDKError("forbidden:vote").toResponse();
   }
 

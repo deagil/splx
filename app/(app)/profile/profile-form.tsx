@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -26,7 +27,7 @@ function SubmitButton() {
 
 export function ProfileForm({ user }: { user: User }) {
   const initialState: UpdateProfileState = { status: "idle" };
-  const [state, formAction] = useFormState(updateProfile, initialState);
+  const [state, formAction] = useActionState(updateProfile, initialState);
 
   useEffect(() => {
     if (state.status === "success") {
