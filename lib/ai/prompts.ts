@@ -1,6 +1,45 @@
 import type { Geo } from "@vercel/functions";
 import type { ArtifactKind } from "@/components/artifact/artifact";
 
+/**
+ * Sanitize user-provided text to prevent prompt injection attacks.
+ * Strips patterns that could manipulate the AI's behavior.
+ */
+export function sanitizeUserInput(text: string): string {
+  if (!text) return "";
+
+  let sanitized = text;
+
+  // Remove attempts to override system instructions
+  const injectionPatterns = [
+    /ignore\s+(all\s+)?previous\s+instructions?/gi,
+    /forget\s+(all\s+)?previous\s+instructions?/gi,
+    /disregard\s+(all\s+)?previous\s+instructions?/gi,
+    /you\s+are\s+now\s+a/gi,
+    /new\s+instructions?:/gi,
+    /system\s*:\s*/gi,
+    /assistant\s*:\s*/gi,
+    /user\s*:\s*/gi,
+    /\[INST\]/gi,
+    /\[\/INST\]/gi,
+    /<\|system\|>/gi,
+    /<\|user\|>/gi,
+    /<\|assistant\|>/gi,
+  ];
+
+  for (const pattern of injectionPatterns) {
+    sanitized = sanitized.replace(pattern, "");
+  }
+
+  // Limit length to prevent context overflow
+  const maxLength = 2000;
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength) + "...";
+  }
+
+  return sanitized.trim();
+}
+
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
 
@@ -45,12 +84,32 @@ export type RequestHints = {
   country: Geo["country"];
 };
 
+/**
+ * User preferences for AI personalization
+ */
 export type UserPreferences = {
+  // User profile fields
+  firstName?: string | null;
+  lastName?: string | null;
+  jobTitle?: string | null;
+
+  // AI preferences
   aiContext?: string | null;
   proficiency?: string | null;
   aiTone?: string | null;
   aiGuidance?: string | null;
   personalizationEnabled?: boolean;
+
+  // Workspace context
+  workspaceName?: string | null;
+  workspaceDescription?: string | null;
+
+  // Role context
+  roleLabel?: string | null;
+
+  // Active skill (from slash commands)
+  skillPrompt?: string | null;
+  skillName?: string | null;
 };
 
 export const getRequestPromptFromHints = (requestHints: RequestHints) =>
@@ -62,40 +121,131 @@ About the origin of user's request:
 - country: ${requestHints.country}
 `;
 
+/**
+ * Build a personalized system prompt section based on user preferences.
+ * Includes user identity, workspace context, communication preferences, and custom instructions.
+ */
 export const getPersonalizationPrompt = (preferences: UserPreferences) => {
   if (!preferences.personalizationEnabled) {
+    // Even if personalization is disabled, still apply skill prompt if present
+    if (preferences.skillPrompt) {
+      return `\n\n[Active Skill: ${
+        sanitizeUserInput(preferences.skillName || "Custom")
+      }]\n${sanitizeUserInput(preferences.skillPrompt)}`;
+    }
     return "";
   }
 
   const parts: string[] = [];
 
-  if (preferences.aiContext) {
-    parts.push(`User's background and interests: ${preferences.aiContext}`);
+  // User identity section
+  const identityParts: string[] = [];
+
+  // Build user name
+  const fullName = [preferences.firstName, preferences.lastName]
+    .filter(Boolean)
+    .join(" ");
+
+  if (fullName) {
+    identityParts.push(`You are assisting ${fullName}`);
   }
 
+  if (preferences.jobTitle) {
+    const jobTitle = sanitizeUserInput(preferences.jobTitle);
+    if (fullName) {
+      identityParts[0] += `, a ${jobTitle}`;
+    } else {
+      identityParts.push(`You are assisting a ${jobTitle}`);
+    }
+  }
+
+  if (preferences.workspaceName) {
+    const workspaceName = sanitizeUserInput(preferences.workspaceName);
+    if (identityParts.length > 0) {
+      identityParts[0] += ` at ${workspaceName}`;
+    }
+  }
+
+  if (identityParts.length > 0) {
+    parts.push(identityParts[0] + ".");
+  }
+
+  // Workspace description
+  if (preferences.workspaceDescription) {
+    parts.push(
+      `About their organization: ${
+        sanitizeUserInput(preferences.workspaceDescription)
+      }`,
+    );
+  }
+
+  // User's role in workspace
+  if (preferences.roleLabel) {
+    parts.push(
+      `Their role in this workspace: ${
+        sanitizeUserInput(preferences.roleLabel)
+      }`,
+    );
+  }
+
+  // Communication preferences
+  const commParts: string[] = [];
+
   if (preferences.proficiency) {
-    const proficiencyMap = {
-      less: "The user prefers simpler language with more explanations. Avoid overly technical jargon and provide step-by-step guidance.",
-      regular: "The user prefers a balanced approach with clear explanations and moderate technical detail.",
-      more: "The user prefers technical specifics and detailed information. You can use technical terminology and assume technical knowledge.",
+    const proficiencyMap: Record<string, string> = {
+      less:
+        "Prefer simpler language with step-by-step explanations. Avoid technical jargon.",
+      regular:
+        "Use a balanced approach with clear explanations and moderate technical detail.",
+      more:
+        "You can use technical terminology and detailed information. Assume technical knowledge.",
     };
-    parts.push(proficiencyMap[preferences.proficiency as keyof typeof proficiencyMap] || "");
+    const proficiencyText = proficiencyMap[preferences.proficiency];
+    if (proficiencyText) {
+      commParts.push(proficiencyText);
+    }
   }
 
   if (preferences.aiTone) {
-    const toneMap = {
-      friendly: "Adopt a friendly, bubbly, and playful tone in your responses.",
-      balanced: "Maintain a professional yet approachable tone in your responses.",
-      efficient: "Be direct and concise in your responses. Get straight to the point.",
+    const toneMap: Record<string, string> = {
+      friendly: "Adopt a friendly, bubbly, and playful tone.",
+      balanced: "Maintain a professional yet approachable tone.",
+      efficient: "Be direct and concise. Get straight to the point.",
     };
-    parts.push(toneMap[preferences.aiTone as keyof typeof toneMap] || "");
+    const toneText = toneMap[preferences.aiTone];
+    if (toneText) {
+      commParts.push(toneText);
+    }
   }
 
+  if (commParts.length > 0) {
+    parts.push(`Communication style: ${commParts.join(" ")}`);
+  }
+
+  // User's background and interests
+  if (preferences.aiContext) {
+    parts.push(
+      `User's background: ${sanitizeUserInput(preferences.aiContext)}`,
+    );
+  }
+
+  // Additional custom instructions
   if (preferences.aiGuidance) {
-    parts.push(`Additional context about the user: ${preferences.aiGuidance}`);
+    parts.push(
+      `Special instructions: ${sanitizeUserInput(preferences.aiGuidance)}`,
+    );
   }
 
-  return parts.length > 0 ? `\n\nPersonalization:\n${parts.join("\n")}` : "";
+  // Active skill prompt (from slash commands)
+  if (preferences.skillPrompt) {
+    parts.push(
+      `\n[Active Skill: ${
+        sanitizeUserInput(preferences.skillName || "Custom")
+      }]\n${sanitizeUserInput(preferences.skillPrompt)}`,
+    );
+  }
+
+  return parts.length > 0 ? `\n\nPersonalization:\n${parts.join("\n\n")}` : "";
 };
 
 export const systemPrompt = ({

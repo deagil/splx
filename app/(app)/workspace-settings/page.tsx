@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { SettingsLayout, type SettingsSection } from "@/components/settings/settings-layout";
 import { ConnectedAppsSettings } from "@/components/settings/connected-apps-section";
+import { IntegrationHeader } from "@/components/settings/integration-header";
+import {
+  GradientMesh,
+  ConnectedNodes,
+  MatrixRain,
+} from "@/components/settings/decorations";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -24,6 +30,7 @@ function createSections(mode: AppMode, workspace: Workspace): SettingsSection[] 
     description:
       "Update the details that represent your organisation across Splx.",
     content: <WorkspaceProfileForm workspace={workspace} />,
+    headerDecoration: <GradientMesh />,
   },
   {
     id: "collaboration",
@@ -62,6 +69,7 @@ function createSections(mode: AppMode, workspace: Workspace): SettingsSection[] 
         </div>
       </form>
     ),
+    headerDecoration: <ConnectedNodes />,
   },
   {
     id: "governance",
@@ -102,6 +110,7 @@ function createSections(mode: AppMode, workspace: Workspace): SettingsSection[] 
         </div>
       </form>
     ),
+    headerDecoration: <MatrixRain />,
   },
   {
     id: "connected-apps",
@@ -109,6 +118,7 @@ function createSections(mode: AppMode, workspace: Workspace): SettingsSection[] 
     description:
       "Connect Splx to your data sources and AI providers. In local mode changes are written to .env.local, while hosted workspaces store credentials securely.",
     content: <ConnectedAppsSettings mode={mode} />,
+    headerDecoration: <IntegrationHeader />,
   },
 ];
 }

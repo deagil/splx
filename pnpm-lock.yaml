@@ -56,6 +56,9 @@ importers:
       '@platejs/mention':
         specifier: ^52.0.0
         version: 52.0.0(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@platejs/slash-command':
+        specifier: ^52.0.1
+        version: 52.0.1(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@radix-ui/react-avatar':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -296,6 +299,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.1
         version: 3.1.1(react@19.2.0)
+      vaul:
+        specifier: ^1.1.2
+        version: 1.1.2(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -1200,6 +1206,13 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
+  '@platejs/combobox@52.0.1':
+    resolution: {integrity: sha512-+LZ9/1CfSyaPJtPwDsuKPSGNlfeftt5iAwmpqF8VHxN/aWqgKP1WXSrmgdFzmKLvk9aiFGrD1tZJn785elBGHg==}
+    peerDependencies:
+      platejs: '>=52.0.1'
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
   '@platejs/core@52.0.0':
     resolution: {integrity: sha512-DfPMQ9Nsvg5efdTmpsifo8VqyrC2/Zp7CMGyLAIQZ0kX4521i3fp14eZ12s/zXy4+uMHKRxvzLzwfAvophLQvQ==}
     peerDependencies:
@@ -1210,6 +1223,13 @@ packages:
     resolution: {integrity: sha512-3Tgb2emttPGFqiKUIdRazmwcenu/SCoX4pVrj0yJpMfkHU27TkGFaJ5fsoLRYuPevHByGS8xLo4H94lEBEkruA==}
     peerDependencies:
       platejs: '>=52.0.0'
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
+  '@platejs/slash-command@52.0.1':
+    resolution: {integrity: sha512-zbeC9pM7YLZjqG6HY1BCM04yB8v8ciF3o0rmu6sMKDhTb3FZ6rhvAiAQ3aOoJZA9SfZG43grUKodImxe00nDMw==}
+    peerDependencies:
+      platejs: '>=52.0.1'
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
@@ -4312,6 +4332,12 @@ packages:
     resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
     hasBin: true
 
+  vaul@1.1.2:
+    resolution: {integrity: sha512-ZFkClGpWyI2WUQjdLJ/BaGuV6AVQiJ3uELGk3OYtP+B6yCO7Cmn9vPFXVJkRaGkOJu3m8bQMgtyzNHixULceQA==}
+    peerDependencies:
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+
   vfile-location@5.0.3:
     resolution: {integrity: sha512-5yXvWDEgqeiYiBe1lbxYF7UMAIm/IcopxMHrMQDq3nvKcjPKIhZklUKL+AE7J7uApI4kwe2snsK+eI6UTj9EHg==}
 
@@ -5098,6 +5124,12 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
+  '@platejs/combobox@52.0.1(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      platejs: 52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0))
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+
   '@platejs/core@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0))':
     dependencies:
       '@platejs/slate': 52.0.0
@@ -5132,6 +5164,13 @@ snapshots:
   '@platejs/mention@52.0.0(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@platejs/combobox': 52.0.0(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      platejs: 52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0))
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+
+  '@platejs/slash-command@52.0.1(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      '@platejs/combobox': 52.0.1(platejs@52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       platejs: 52.0.0(@types/react@19.2.2)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0))
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
@@ -8670,6 +8709,15 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@11.1.0: {}
+
+  vaul@1.1.2(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
+    dependencies:
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
 
   vfile-location@5.0.3:
     dependencies:

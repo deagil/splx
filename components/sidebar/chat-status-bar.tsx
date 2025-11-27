@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { saveChatModelAsCookie } from "@/app/(legacy-chat)/actions";
 import { Button } from "@/components/ui/button";
 import { PersonalizationPanel } from "@/components/sidebar/personalization-panel";
 import {
@@ -20,7 +19,6 @@ import { CpuIcon, PenIcon } from "@/components/shared/icons";
 import { SignatureIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppUsage } from "@/lib/usage";
-import { startTransition } from "react";
 
 type InfoRowProps = {
   label: string;
@@ -168,9 +166,8 @@ function ModelSelectorButton({
         const model = chatModels.find((m) => m.name === modelName);
         if (model) {
           onModelChange?.(model.id);
-          startTransition(() => {
-            saveChatModelAsCookie(model.id);
-          });
+          // Set cookie client-side to avoid triggering page refresh
+          document.cookie = `chat-model=${model.id}; path=/; max-age=${60 * 60 * 24 * 365}`; // 1 year
         }
       }}
       value={selectedModel?.name}
@@ -178,11 +175,11 @@ function ModelSelectorButton({
       <Trigger asChild>
         <Button
           className={cn(
-            "h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2",
+            "h-8 p-1 text-sm text-muted-foreground hover:text-foreground md:h-fit md:p-2",
             "rounded-md transition-colors",
             selectedModelId === "chat-model"
-              ? "bg-muted/30 hover:bg-muted/50"
-              : "bg-slate-800/40 hover:bg-slate-800/50 dark:bg-slate-700/30 dark:hover:bg-slate-700/40"
+              ? "bg-muted hover:bg-muted"
+              : "bg-blue-200 hover:bg-blue-300 dark:bg-slate-700/60 dark:hover:bg-slate-700/90"
           )}
           type="button"
           variant="ghost"
@@ -213,9 +210,9 @@ function ModelSelectorButton({
                         • {model.description}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
+                    {/* <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
                       {model.useCases}
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </SelectItem>

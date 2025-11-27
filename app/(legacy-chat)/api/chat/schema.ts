@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
-  pageMentionSchema,
   blockMentionSchema,
-  tableMentionSchema,
-  recordMentionSchema,
-  userMentionSchema,
   lookupMentionSchema,
+  pageMentionSchema,
+  recordMentionSchema,
+  tableMentionSchema,
+  userMentionSchema,
 } from "@/lib/types/mentions";
 
 const textPartSchema = z.object({

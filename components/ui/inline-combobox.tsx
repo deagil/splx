@@ -264,7 +264,7 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          'z-500 max-h-[288px] w-[300px] overflow-y-auto rounded-md bg-popover shadow-md',
+          'z-500 max-h-[320px] w-[280px] overflow-y-auto rounded-lg border border-border/60 bg-popover p-1 shadow-lg shadow-black/10',
           className
         )}
         {...props}
@@ -274,15 +274,15 @@ const InlineComboboxContent: typeof ComboboxPopover = ({
 };
 
 const comboboxItemVariants = cva(
-  'relative mx-1 flex h-[28px] select-none items-center rounded-sm px-2 text-foreground text-sm outline-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'relative flex min-h-[36px] select-none items-center gap-2.5 rounded-md px-2.5 py-1.5 text-foreground text-sm outline-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
   {
     defaultVariants: {
       interactive: true,
     },
     variants: {
       interactive: {
-        false: '',
-        true: 'cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground data-[active-item=true]:bg-accent data-[active-item=true]:text-accent-foreground',
+        false: 'text-muted-foreground',
+        true: 'cursor-pointer transition-colors hover:bg-accent/80 data-[active-item=true]:bg-accent data-[active-item=true]:text-accent-foreground',
       },
     },
   }
@@ -295,12 +295,14 @@ const InlineComboboxItem = ({
   keywords,
   label,
   onClick,
+  runOnClickBeforeRemoveInput = false,
   ...props
 }: {
   focusEditor?: boolean;
   group?: string;
   keywords?: string[];
   label?: string;
+  runOnClickBeforeRemoveInput?: boolean;
 } & ComboboxItemProps &
   Required<Pick<ComboboxItemProps, 'value'>>) => {
   const { value } = props;
@@ -320,13 +322,20 @@ const InlineComboboxItem = ({
 
   if (!visible) return null;
 
+  const handleClick = (event: React.MouseEvent) => {
+    if (runOnClickBeforeRemoveInput) {
+      onClick?.(event);
+      return;
+    }
+
+    removeInput(focusEditor);
+    onClick?.(event);
+  };
+
   return (
     <ComboboxItem
       className={cn(comboboxItemVariants(), className)}
-      onClick={(event) => {
-        removeInput(focusEditor);
-        onClick?.(event);
-      }}
+      onClick={handleClick}
       {...props}
     />
   );
@@ -352,7 +361,10 @@ const InlineComboboxEmpty = ({
 
   return (
     <div
-      className={cn(comboboxItemVariants({ interactive: false }), className)}
+      className={cn(
+        'flex min-h-[36px] items-center px-2.5 py-1.5 text-sm text-muted-foreground',
+        className
+      )}
     >
       {children}
     </div>
@@ -369,7 +381,7 @@ function InlineComboboxGroup({
     <ComboboxGroup
       {...props}
       className={cn(
-        'hidden not-last:border-b py-1.5 [&:has([role=option])]:block',
+        'hidden py-1 not-first:border-t not-first:border-border/40 not-first:mt-1 not-first:pt-2 [&:has([role=option])]:block',
         className
       )}
     />
@@ -384,7 +396,7 @@ function InlineComboboxGroupLabel({
     <ComboboxGroupLabel
       {...props}
       className={cn(
-        'mt-1.5 mb-2 px-3 font-medium text-muted-foreground text-xs',
+        'mb-1 px-2.5 font-medium text-muted-foreground/70 text-[11px] uppercase tracking-wider',
         className
       )}
     />

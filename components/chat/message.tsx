@@ -27,8 +27,8 @@ import { PreviewAttachment } from "../input/preview-attachment";
 import { Weather } from "../shared/weather";
 import { Loader } from "../elements/loader";
 import { Shimmer } from "../ai-elements/shimmer";
-import { MentionChip } from "../input/mention-chip";
 import type { MentionMetadata } from "@/lib/types/mentions";
+import { MessageContext } from "./message-context";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -143,6 +143,15 @@ const PurePreviewMessage = ({
     (part) => part.type === "file"
   );
 
+  // Extract custom context from the message (mentions and skill)
+  // These are custom fields added when the message was sent
+  const messageAny = message as any;
+  const messageMentions: MentionMetadata[] | undefined = messageAny.mentions;
+  const messageSkill: { id: string; name: string; command: string; prompt?: string } | undefined = messageAny.skill;
+  
+  // Check if message has any context attached
+  const hasContext = (messageMentions && messageMentions.length > 0) || messageSkill;
+
   useDataStream();
 
   // Collect all web search tool calls from the message parts
@@ -202,6 +211,16 @@ const PurePreviewMessage = ({
                   key={attachment.url}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Context attached to user message (skill, mentions) */}
+          {message.role === "user" && hasContext && (
+            <div className="flex justify-end">
+              <MessageContext
+                skill={messageSkill}
+                mentions={messageMentions}
+              />
             </div>
           )}
 

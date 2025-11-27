@@ -10,6 +10,8 @@ export type SettingsSection = {
   title: string;
   description?: string;
   content: ReactNode;
+  /** Optional decorative header that renders above the content container on the page background */
+  headerDecoration?: ReactNode;
 };
 
 type SettingsLayoutProps = {
@@ -73,11 +75,18 @@ export function SettingsLayout({
           </nav>
         </div>
       </aside>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-4 overflow-hidden">
+        {/* Optional header decoration - renders above the content container */}
+        {active?.headerDecoration ? (
+          <div key={`${active.id}-header`} className="hidden md:block w-full overflow-hidden">
+            {active.headerDecoration}
+          </div>
+        ) : null}
+        
         {active ? (
           <div
             key={active.id}
-            className="flex h-full min-h-0 flex-col rounded-xl border bg-muted/50 p-6 shadow-sm"
+            className="flex flex-1 min-h-0 flex-col rounded-xl border bg-muted/50 p-6 shadow-sm"
           >
             <div className="mb-4 space-y-2">
               <h2 className="text-xl font-semibold">{active.title}</h2>

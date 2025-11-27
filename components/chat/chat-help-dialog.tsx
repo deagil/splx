@@ -216,6 +216,38 @@ export function ChatHelpDialog() {
                 Choose different AI models based on your needs. Use the model selector in the status
                 bar to switch between available models.
               </p>
+              <p>
+                <strong>Quick switch:</strong> Press{" "}
+                <kbd className="rounded bg-muted px-1.5 py-0.5 text-xs">Ctrl + M</kbd> to cycle
+                through available models without interrupting your workflow.
+              </p>
+            </div>
+          </section>
+
+          {/* Keyboard Shortcuts */}
+          <section className="space-y-3">
+            <h3 className="text-lg font-semibold">Keyboard Shortcuts</h3>
+            <div className="space-y-2 text-sm">
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Send message</span>
+                    <kbd className="rounded bg-muted px-2 py-1 text-xs font-medium">Enter</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">New line</span>
+                    <kbd className="rounded bg-muted px-2 py-1 text-xs font-medium">Shift + Enter</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Toggle sidebar</span>
+                    <kbd className="rounded bg-muted px-2 py-1 text-xs font-medium">Cmd/Ctrl + B</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Cycle models</span>
+                    <kbd className="rounded bg-muted px-2 py-1 text-xs font-medium">Ctrl + M</kbd>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 

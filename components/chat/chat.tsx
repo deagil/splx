@@ -33,6 +33,7 @@ import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
 import { toast } from "../shared/toast";
 import type { VisibilityType } from "../shared/visibility-selector";
 import { ChatStatusBar } from "../sidebar/chat-status-bar";
+import { chatModels } from "@/lib/ai/models";
 
 export function Chat({
   id,
@@ -67,6 +68,46 @@ export function Chat({
 
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
+  }, [currentModelId]);
+
+  // Keyboard shortcut to cycle through models (Ctrl + M)
+  useEffect(() => {
+    console.log("[Chat] Keyboard shortcut listener mounted");
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log("[Chat] Key pressed:", event.key, "ctrlKey:", event.ctrlKey, "metaKey:", event.metaKey);
+
+      // Ctrl + M to cycle through models (Control key on both Mac and Windows)
+      if (event.key === "m" && event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        console.log("[Chat] Ctrl+M detected! Cycling models...");
+        event.preventDefault();
+
+        // Find current model index and cycle to next
+        const currentIndex = chatModels.findIndex((m) => m.id === currentModelId);
+        const nextIndex = (currentIndex + 1) % chatModels.length;
+        const nextModel = chatModels[nextIndex];
+
+        console.log("[Chat] Current model:", currentModelId, "Next model:", nextModel?.id);
+
+        if (nextModel) {
+          setCurrentModelId(nextModel.id);
+          // Save to cookie for persistence
+          document.cookie = `chat-model=${nextModel.id}; path=/; max-age=${60 * 60 * 24 * 365}`;
+
+          // Show toast notification
+          // toast({
+          //   type: "success",
+          //   description: `Switched to ${nextModel.name}`,
+          // });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      console.log("[Chat] Keyboard shortcut listener unmounted");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [currentModelId]);
 
   const {

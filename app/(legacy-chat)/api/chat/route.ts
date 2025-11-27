@@ -29,10 +29,10 @@ import {
 } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
 import { openai } from "@ai-sdk/openai";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { user } from "@/lib/db/schema";
+import { role, user, workspace, workspaceUser } from "@/lib/db/schema";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
@@ -131,16 +131,25 @@ export async function POST(request: Request) {
 
     const userId = authUser.id;
 
-    // Fetch user preferences for personalization
+    // Extract skill from message (from slash commands)
+    const skill = (message as any).skill;
+
+    // Fetch user preferences and context for personalization
     let userPreferences: UserPreferences | undefined;
-    if (personalizationEnabled) {
+
+    // Always fetch if we have a skill, or if personalization is enabled
+    if (personalizationEnabled || skill) {
       try {
         const sql = postgres(process.env.POSTGRES_URL!);
         const db = drizzle(sql);
 
         try {
+          // Fetch user data with profile fields
           const [userData] = await db
             .select({
+              firstname: user.firstname,
+              lastname: user.lastname,
+              job_title: user.job_title,
               ai_context: user.ai_context,
               proficiency: user.proficiency,
               ai_tone: user.ai_tone,
@@ -150,21 +159,106 @@ export async function POST(request: Request) {
             .where(eq(user.id, userId))
             .limit(1);
 
-          if (userData) {
-            userPreferences = {
-              aiContext: userData.ai_context,
-              proficiency: userData.proficiency,
-              aiTone: userData.ai_tone,
-              aiGuidance: userData.ai_guidance,
-              personalizationEnabled: true,
-            };
+          // Fetch workspace data using tenant context
+          let workspaceData:
+            | { name: string; description: string | null }
+            | undefined;
+          let roleLabel: string | undefined;
+
+          try {
+            const tenant = await resolveTenantContext();
+            const currentWorkspaceId = tenant.workspaceId;
+
+            if (currentWorkspaceId) {
+              // Get workspace details
+              const [ws] = await db
+                .select({
+                  name: workspace.name,
+                  description: workspace.description,
+                })
+                .from(workspace)
+                .where(eq(workspace.id, currentWorkspaceId))
+                .limit(1);
+
+              if (ws) {
+                workspaceData = ws;
+              }
+
+              // Get user's role in this workspace
+              const [workspaceUserData] = await db
+                .select({
+                  role_id: workspaceUser.role_id,
+                })
+                .from(workspaceUser)
+                .where(
+                  and(
+                    eq(workspaceUser.user_id, userId),
+                    eq(workspaceUser.workspace_id, currentWorkspaceId),
+                  ),
+                )
+                .limit(1);
+
+              if (workspaceUserData?.role_id) {
+                // Get the role label
+                const [roleData] = await db
+                  .select({
+                    label: role.label,
+                  })
+                  .from(role)
+                  .where(
+                    and(
+                      eq(role.id, workspaceUserData.role_id),
+                      eq(role.workspace_id, currentWorkspaceId),
+                    ),
+                  )
+                  .limit(1);
+
+                if (roleData) {
+                  roleLabel = roleData.label;
+                }
+              }
+            }
+          } catch (error) {
+            // If tenant context resolution fails, continue without workspace/role data
+            console.warn(
+              "Error resolving tenant context for personalization:",
+              error,
+            );
           }
+
+          userPreferences = {
+            // User profile
+            firstName: userData?.firstname,
+            lastName: userData?.lastname,
+            jobTitle: userData?.job_title,
+            // AI preferences
+            aiContext: userData?.ai_context,
+            proficiency: userData?.proficiency,
+            aiTone: userData?.ai_tone,
+            aiGuidance: userData?.ai_guidance,
+            personalizationEnabled: personalizationEnabled ?? false,
+            // Workspace context
+            workspaceName: workspaceData?.name,
+            workspaceDescription: workspaceData?.description,
+            // Role context
+            roleLabel,
+            // Skill context (from slash commands)
+            skillPrompt: skill?.prompt,
+            skillName: skill?.name,
+          };
         } finally {
           await sql.end({ timeout: 5 });
         }
       } catch (error) {
         console.error("Error fetching user preferences:", error);
-        // Continue without personalization if fetch fails
+        // If we have a skill but failed to fetch preferences, still include the skill
+        if (skill) {
+          userPreferences = {
+            personalizationEnabled: false,
+            skillPrompt: skill.prompt,
+            skillName: skill.name,
+          };
+        }
       }
     }
 

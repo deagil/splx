@@ -9,3 +9,5 @@ ADD COLUMN IF NOT EXISTS mentions JSONB;
 COMMENT ON COLUMN messages.mentions IS 'Stores mention metadata array for displaying mentions as chips in UI. Mentions are stored separately from message parts to preserve original message format for display while sending enriched text to AI.';
 
 
+
+

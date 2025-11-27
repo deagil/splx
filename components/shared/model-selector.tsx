@@ -2,7 +2,6 @@
 
 import type { Session } from "next-auth";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
-import { saveChatModelAsCookie } from "@/app/(legacy-chat)/actions";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -78,7 +77,8 @@ export function ModelSelector({
 
                 startTransition(() => {
                   setOptimisticModelId(id);
-                  saveChatModelAsCookie(id);
+                  // Set cookie client-side to avoid triggering page refresh
+                  document.cookie = `chat-model=${id}; path=/; max-age=${60 * 60 * 24 * 365}`; // 1 year
                 });
               }}
             >

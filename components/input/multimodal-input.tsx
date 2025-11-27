@@ -1,7 +1,6 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
-import { Trigger } from "@radix-ui/react-select";
 import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
@@ -9,10 +8,8 @@ import {
   type Dispatch,
   memo,
   type SetStateAction,
-  startTransition,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -21,29 +18,27 @@ import { toast } from "sonner";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { MentionableItem } from "@/lib/types/mentions";
+import type { Skill } from "@/hooks/use-skills";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import {
   PromptInput,
   PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
 } from "../elements/prompt-input";
 import {
   ArrowUpIcon,
   PaperclipIcon,
   StopIcon,
 } from "../shared/icons";
-import { AtSign } from "lucide-react";
+import { AtSign, Zap } from "lucide-react";
 import type { PlateChatInputRef } from "./plate-chat-input";
-import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "../shared/suggested-actions";
 import { Button } from "@/components/ui/button";
 import type { VisibilityType } from "../shared/visibility-selector";
 import { PlateChatInput } from "./plate-chat-input";
 import { useMentionableItems } from "@/hooks/use-mentionable-items";
-import { MentionChip } from "./mention-chip";
+import { ContextTray, buildContextItems } from "./context-tray";
+import { Loader } from "../elements/loader";
 
 function PureMultimodalInput({
   chatId,
@@ -89,6 +84,9 @@ function PureMultimodalInput({
 
   // Track mentions separately from input text
   const [mentions, setMentions] = useState<MentionableItem["mention"][]>([]);
+  
+  // Track selected skill from slash commands
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -176,10 +174,21 @@ function PureMultimodalInput({
       messageToSend.mentions = validMentions;
     }
 
+    // Add selected skill as custom field (will be used for context/system prompt)
+    if (selectedSkill) {
+      messageToSend.skill = {
+        id: selectedSkill.id,
+        name: selectedSkill.name,
+        command: selectedSkill.command,
+        prompt: selectedSkill.prompt,
+      };
+    }
+
     sendMessage(messageToSend);
 
     setAttachments([]);
     setMentions([]);
+    setSelectedSkill(null);
     setLocalStorageInput("");
     resetHeight();
     // Clear input after a small delay to ensure message is sent first
@@ -190,11 +199,11 @@ function PureMultimodalInput({
     input,
     setInput,
     mentions,
+    selectedSkill,
     attachments,
     sendMessage,
     setAttachments,
     setLocalStorageInput,
-    width,
     chatId,
     resetHeight,
     isDashboardRoute,
@@ -307,11 +316,42 @@ function PureMultimodalInput({
     return () => textarea.removeEventListener('paste', handlePaste);
   }, [handlePaste]);
 
+  // Build unified context items for the tray
+  const contextItems = buildContextItems(
+    selectedSkill,
+    mentions,
+    attachments
+  );
+
+  // Handle removing context items
+  const handleRemoveContextItem = useCallback((id: string) => {
+    if (id.startsWith("skill-")) {
+      setSelectedSkill(null);
+    } else if (id.startsWith("mention-")) {
+      // Extract the index from the ID (format: mention-{index})
+      const idx = Number.parseInt(id.replace("mention-", ""), 10);
+      // Remove the mention node from the Plate editor
+      plateInputRef.current?.removeMentionByIndex(idx);
+      // Also remove from state (will be synced from editor anyway but do it for immediate feedback)
+      setMentions((prev) => prev.filter((_, i) => i !== idx));
+    } else if (id.startsWith("file-")) {
+      const url = id.replace("file-", "");
+      setAttachments((prev) => prev.filter((a) => a.url !== url && a.name !== url));
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [setAttachments]);
+
+  // Check if input is empty (for suggestions visibility)
+  const isInputEmpty = input.trim() === "";
+
   return (
     <div className={cn("relative flex w-full flex-col", className)}>
       {messages.length === 0 &&
         attachments.length === 0 &&
-        uploadQueue.length === 0 && (
+        uploadQueue.length === 0 &&
+        isInputEmpty && (
           <div className="px-2 pb-2 md:px-4">
             <SuggestedActions
               chatId={chatId}
@@ -330,25 +370,7 @@ function PureMultimodalInput({
         type="file"
       />
 
-      <div className="flex flex-col gap-2 w-full">
-        {/* Mentions above input area */}
-        {mentions.length > 0 && (
-          <div
-            className="flex flex-row flex-wrap items-center gap-2 px-2 md:px-4"
-            data-testid="mentions-preview"
-          >
-            {mentions.map((mention, idx) => (
-              <MentionChip
-                key={`${mention.type}-${mention.id || mention.label}-${idx}`}
-                mention={mention}
-                onRemove={() => {
-                  setMentions((prev) => prev.filter((_, i) => i !== idx));
-                }}
-              />
-            ))}
-          </div>
-        )}
-        
+      <div className="flex flex-col w-full">
         <PromptInput
           className="rounded-xl border border-border bg-background shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50"
           onSubmit={(event) => {
@@ -360,38 +382,28 @@ function PureMultimodalInput({
             }
           }}
         >
-          {/* Attachments preview */}
-          {(attachments.length > 0 || uploadQueue.length > 0) && (
-            <div
-              className="flex flex-row items-center gap-2 overflow-x-auto px-3 pt-3"
-              data-testid="attachments-preview"
-            >
-              {attachments.map((attachment) => (
-                <PreviewAttachment
-                  attachment={attachment}
-                  key={attachment.url}
-                  onRemove={() => {
-                    setAttachments((currentAttachments) =>
-                      currentAttachments.filter((a) => a.url !== attachment.url)
-                    );
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = "";
-                    }
-                  }}
-                />
-              ))}
-
-              {uploadQueue.map((filename) => (
-                <PreviewAttachment
-                  attachment={{
-                    url: "",
-                    name: filename,
-                    contentType: "",
-                  }}
-                  isUploading={true}
-                  key={filename}
-                />
-              ))}
+          {/* Unified Context Tray - shows skills, mentions, and attachments */}
+          {(contextItems.length > 0 || uploadQueue.length > 0) && (
+            <div className="px-3 pt-3" data-testid="context-preview">
+              {uploadQueue.length > 0 && (
+                <div className="flex items-center gap-2 mb-2">
+                  {uploadQueue.map((filename) => (
+                    <div
+                      key={filename}
+                      className="flex items-center gap-1.5 h-8 rounded-lg border border-border bg-muted/50 px-2.5"
+                    >
+                      <Loader size={14} />
+                      <span className="text-sm text-muted-foreground truncate max-w-[100px]">
+                        {filename}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <ContextTray
+                items={contextItems}
+                onRemoveItem={handleRemoveContextItem}
+              />
             </div>
           )}
           
@@ -402,6 +414,7 @@ function PureMultimodalInput({
               value={input}
               onChange={setInput}
               onMentionsChange={setMentions}
+              onSkillSelect={setSelectedSkill}
               mentionableItems={mentionableItems}
               placeholder="Send a message..."
               disabled={status !== "ready"}
@@ -428,8 +441,23 @@ function PureMultimodalInput({
                 }}
                 variant="ghost"
                 type="button"
+                title="Add context with @"
               >
                 <AtSign size={12} style={{ width: 12, height: 12 }} />
+              </Button>
+              <Button
+                className="aspect-square h-7 w-7 rounded-md p-0 transition-colors hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground"
+                data-testid="slash-command-trigger-button"
+                disabled={status !== "ready"}
+                onClick={(event) => {
+                  event.preventDefault();
+                  plateInputRef.current?.triggerSlashCommand();
+                }}
+                variant="ghost"
+                type="button"
+                title="Use a skill with /"
+              >
+                <Zap size={12} style={{ width: 12, height: 12 }} />
               </Button>
             </div>
             

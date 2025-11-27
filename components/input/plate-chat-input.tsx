@@ -4,20 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useImperativeHandle, forwardRe
 import { Plate, usePlateEditor, ParagraphPlugin } from "platejs/react";
 import { normalizeNodeId } from "platejs";
 import { MentionPlugin, MentionInputPlugin } from "@platejs/mention/react";
+import { SlashPlugin, SlashInputPlugin } from "@platejs/slash-command/react";
 import { MentionElement } from "@/components/ui/mention-node";
 import { MentionInputElement } from "@/components/input/mention-input-element";
+import { SlashCommandInputElement } from "@/components/input/slash-command-input-element";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import type { MentionableItem } from "@/lib/types/mentions";
-import {
-  mentionableItemsToPlateMentions,
-  parsePlateMentionValue,
-} from "@/lib/plate/mention-config";
+import type { Skill } from "@/hooks/use-skills";
+import { parsePlateMentionValue } from "@/lib/plate/mention-config";
 import { cn } from "@/lib/utils";
 
 export type PlateChatInputProps = {
   value: string;
   onChange: (value: string) => void;
   onMentionsChange?: (mentions: MentionableItem["mention"][]) => void;
+  onSkillSelect?: (skill: Skill) => void;
   mentionableItems: MentionableItem[];
   placeholder?: string;
   className?: string;
@@ -28,15 +29,18 @@ export type PlateChatInputProps = {
 
 export type PlateChatInputRef = {
   triggerMention: () => void;
+  triggerSlashCommand: () => void;
+  removeMentionByIndex: (index: number) => void;
 };
 
 /**
- * Plate-based chat input with @ mention support
+ * Plate-based chat input with @ mention and / slash command support
  */
 export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>(function PlateChatInput({
   value,
   onChange,
   onMentionsChange,
+  onSkillSelect,
   mentionableItems,
   placeholder = "Send a message...",
   className,
@@ -44,11 +48,6 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   autoFocus = false,
   onTriggerMention,
 }, ref) {
-  const plateMentions = useMemo(
-    () => mentionableItemsToPlateMentions(mentionableItems),
-    [mentionableItems]
-  );
-
   // Convert string value to Plate value format
   // Only initialize once - editor should be mostly uncontrolled
   const initialValue = useMemo(
@@ -70,9 +69,18 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
     [mentionableItems]
   );
 
+  // Create a wrapper component that injects onSkillSelect
+  const SlashInputElementWithCallback = useMemo(
+    () => (props: Parameters<typeof SlashCommandInputElement>[0]) => (
+      <SlashCommandInputElement {...props} onSkillSelect={onSkillSelect} />
+    ),
+    [onSkillSelect]
+  );
+
   const editor = usePlateEditor({
     plugins: [
       ParagraphPlugin,
+      // @ mentions for data context
       MentionPlugin.configure({
         options: {
           trigger: "@",
@@ -81,23 +89,86 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
         },
       }).withComponent(MentionElement),
       MentionInputPlugin.withComponent(MentionInputElementWithItems),
+      // / slash commands for skills
+      SlashPlugin.configure({
+        options: {
+          triggerPreviousCharPattern: /^$|^[\s"']$/,
+        },
+      }),
+      SlashInputPlugin.withComponent(SlashInputElementWithCallback),
     ],
     value: initialValue,
   });
 
-  // Expose triggerMention method via ref
+  // Expose triggerMention, triggerSlashCommand, and removeMentionByIndex methods via ref
   useImperativeHandle(ref, () => ({
     triggerMention: () => {
       if (!editor || disabled) return;
       try {
-        // Insert "@" at the current cursor position
-        editor.tf.insertText("@");
-        // Focus the editor to ensure the mention menu opens
+        // Focus the editor first to ensure it's ready
         editor.tf.focus();
-        // Call the callback if provided
-        onTriggerMention?.();
+        // Insert "@" after a small delay to ensure focus is established
+        // and the mention plugin can properly detect the trigger
+        requestAnimationFrame(() => {
+          try {
+            editor.tf.insertText("@");
+            // Call the callback if provided
+            onTriggerMention?.();
+          } catch (error) {
+            console.warn("Error inserting mention trigger:", error);
+          }
+        });
       } catch (error) {
         console.warn("Error triggering mention:", error);
+      }
+    },
+    triggerSlashCommand: () => {
+      if (!editor || disabled) return;
+      try {
+        // Focus the editor first to ensure it's ready
+        editor.tf.focus();
+        // Insert "/" after a small delay to ensure focus is established
+        // and the slash command plugin can properly detect the trigger
+        requestAnimationFrame(() => {
+          try {
+            editor.tf.insertText("/");
+          } catch (error) {
+            console.warn("Error inserting slash command trigger:", error);
+          }
+        });
+      } catch (error) {
+        console.warn("Error triggering slash command:", error);
+      }
+    },
+    removeMentionByIndex: (index: number) => {
+      if (!editor) return;
+      try {
+        // Find all mention nodes in the editor
+        const mentionNodes: Array<{ path: number[]; node: unknown }> = [];
+        
+        function findMentions(children: unknown[], parentPath: number[] = []) {
+          for (const [idx, child] of (children as Array<Record<string, unknown>>).entries()) {
+            const currentPath = [...parentPath, idx];
+            if (child && typeof child === "object") {
+              if ("type" in child && child.type === "mention") {
+                mentionNodes.push({ path: currentPath, node: child });
+              }
+              if ("children" in child && Array.isArray(child.children)) {
+                findMentions(child.children, currentPath);
+              }
+            }
+          }
+        }
+        
+        findMentions(editor.children);
+        
+        // Remove the mention at the specified index
+        if (index >= 0 && index < mentionNodes.length) {
+          const { path } = mentionNodes[index];
+          editor.tf.removeNodes({ at: path });
+        }
+      } catch (error) {
+        console.warn("Error removing mention:", error);
       }
     },
   }), [editor, disabled, onTriggerMention]);
