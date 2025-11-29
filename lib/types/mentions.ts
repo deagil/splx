@@ -147,4 +147,3 @@ export type MentionableItem = {
   icon?: string;
   mention: MentionMetadata;
 };
-

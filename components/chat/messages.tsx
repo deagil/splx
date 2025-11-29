@@ -63,56 +63,66 @@ function PureMessages({
 
   return (
     <div
-      className="overscroll-behavior-contain -webkit-overflow-scrolling-touch relative flex-1 touch-pan-y overflow-y-scroll"
-      ref={messagesContainerRef}
-      style={{ overflowAnchor: "none" }}
+      className="relative flex flex-1 flex-col overflow-hidden"
     >
-      <Conversation className="mx-auto flex min-w-0 max-w-4xl flex-col gap-4 md:gap-6">
-        <ConversationContent className="flex flex-col gap-4 px-2 pt-4 pb-2 md:gap-6 md:px-2">
-          {messages.length === 0 && <Greeting />}
-
-          <AnimatePresence mode="popLayout" initial={false}>
-            {messages.map((message, index) => (
-              <PreviewMessage
-                chatId={chatId}
-                isLoading={
-                  status === "streaming" && messages.length - 1 === index
-                }
-                isReadonly={isReadonly}
-                key={message.id}
-                message={message}
-                regenerate={regenerate}
-                requiresScrollPadding={
-                  hasSentMessage && index === messages.length - 1 && status !== "streaming"
-                }
-                setMessages={setMessages}
-                vote={
-                  votes
-                    ? votes.find((vote) => vote.message_id === message.id)
-                    : undefined
-                }
-              />
-            ))}
-          </AnimatePresence>
-
-          <AnimatePresence mode="popLayout">
-            {status === "submitted" && (
-              <ThinkingMessage key="thinking" />
+      {/* Scrollable messages area */}
+      <div
+        className="overscroll-behavior-contain -webkit-overflow-scrolling-touch flex-1 touch-pan-y overflow-y-scroll"
+        ref={messagesContainerRef}
+        style={{ overflowAnchor: "none" }}
+      >
+        <Conversation className="mx-auto flex min-h-full min-w-0 max-w-4xl flex-col gap-4 md:gap-6">
+          <ConversationContent className="flex flex-1 flex-col gap-4 px-2 pt-4 pb-2 md:gap-6 md:px-2">
+            {messages.length === 0 && (
+              <div className="flex min-h-[30vh] flex-col justify-end">
+                <Greeting />
+              </div>
             )}
-          </AnimatePresence>
 
-          <div
-            className="min-h-[24px] min-w-[24px] shrink-0"
-            ref={messagesEndRef}
-          />
-        </ConversationContent>
-      </Conversation>
+            <AnimatePresence mode="popLayout" initial={false}>
+              {messages.map((message, index) => (
+                <PreviewMessage
+                  chatId={chatId}
+                  isLoading={
+                    status === "streaming" && messages.length - 1 === index
+                  }
+                  isReadonly={isReadonly}
+                  key={message.id}
+                  message={message}
+                  regenerate={regenerate}
+                  requiresScrollPadding={
+                    hasSentMessage && index === messages.length - 1 && status !== "streaming"
+                  }
+                  setMessages={setMessages}
+                  vote={
+                    votes
+                      ? votes.find((vote) => vote.message_id === message.id)
+                      : undefined
+                  }
+                />
+              ))}
+            </AnimatePresence>
 
-      {/* Sticky input slot - floats at bottom, messages scroll under it */}
+            <AnimatePresence mode="popLayout">
+              {status === "submitted" && (
+                <ThinkingMessage key="thinking" />
+              )}
+            </AnimatePresence>
+
+            {/* Spacer to ensure messages can scroll above the sticky input */}
+            <div
+              className="min-h-[200px] min-w-[24px] shrink-0"
+              ref={messagesEndRef}
+            />
+          </ConversationContent>
+        </Conversation>
+      </div>
+
+      {/* Input slot - positioned at bottom, overlays messages with gradient fade */}
       {inputSlot}
 
       {!isAtBottom && (
-        <div className="pointer-events-none sticky bottom-56 z-30 flex justify-center">
+        <div className="pointer-events-none absolute bottom-56 left-0 right-0 z-30 flex justify-center">
           <button
             aria-label="Scroll to bottom"
             className="pointer-events-auto rounded-full border bg-background p-2 shadow-lg transition-colors hover:bg-muted"

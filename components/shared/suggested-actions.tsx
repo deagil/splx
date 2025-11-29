@@ -26,20 +26,53 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
   ];
 
   return (
-    <div
+    <motion.div
       className="flex w-full flex-col gap-2"
       data-testid="suggested-actions"
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      variants={{
+        hidden: {},
+        visible: {
+          transition: {
+            staggerChildren: 0.06,
+            delayChildren: 0.1,
+          },
+        },
+        exit: {
+          transition: {
+            staggerChildren: 0.03,
+            staggerDirection: -1,
+          },
+        },
+      }}
     >
-      {suggestedActions.map((suggestedAction, index) => (
+      {suggestedActions.map((suggestedAction) => (
         <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          initial={{ opacity: 0, y: 20 }}
           key={suggestedAction}
-          transition={{ delay: 0.05 * index }}
+          variants={{
+            hidden: { opacity: 0, y: 12, scale: 0.97 },
+            visible: { 
+              opacity: 1, 
+              y: 0, 
+              scale: 1,
+              transition: {
+                type: "spring",
+                stiffness: 400,
+                damping: 25,
+              },
+            },
+            exit: { 
+              opacity: 0, 
+              y: -8, 
+              scale: 0.97,
+              transition: { duration: 0.15 },
+            },
+          }}
         >
           <Suggestion
-            className="h-auto max-w-[calc(100%-1rem)] whitespace-normal rounded-lg px-3 py-2 text-left"
+            className="h-auto max-w-[calc(100%-1rem)] whitespace-normal rounded-lg px-3 py-2 text-left transition-colors duration-150"
             onClick={(suggestion) => {
               // Only navigate if not on dashboard route
               if (!isDashboardRoute) {
@@ -56,7 +89,7 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
           </Suggestion>
         </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 

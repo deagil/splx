@@ -3,6 +3,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -156,7 +157,7 @@ export function ChatSidebarContent({
 
   // Load messages when chatId changes (for existing chats from URL)
   // Fetch messages if autoResume is true (meaning chatId came from URL)
-  const { data: fetchedMessages } = useSWR<ChatMessage[]>(
+  const { data: fetchedMessages, isLoading: isLoadingMessages } = useSWR<ChatMessage[]>(
     autoResume ? `/api/chat/${chatId}/messages` : null,
     async (url: string) => {
       const response = await fetch(url);
@@ -165,8 +166,15 @@ export function ChatSidebarContent({
       }
       const data = await response.json() as { messages?: ChatMessage[] };
       return data.messages || [];
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
     }
   );
+  
+  // Determine if we're in a loading state for an existing chat
+  const isLoadingExistingChat = autoResume && isLoadingMessages && !fetchedMessages;
 
   // Use fetched messages if available, otherwise use initialMessages
   const messagesToUse = autoResume && fetchedMessages ? fetchedMessages : initialMessages;
@@ -320,49 +328,109 @@ export function ChatSidebarContent({
   return (
     <>
       <div className="flex h-full flex-1 flex-col overflow-hidden bg-transparent">
-        <Messages
-          chatId={chatId}
-          isArtifactVisible={isArtifactVisible}
-          isReadonly={isReadonly}
-          messages={messages}
-          regenerate={regenerate}
-          selectedModelId={initialChatModel}
-          setMessages={setMessages}
-          status={status}
-          votes={votes}
-          inputSlot={
-            !isReadonly && (
-              <div className="pointer-events-none sticky bottom-0 z-10 flex flex-col">
-                {/* Gradient fade overlay */}
-                <div className="h-12 bg-linear-to-t from-sidebar to-transparent" />
-                {/* Input container */}
-                <div className="pointer-events-auto bg-sidebar pb-1">
-                  <div className="flex w-full gap-2 pb-1.5">
-                    <MultimodalInput
-                      attachments={attachments}
-                      chatId={chatId}
-                      input={input}
-                      messages={messages}
-                      selectedModelId={currentModelId}
-                      selectedVisibilityType={visibilityType}
-                      sendMessage={sendMessage}
-                      setAttachments={setAttachments}
-                      setInput={setInput}
-                      setMessages={setMessages}
-                      status={status}
-                      stop={stop}
-                    />
+        <AnimatePresence mode="wait">
+          {isLoadingExistingChat ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex h-full flex-1 flex-col overflow-hidden"
+            >
+              {/* Loading skeleton */}
+              <div className="flex flex-1 flex-col gap-4 p-4 pt-6">
+                {/* Simulated message skeleton */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="size-8 shrink-0 animate-pulse rounded-full bg-muted" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                    </div>
                   </div>
-                  <ChatStatusBar
-                    onModelChange={setCurrentModelId}
-                    selectedModelId={currentModelId}
-                    usage={usage}
-                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3 justify-end">
+                    <div className="flex flex-1 flex-col items-end gap-2">
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="size-8 shrink-0 animate-pulse rounded-full bg-muted" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                      <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                    </div>
+                  </div>
                 </div>
               </div>
-            )
-          }
-        />
+              {/* Loading state input area placeholder */}
+              <div className="pointer-events-none sticky bottom-0 z-10 flex flex-col">
+                <div className="h-12 bg-linear-to-t from-sidebar to-transparent" />
+                <div className="bg-sidebar pb-1">
+                  <div className="mx-2 h-[120px] animate-pulse rounded-xl border border-border bg-muted/50" />
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex h-full flex-1 flex-col overflow-hidden"
+            >
+              <Messages
+                chatId={chatId}
+                isArtifactVisible={isArtifactVisible}
+                isReadonly={isReadonly}
+                messages={messages}
+                regenerate={regenerate}
+                selectedModelId={initialChatModel}
+                setMessages={setMessages}
+                status={status}
+                votes={votes}
+                inputSlot={
+                  !isReadonly && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col">
+                      {/* Gradient fade overlay */}
+                      <div className="h-10 bg-gradient-to-t from-sidebar to-transparent" />
+                      {/* Input container */}
+                      <div className="pointer-events-auto bg-sidebar pb-1">
+                        <div className="flex w-full gap-2 pb-1.5">
+                          <MultimodalInput
+                            attachments={attachments}
+                            chatId={chatId}
+                            input={input}
+                            messages={messages}
+                            selectedModelId={currentModelId}
+                            selectedVisibilityType={visibilityType}
+                            sendMessage={sendMessage}
+                            setAttachments={setAttachments}
+                            setInput={setInput}
+                            setMessages={setMessages}
+                            status={status}
+                            stop={stop}
+                          />
+                        </div>
+                        <ChatStatusBar
+                          onModelChange={setCurrentModelId}
+                          selectedModelId={currentModelId}
+                          usage={usage}
+                        />
+                      </div>
+                    </div>
+                  )
+                }
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <AlertDialog

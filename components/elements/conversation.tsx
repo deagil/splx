@@ -15,7 +15,7 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
       "relative flex-1 touch-pan-y overflow-y-auto will-change-scroll",
       className
     )}
-    initial="smooth"
+    initial="instant"
     resize="smooth"
     role="log"
     {...props}
