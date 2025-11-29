@@ -61,7 +61,7 @@ const PureChatItem = ({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={isDashboardRoute ? "#" : `/chat/${chat.id}`} onClick={handleClick}>
+        <Link href={isDashboardRoute ? "#" : `?chatId=${chat.id}`} onClick={handleClick}>
           <span>{chat.title}</span>
         </Link>
       </SidebarMenuButton>

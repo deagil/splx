@@ -3,13 +3,13 @@ import type {
   CoreToolMessage,
   UIMessage,
   UIMessagePart,
-} from 'ai';
-import { type ClassValue, clsx } from 'clsx';
-import { formatISO } from 'date-fns';
-import { twMerge } from 'tailwind-merge';
-import type { DBMessage, Document } from '@/lib/db/schema';
-import { ChatSDKError, type ErrorCode } from './errors';
-import type { ChatMessage, ChatTools, CustomUIDataTypes } from './types';
+} from "ai";
+import { type ClassValue, clsx } from "clsx";
+import { formatISO } from "date-fns";
+import { twMerge } from "tailwind-merge";
+import type { DBMessage, Document } from "@/lib/db/schema";
+import { ChatSDKError, type ErrorCode } from "./errors";
+import type { ChatMessage, ChatTools, CustomUIDataTypes } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -40,8 +40,8 @@ export async function fetchWithErrorHandlers(
 
     return response;
   } catch (error: unknown) {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      throw new ChatSDKError('offline:chat');
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      throw new ChatSDKError("offline:chat");
     }
 
     throw error;
@@ -49,16 +49,16 @@ export async function fetchWithErrorHandlers(
 }
 
 export function getLocalStorage(key: string) {
-  if (typeof window !== 'undefined') {
-    return JSON.parse(localStorage.getItem(key) || '[]');
+  if (typeof window !== "undefined") {
+    return JSON.parse(localStorage.getItem(key) || "[]");
   }
   return [];
 }
 
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -67,7 +67,7 @@ type ResponseMessageWithoutId = CoreToolMessage | CoreAssistantMessage;
 type ResponseMessage = ResponseMessageWithoutId & { id: string };
 
 export function getMostRecentUserMessage(messages: UIMessage[]) {
-  const userMessages = messages.filter((message) => message.role === 'user');
+  const userMessages = messages.filter((message) => message.role === "user");
   return userMessages.at(-1);
 }
 
@@ -75,8 +75,8 @@ export function getDocumentTimestampByIndex(
   documents: Document[],
   index: number,
 ) {
-  if (!documents) { return new Date(); }
-  if (index > documents.length) { return new Date(); }
+  if (!documents) return new Date();
+  if (index > documents.length) return new Date();
 
   return documents[index].created_at;
 }
@@ -88,38 +88,99 @@ export function getTrailingMessageId({
 }): string | null {
   const trailingMessage = messages.at(-1);
 
-  if (!trailingMessage) { return null; }
+  if (!trailingMessage) return null;
 
   return trailingMessage.id;
 }
 
 export function sanitizeText(text: string) {
-  return text.replace('<has_function_call>', '');
+  // Remove known AI-generated pseudo-tags that aren't valid HTML
+  let sanitized = text.replace("<has_function_call>", "");
+
+  // List of non-HTML tag names that AI models commonly use
+  const nonHtmlTagNames = [
+    "url",
+    "paste",
+    "context",
+    "query",
+    "mention",
+    "data",
+    "result",
+    "output",
+    "input",
+    "content",
+    "search",
+    "response",
+    "request",
+    "file",
+    "message",
+    "user",
+    "assistant",
+    "system",
+    "tool",
+    "function",
+    "arg",
+    "args",
+    "param",
+    "params",
+    "ref",
+    "cite",
+    "citation",
+    "source",
+    "sources",
+    "thought",
+    "thinking",
+    "reasoning",
+    "answer",
+    "question",
+  ];
+
+  // Escape opening tags (with optional attributes and self-closing)
+  // Matches: <tag>, <tag attr="value">, <tag />, <tag attr="value" />
+  const tagPattern = nonHtmlTagNames.join("|");
+  const openingTagRegex = new RegExp(
+    `<(${tagPattern})(\\s[^>]*)?\\/?>`,
+    "gi",
+  );
+  sanitized = sanitized.replace(openingTagRegex, (match) => {
+    return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  });
+
+  // Escape closing tags
+  const closingTagRegex = new RegExp(`<\\/(${tagPattern})>`, "gi");
+  sanitized = sanitized.replace(closingTagRegex, (match) => {
+    return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  });
+
+  return sanitized;
 }
 
 export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
   return messages.map((message) => {
     const chatMessage: ChatMessage = {
       id: message.id,
-      role: message.role as 'user' | 'assistant' | 'system',
+      role: message.role as "user" | "assistant" | "system",
       parts: message.parts as UIMessagePart<CustomUIDataTypes, ChatTools>[],
       metadata: {
         createdAt: formatISO(message.created_at),
       },
     };
-    
+
     // Include mentions if present (for displaying as chips in UI)
-    if (message.mentions && Array.isArray(message.mentions) && message.mentions.length > 0) {
+    if (
+      message.mentions && Array.isArray(message.mentions) &&
+      message.mentions.length > 0
+    ) {
       (chatMessage as any).mentions = message.mentions;
     }
-    
+
     return chatMessage;
   });
 }
 
 export function getTextFromMessage(message: ChatMessage | UIMessage): string {
   return message.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part as { type: 'text'; text: string}).text)
-    .join('');
+    .filter((part) => part.type === "text")
+    .map((part) => (part as { type: "text"; text: string }).text)
+    .join("");
 }

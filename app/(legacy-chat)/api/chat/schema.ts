@@ -5,6 +5,7 @@ import {
   pageMentionSchema,
   recordMentionSchema,
   tableMentionSchema,
+  urlMentionSchema,
   userMentionSchema,
 } from "@/lib/types/mentions";
 
@@ -30,6 +31,7 @@ const mentionSchema = z.union([
   recordMentionSchema,
   userMentionSchema,
   lookupMentionSchema,
+  urlMentionSchema,
 ]);
 
 export const postRequestBodySchema = z.object({

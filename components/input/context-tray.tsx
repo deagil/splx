@@ -115,12 +115,13 @@ export function ContextTray({ items, onRemoveItem, className, readOnly = false }
 }
 
 /**
- * Helper to convert skills, mentions, and attachments to ContextItems
+ * Helper to convert skills, mentions, URLs, and attachments to ContextItems
  */
 export function buildContextItems(
   skill: { id: string; name: string; command: string; prompt?: string; description?: string | null } | null,
   mentions: Array<{ type: string; label: string; id?: string; description?: string; [key: string]: unknown }>,
-  attachments: Array<{ url: string; name: string; contentType: string }>
+  attachments: Array<{ url: string; name: string; contentType: string }>,
+  urlMentions?: Array<{ type: "url"; label: string; url: string; description?: string; favicon?: string; image?: string; title?: string; id?: string }>
 ): ContextItem[] {
   const items: ContextItem[] = [];
   
@@ -143,6 +144,17 @@ export function buildContextItems(
       id: `mention-${idx}`,
       data: mention as ContextItem extends { type: "mention"; data: infer D } ? D : never,
     });
+  }
+  
+  // Add URL mentions
+  if (urlMentions) {
+    for (const urlMention of urlMentions) {
+      items.push({
+        type: "mention",
+        id: `url-${urlMention.url}`,
+        data: urlMention as ContextItem extends { type: "mention"; data: infer D } ? D : never,
+      });
+    }
   }
   
   // Add attachments

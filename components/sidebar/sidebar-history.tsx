@@ -347,7 +347,8 @@ export function SidebarHistory({
             }}
           />
 
-          {hasReachedEnd ? (
+          {/* //todo: add loading more chats */}
+          {/* {hasReachedEnd ? (
             <div className="mt-8 flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-zinc-500">
               You have reached the end of your chat history.
             </div>
@@ -358,7 +359,7 @@ export function SidebarHistory({
               </div>
               <div>Loading Chats...</div>
             </div>
-          )}
+          )} */}
         </SidebarGroupContent>
       </SidebarGroup>
 

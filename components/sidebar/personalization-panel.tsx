@@ -537,14 +537,14 @@ export function PersonalizationPanel({
                     <Settings className="h-4 w-4" />
                     General
                   </TabsTrigger>
-                  <TabsTrigger value="conversation" className="gap-2">
+                  {/* <TabsTrigger value="conversation" className="gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Conversation
                   </TabsTrigger>
                   <TabsTrigger value="generation" className="gap-2">
                     <Code className="h-4 w-4" />
                     Generation
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                   <TabsTrigger value="skills" className="gap-2">
                     <Zap className="h-4 w-4" />
                     Skills
@@ -572,7 +572,7 @@ export function PersonalizationPanel({
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                {/* <div className="space-y-3">
                   <Label htmlFor="ai_context">Background & Context</Label>
                   <Textarea
                     id="ai_context"
@@ -586,27 +586,8 @@ export function PersonalizationPanel({
                     className="min-h-[80px] resize-none"
                     maxLength={2000}
                   />
-                </div>
+                </div> */}
 
-                <div className="space-y-3">
-                  <Label htmlFor="ai_guidance">Additional Instructions</Label>
-                  <Textarea
-                    id="ai_guidance"
-                    placeholder="Any specific preferences or instructions for the AI..."
-                    value={formData.ai_guidance}
-                    onChange={(e) => {
-                      const newFormData = { ...formData, ai_guidance: e.target.value };
-                      setFormData(newFormData);
-                      autoSave(newFormData);
-                    }}
-                    className="min-h-[100px] resize-none"
-                    maxLength={4000}
-                  />
-                </div>
-              </TabsContent>
-
-              {/* Conversation Tab */}
-              <TabsContent value="conversation" className="p-6 mt-0 space-y-6">
                 <div className="space-y-4">
                   <div>
                     <Label className="mb-3 block">Technical Proficiency</Label>
@@ -670,7 +651,28 @@ export function PersonalizationPanel({
                     </ToggleGroup>
                   </div>
                 </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="ai_guidance">Additional Instructions</Label>
+                  <Textarea
+                    id="ai_guidance"
+                    placeholder="Any specific preferences or instructions for the AI..."
+                    value={formData.ai_guidance}
+                    onChange={(e) => {
+                      const newFormData = { ...formData, ai_guidance: e.target.value };
+                      setFormData(newFormData);
+                      autoSave(newFormData);
+                    }}
+                    className="min-h-[100px] resize-none"
+                    maxLength={4000}
+                  />
+                </div>
               </TabsContent>
+
+              {/* Conversation Tab
+              <TabsContent value="conversation" className="p-6 mt-0 space-y-6">
+                
+              </TabsContent> */}
 
               {/* Generation Tab */}
               <TabsContent value="generation" className="p-6 mt-0 space-y-6">

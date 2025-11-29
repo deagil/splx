@@ -13,13 +13,14 @@ export type MentionType =
   | "table" // Table lookup
   | "record" // Specific record
   | "user" // User profile
-  | "lookup"; // Generic data lookup
+  | "lookup" // Generic data lookup
+  | "url"; // Web page URL
 
 /**
  * Base mention metadata
  */
 export const mentionMetadataSchema = z.object({
-  type: z.enum(["page", "block", "table", "record", "user", "lookup"]),
+  type: z.enum(["page", "block", "table", "record", "user", "lookup", "url"]),
   id: z.string().optional(), // ID for the mentioned resource
   label: z.string(), // Display label
   description: z.string().optional(), // Optional description
@@ -93,6 +94,19 @@ export const lookupMentionSchema = mentionMetadataSchema.extend({
 export type LookupMention = z.infer<typeof lookupMentionSchema>;
 
 /**
+ * URL mention - references a web page URL
+ */
+export const urlMentionSchema = mentionMetadataSchema.extend({
+  type: z.literal("url"),
+  url: z.string().url(), // The full URL
+  title: z.string().optional(), // Page title from OG metadata
+  favicon: z.string().optional(), // Favicon URL
+  image: z.string().optional(), // OG image URL
+});
+
+export type UrlMention = z.infer<typeof urlMentionSchema>;
+
+/**
  * Union of all mention types
  */
 export type Mention =
@@ -101,7 +115,8 @@ export type Mention =
   | TableMention
   | RecordMention
   | UserMention
-  | LookupMention;
+  | LookupMention
+  | UrlMention;
 
 /**
  * Mention part for message parts array
@@ -116,6 +131,7 @@ export const mentionPartSchema = z.object({
     recordMentionSchema,
     userMentionSchema,
     lookupMentionSchema,
+    urlMentionSchema,
   ]),
 });
 

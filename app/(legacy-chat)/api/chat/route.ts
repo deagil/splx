@@ -28,7 +28,7 @@ import {
   type UserPreferences,
 } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
-import { openai } from "@ai-sdk/openai";
+import { readUrlContent } from "@/lib/ai/tools/read-url-content";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -407,7 +407,7 @@ export async function POST(request: Request) {
               "createDocument",
               "updateDocument",
               "requestSuggestions",
-              "web_search",
+              "readUrlContent",
             ],
           experimental_transform: smoothStream({ chunking: "word" }),
           // Enable reasoning visibility for reasoning models
@@ -430,7 +430,7 @@ export async function POST(request: Request) {
               session: { user: { id: userId } } as any,
               dataStream,
             }),
-            web_search: openai.tools.webSearch({}) as any,
+            readUrlContent,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

@@ -320,47 +320,49 @@ export function ChatSidebarContent({
   return (
     <>
       <div className="flex h-full flex-1 flex-col overflow-hidden bg-transparent">
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Messages
-            chatId={chatId}
-            isArtifactVisible={isArtifactVisible}
-            isReadonly={isReadonly}
-            messages={messages}
-            regenerate={regenerate}
-            selectedModelId={initialChatModel}
-            setMessages={setMessages}
-            status={status}
-            votes={votes}
-          />
-        </div>
-
-        <div className="sticky bottom-0 z-1 flex w-full flex-col gap-0 border-t-0 bg-transparent">
-          {!isReadonly && (
-            <>
-              <div className="flex w-full gap-2 pb-1.5">
-                <MultimodalInput
-                  attachments={attachments}
-                  chatId={chatId}
-                  input={input}
-                  messages={messages}
-                  selectedModelId={currentModelId}
-                  selectedVisibilityType={visibilityType}
-                  sendMessage={sendMessage}
-                  setAttachments={setAttachments}
-                  setInput={setInput}
-                  setMessages={setMessages}
-                  status={status}
-                  stop={stop}
-                />
+        <Messages
+          chatId={chatId}
+          isArtifactVisible={isArtifactVisible}
+          isReadonly={isReadonly}
+          messages={messages}
+          regenerate={regenerate}
+          selectedModelId={initialChatModel}
+          setMessages={setMessages}
+          status={status}
+          votes={votes}
+          inputSlot={
+            !isReadonly && (
+              <div className="pointer-events-none sticky bottom-0 z-10 flex flex-col">
+                {/* Gradient fade overlay */}
+                <div className="h-12 bg-linear-to-t from-sidebar to-transparent" />
+                {/* Input container */}
+                <div className="pointer-events-auto bg-sidebar pb-1">
+                  <div className="flex w-full gap-2 pb-1.5">
+                    <MultimodalInput
+                      attachments={attachments}
+                      chatId={chatId}
+                      input={input}
+                      messages={messages}
+                      selectedModelId={currentModelId}
+                      selectedVisibilityType={visibilityType}
+                      sendMessage={sendMessage}
+                      setAttachments={setAttachments}
+                      setInput={setInput}
+                      setMessages={setMessages}
+                      status={status}
+                      stop={stop}
+                    />
+                  </div>
+                  <ChatStatusBar
+                    onModelChange={setCurrentModelId}
+                    selectedModelId={currentModelId}
+                    usage={usage}
+                  />
+                </div>
               </div>
-              <ChatStatusBar
-                onModelChange={setCurrentModelId}
-                selectedModelId={currentModelId}
-                usage={usage}
-              />
-            </>
-          )}
-        </div>
+            )
+          }
+        />
       </div>
 
       <AlertDialog

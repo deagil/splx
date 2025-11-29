@@ -1,8 +1,8 @@
 "use client";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
-import { motion } from "framer-motion";
-import { memo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { memo, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
@@ -168,11 +168,19 @@ const PurePreviewMessage = ({
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       className="group/message w-full"
       data-role={message.role}
       data-testid={`message-${message.role}`}
-      initial={{ opacity: 0 }}
+      initial={{ 
+        opacity: 0, 
+        y: message.role === "user" ? 10 : 0,
+        scale: message.role === "user" ? 0.98 : 1 
+      }}
+      transition={{ 
+        duration: 0.2, 
+        ease: "easeOut",
+      }}
     >
       <div
         className={cn("flex w-full items-start", {
@@ -669,8 +677,116 @@ export const PreviewMessage = memo(
   }
 );
 
+type ThinkingStep = {
+  id: string;
+  label: string;
+  description?: string;
+  status: "pending" | "active" | "complete";
+};
+
+const ThinkingStepItem = memo(({ step, isLast }: { step: ThinkingStep; isLast: boolean }) => {
+  const statusStyles = {
+    complete: "text-muted-foreground",
+    active: "text-foreground",
+    pending: "text-muted-foreground/40",
+  };
+
+  const dotStyles = {
+    complete: "bg-emerald-500",
+    active: "bg-primary animate-pulse",
+    pending: "bg-muted-foreground/30",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className={cn("flex gap-2.5 text-sm", statusStyles[step.status])}
+    >
+      <div className="relative flex flex-col items-center">
+        <motion.div
+          className={cn("size-2 rounded-full mt-1.5", dotStyles[step.status])}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.15, delay: 0.1 }}
+        />
+        {!isLast && (
+          <motion.div
+            className="w-px flex-1 bg-border mt-1"
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            transition={{ duration: 0.2, delay: 0.15 }}
+            style={{ originY: 0 }}
+          />
+        )}
+      </div>
+      <div className="flex-1 pb-3">
+        <div className="flex items-center gap-2">
+          {step.status === "active" && <Loader size={12} className="text-primary" />}
+          {step.status === "complete" && (
+            <motion.svg
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="size-3 text-emerald-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </motion.svg>
+          )}
+          <span>{step.label}</span>
+        </div>
+        {step.description && step.status === "active" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="text-muted-foreground/70 text-xs mt-0.5"
+          >
+            {step.description}
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+});
+
+ThinkingStepItem.displayName = "ThinkingStepItem";
+
 export const ThinkingMessage = () => {
   const role = "assistant";
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  const steps: Omit<ThinkingStep, "status">[] = [
+    { id: "read", label: "Reading your message", description: "Parsing input and extracting context" },
+    { id: "analyze", label: "Analyzing context", description: "Processing mentions and attachments" },
+    { id: "prepare", label: "Preparing response", description: "Initializing AI model" },
+  ];
+
+  // Progress through steps with timing
+  useEffect(() => {
+    const timers: NodeJS.Timeout[] = [];
+    
+    // Move to step 1 after 400ms
+    timers.push(setTimeout(() => setCurrentStepIndex(1), 400));
+    // Move to step 2 after 900ms
+    timers.push(setTimeout(() => setCurrentStepIndex(2), 900));
+    
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  const stepsWithStatus: ThinkingStep[] = steps.map((step, index) => ({
+    ...step,
+    status: index < currentStepIndex ? "complete" : index === currentStepIndex ? "active" : "pending",
+  }));
 
   return (
     <motion.div
@@ -678,26 +794,31 @@ export const ThinkingMessage = () => {
       className="group/message w-full"
       data-role={role}
       data-testid="message-assistant-loading"
-      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
       initial={{ opacity: 0 }}
       layout
-      transition={{ duration: 0.15 }}
+      transition={{ duration: 0.2 }}
     >
       <div className="flex items-start justify-start gap-3">
-        <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+        <motion.div
+          className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           <SparklesIcon size={14} />
-        </div>
+        </motion.div>
 
-        <div className="flex w-full flex-col gap-2 md:gap-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader size={14} />
-            <div className="flex flex-col gap-1">
-              <Shimmer duration={1.5}>Preparing response...</Shimmer>
-              <div className="text-muted-foreground/70 text-xs">
-                Loading context and initializing AI model
-              </div>
-            </div>
-          </div>
+        <div className="flex w-full flex-col pt-0.5">
+          <AnimatePresence mode="sync">
+            {stepsWithStatus.map((step, index) => (
+              <ThinkingStepItem
+                key={step.id}
+                step={step}
+                isLast={index === stepsWithStatus.length - 1}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>

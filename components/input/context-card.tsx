@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { X, Zap, User, Table2, Database, FileText, LayoutGrid, Search, File, Image, FileCode, FileSpreadsheet } from "lucide-react";
+import { X, Zap, User, Table2, Database, FileText, LayoutGrid, Search, File, Image, FileCode, FileSpreadsheet, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { MentionMetadata, MentionType } from "@/lib/types/mentions";
+import type { MentionMetadata, MentionType, UrlMention } from "@/lib/types/mentions";
 import type { Skill } from "@/hooks/use-skills";
 import type { Attachment } from "@/lib/types";
 
@@ -19,6 +19,7 @@ export type ContextItemType =
   | "mention-page" 
   | "mention-block" 
   | "mention-lookup"
+  | "mention-url"
   | "file";
 
 /**
@@ -59,6 +60,8 @@ export function getContextIcon(itemType: ContextItemType) {
       return LayoutGrid;
     case "mention-lookup":
       return Search;
+    case "mention-url":
+      return Globe;
     case "file":
       return File;
     default:
@@ -113,6 +116,12 @@ export function getContextColors(itemType: ContextItemType): { border: string; i
         icon: "text-cyan-500",
         bg: "bg-cyan-500/5",
       };
+    case "mention-url":
+      return {
+        border: "border-indigo-500/30",
+        icon: "text-indigo-500",
+        bg: "bg-indigo-500/5",
+      };
     case "file":
       return {
         border: "border-border",
@@ -162,6 +171,13 @@ export type ContextCardProps = {
 };
 
 /**
+ * Check if item is a URL mention with favicon
+ */
+function isUrlMentionWithFavicon(item: ContextItem): item is { type: "mention"; data: UrlMention; id: string } {
+  return item.type === "mention" && item.data.type === "url" && "favicon" in item.data && Boolean(item.data.favicon);
+}
+
+/**
  * Compact context card for skills, mentions, and files
  * Chunkier design inspired by Dia's context tray
  */
@@ -176,6 +192,10 @@ export function ContextCard({ item, onRemove, readOnly = false, className }: Con
     Icon = getFileIcon(item.data.contentType);
   }
 
+  // Check if we should show favicon for URL mentions
+  const showFavicon = isUrlMentionWithFavicon(item);
+  const faviconUrl = showFavicon ? (item.data as UrlMention).favicon : undefined;
+
   return (
     <div
       className={cn(
@@ -188,10 +208,27 @@ export function ContextCard({ item, onRemove, readOnly = false, className }: Con
       )}
     >
       <div className={cn(
-        "flex size-5 items-center justify-center rounded-md",
+        "flex size-5 items-center justify-center rounded-md overflow-hidden",
         colors.bg,
       )}>
-        <Icon className={cn("size-3.5 shrink-0", colors.icon)} />
+        {showFavicon && faviconUrl ? (
+          <img 
+            src={faviconUrl} 
+            alt="" 
+            className="size-3.5 shrink-0 object-contain"
+            onError={(e) => {
+              // Hide broken favicon images
+              (e.target as HTMLImageElement).style.display = "none";
+              // Show fallback icon by replacing parent content
+              const parent = (e.target as HTMLImageElement).parentElement;
+              if (parent) {
+                parent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-3.5 shrink-0 ${colors.icon}"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
+              }
+            }}
+          />
+        ) : (
+          <Icon className={cn("size-3.5 shrink-0", colors.icon)} />
+        )}
       </div>
       <span className="max-w-[120px] truncate text-sm font-medium">
         {label}

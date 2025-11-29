@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import Script from "next/script";
 import { Suspense } from "react";
 import { DataStreamProvider } from "@/components/shared/data-stream-provider";
@@ -20,6 +21,9 @@ async function SidebarWrapper({
 }: {
   children: React.ReactNode;
 }) {
+  // Opt out of caching - required for cookies() access
+  noStore();
+  
   const authUser = await getAuthenticatedUser();
 
   // If not authenticated, render children without sidebar (for marketing page)
@@ -78,6 +82,9 @@ async function LayoutContent({
 }: {
   children: React.ReactNode;
 }) {
+  // Opt out of caching - required for cookies() access
+  noStore();
+  
   const authUser = await getAuthenticatedUser();
 
   // If not authenticated, render without dashboard-specific resources

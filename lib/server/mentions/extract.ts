@@ -11,6 +11,7 @@ import type {
   RecordMention,
   UserMention,
   LookupMention,
+  UrlMention,
 } from "@/lib/types/mentions";
 
 /**
@@ -255,6 +256,45 @@ export async function extractLookupMentionData(
 }
 
 /**
+ * Extract data for a URL mention
+ * Fetches full page content via Jina Reader API
+ */
+export async function extractUrlMentionData(
+  mention: UrlMention
+): Promise<string> {
+  try {
+    // Use Jina Reader to fetch full content in markdown format
+    const response = await fetch(`https://r.jina.ai/${mention.url}`, {
+      headers: { Accept: "text/markdown" },
+    });
+
+    if (!response.ok) {
+      return `[URL: ${mention.title || mention.url}]\n\nFailed to fetch content from URL: ${response.status}`;
+    }
+
+    const content = await response.text();
+
+    // Truncate if too long (to avoid token limits)
+    const maxLength = 15000;
+    const truncated = content.length > maxLength;
+    const finalContent = truncated ? content.slice(0, maxLength) : content;
+
+    // Format with title and URL info
+    let result = `[Web Page: ${mention.title || mention.label}]\n`;
+    result += `URL: ${mention.url}\n`;
+    if (truncated) {
+      result += `(Content truncated from ${content.length} to ${maxLength} characters)\n`;
+    }
+    result += `\n${finalContent}`;
+
+    return result;
+  } catch (error) {
+    console.error(`Error extracting URL mention data:`, error);
+    return `[URL: ${mention.title || mention.url}]\n\nError fetching content: ${error instanceof Error ? error.message : "Unknown error"}`;
+  }
+}
+
+/**
  * Extract data for any mention type
  */
 export async function extractMentionData(mention: Mention): Promise<string> {
@@ -271,6 +311,8 @@ export async function extractMentionData(mention: Mention): Promise<string> {
       return extractUserMentionData(mention);
     case "lookup":
       return extractLookupMentionData(mention);
+    case "url":
+      return extractUrlMentionData(mention);
     default:
       return `[Unknown mention type]`;
   }

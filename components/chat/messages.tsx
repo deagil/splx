@@ -21,6 +21,7 @@ type MessagesProps = {
   isReadonly: boolean;
   isArtifactVisible: boolean;
   selectedModelId: string;
+  inputSlot?: React.ReactNode;
 };
 
 function PureMessages({
@@ -32,6 +33,7 @@ function PureMessages({
   regenerate,
   isReadonly,
   selectedModelId,
+  inputSlot,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -61,7 +63,7 @@ function PureMessages({
 
   return (
     <div
-      className="overscroll-behavior-contain -webkit-overflow-scrolling-touch flex-1 touch-pan-y overflow-y-scroll"
+      className="overscroll-behavior-contain -webkit-overflow-scrolling-touch relative flex-1 touch-pan-y overflow-y-scroll"
       ref={messagesContainerRef}
       style={{ overflowAnchor: "none" }}
     >
@@ -69,27 +71,29 @@ function PureMessages({
         <ConversationContent className="flex flex-col gap-4 px-2 pt-4 pb-2 md:gap-6 md:px-2">
           {messages.length === 0 && <Greeting />}
 
-          {messages.map((message, index) => (
-            <PreviewMessage
-              chatId={chatId}
-              isLoading={
-                status === "streaming" && messages.length - 1 === index
-              }
-              isReadonly={isReadonly}
-              key={message.id}
-              message={message}
-              regenerate={regenerate}
-              requiresScrollPadding={
-                hasSentMessage && index === messages.length - 1 && status !== "streaming"
-              }
-              setMessages={setMessages}
-              vote={
-                votes
-                  ? votes.find((vote) => vote.message_id === message.id)
-                  : undefined
-              }
-            />
-          ))}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {messages.map((message, index) => (
+              <PreviewMessage
+                chatId={chatId}
+                isLoading={
+                  status === "streaming" && messages.length - 1 === index
+                }
+                isReadonly={isReadonly}
+                key={message.id}
+                message={message}
+                regenerate={regenerate}
+                requiresScrollPadding={
+                  hasSentMessage && index === messages.length - 1 && status !== "streaming"
+                }
+                setMessages={setMessages}
+                vote={
+                  votes
+                    ? votes.find((vote) => vote.message_id === message.id)
+                    : undefined
+                }
+              />
+            ))}
+          </AnimatePresence>
 
           <AnimatePresence mode="popLayout">
             {status === "submitted" && (
@@ -104,40 +108,64 @@ function PureMessages({
         </ConversationContent>
       </Conversation>
 
+      {/* Sticky input slot - floats at bottom, messages scroll under it */}
+      {inputSlot}
+
       {!isAtBottom && (
-        <button
-          aria-label="Scroll to bottom"
-          className="-translate-x-1/2 absolute bottom-40 left-1/2 z-10 rounded-full border bg-background p-2 shadow-lg transition-colors hover:bg-muted"
-          onClick={() => scrollToBottom("smooth")}
-          type="button"
-        >
-          <ArrowDownIcon className="size-4" />
-        </button>
+        <div className="pointer-events-none sticky bottom-56 z-30 flex justify-center">
+          <button
+            aria-label="Scroll to bottom"
+            className="pointer-events-auto rounded-full border bg-background p-2 shadow-lg transition-colors hover:bg-muted"
+            onClick={() => scrollToBottom("smooth")}
+            type="button"
+          >
+            <ArrowDownIcon className="size-4" />
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
 export const Messages = memo(PureMessages, (prevProps, nextProps) => {
+  // Always re-render when artifact visibility changes
+  if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) {
+    return false;
+  }
+  
+  // Skip re-renders when artifact is visible (optimization)
   if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) {
     return true;
   }
 
+  // Re-render when status changes (important for showing ThinkingMessage)
   if (prevProps.status !== nextProps.status) {
     return false;
   }
+  
+  // Re-render when model changes
   if (prevProps.selectedModelId !== nextProps.selectedModelId) {
     return false;
   }
+  
+  // Re-render when messages change (critical for showing new user messages)
   if (prevProps.messages.length !== nextProps.messages.length) {
     return false;
   }
   if (!equal(prevProps.messages, nextProps.messages)) {
     return false;
   }
+  
+  // Re-render when votes change
   if (!equal(prevProps.votes, nextProps.votes)) {
     return false;
   }
 
-  return false;
+  // Re-render when inputSlot changes (critical for input state updates)
+  if (prevProps.inputSlot !== nextProps.inputSlot) {
+    return false;
+  }
+
+  // No changes detected, skip re-render
+  return true;
 });

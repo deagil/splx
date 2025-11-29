@@ -17,10 +17,11 @@ import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import type { Attachment, ChatMessage } from "@/lib/types";
-import type { MentionableItem } from "@/lib/types/mentions";
+import type { MentionableItem, UrlMention } from "@/lib/types/mentions";
 import type { Skill } from "@/hooks/use-skills";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
+import { useUrlDetection, extractUrls, toUrlMention } from "@/hooks/use-url-detection";
 import {
   PromptInput,
   PromptInputSubmit,
@@ -88,6 +89,16 @@ function PureMultimodalInput({
   // Track selected skill from slash commands
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
+  // URL detection for auto-detecting pasted URLs
+  const {
+    detectedUrls,
+    isLoading: isLoadingUrls,
+    addUrl,
+    removeUrl,
+    clearUrls,
+    getUrlMentions,
+  } = useUrlDetection();
+
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "56px";
@@ -127,6 +138,16 @@ function PureMultimodalInput({
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
 
+  // Detect URLs in input text
+  useEffect(() => {
+    if (input) {
+      const urls = extractUrls(input);
+      for (const url of urls) {
+        addUrl(url);
+      }
+    }
+  }, [input, addUrl]);
+
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value);
   };
@@ -137,7 +158,7 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     // Only navigate if not on dashboard route
     if (!isDashboardRoute) {
-      window.history.pushState({}, "", `/chat/${chatId}`);
+      window.history.pushState({}, "", `?chatId=${chatId}`);
     }
 
     // Validate mentions before sending
@@ -150,6 +171,12 @@ function PureMultimodalInput({
       if (mention.type === "block" && !("blockId" in mention)) return false;
       return true;
     });
+
+    // Get URL mentions to include with the message
+    const currentUrlMentions = getUrlMentions();
+
+    // Combine regular mentions with URL mentions
+    const allMentions = [...validMentions, ...currentUrlMentions];
 
     // Include mentions in the message - using type assertion since
     // the AI SDK transport will preserve custom fields even if not in the type
@@ -170,8 +197,8 @@ function PureMultimodalInput({
     };
 
     // Add mentions as custom field (will be preserved and sent to server)
-    if (validMentions.length > 0) {
-      messageToSend.mentions = validMentions;
+    if (allMentions.length > 0) {
+      messageToSend.mentions = allMentions;
     }
 
     // Add selected skill as custom field (will be used for context/system prompt)
@@ -189,12 +216,10 @@ function PureMultimodalInput({
     setAttachments([]);
     setMentions([]);
     setSelectedSkill(null);
+    setInput("");
+    clearUrls();
     setLocalStorageInput("");
     resetHeight();
-    // Clear input after a small delay to ensure message is sent first
-    setTimeout(() => {
-      setInput("");
-    }, 0);
   }, [
     input,
     setInput,
@@ -207,6 +232,8 @@ function PureMultimodalInput({
     chatId,
     resetHeight,
     isDashboardRoute,
+    getUrlMentions,
+    clearUrls,
   ]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -316,17 +343,23 @@ function PureMultimodalInput({
     return () => textarea.removeEventListener('paste', handlePaste);
   }, [handlePaste]);
 
-  // Build unified context items for the tray
+  // Build unified context items for the tray (including URL mentions)
+  const urlMentions = getUrlMentions();
   const contextItems = buildContextItems(
     selectedSkill,
     mentions,
-    attachments
+    attachments,
+    urlMentions
   );
 
   // Handle removing context items
   const handleRemoveContextItem = useCallback((id: string) => {
     if (id.startsWith("skill-")) {
       setSelectedSkill(null);
+    } else if (id.startsWith("url-")) {
+      // Extract the URL from the ID (format: url-{url})
+      const url = id.replace("url-", "");
+      removeUrl(url);
     } else if (id.startsWith("mention-")) {
       // Extract the index from the ID (format: mention-{index})
       const idx = Number.parseInt(id.replace("mention-", ""), 10);
@@ -341,7 +374,7 @@ function PureMultimodalInput({
         fileInputRef.current.value = "";
       }
     }
-  }, [setAttachments]);
+  }, [setAttachments, removeUrl]);
 
   // Check if input is empty (for suggestions visibility)
   const isInputEmpty = input.trim() === "";
@@ -382,10 +415,10 @@ function PureMultimodalInput({
             }
           }}
         >
-          {/* Unified Context Tray - shows skills, mentions, and attachments */}
-          {(contextItems.length > 0 || uploadQueue.length > 0) && (
+          {/* Unified Context Tray - shows skills, mentions, URLs, and attachments */}
+          {(contextItems.length > 0 || uploadQueue.length > 0 || isLoadingUrls) && (
             <div className="px-3 pt-3" data-testid="context-preview">
-              {uploadQueue.length > 0 && (
+              {(uploadQueue.length > 0 || isLoadingUrls) && (
                 <div className="flex items-center gap-2 mb-2">
                   {uploadQueue.map((filename) => (
                     <div
@@ -398,6 +431,14 @@ function PureMultimodalInput({
                       </span>
                     </div>
                   ))}
+                  {isLoadingUrls && (
+                    <div className="flex items-center gap-1.5 h-8 rounded-lg border border-indigo-500/30 bg-indigo-500/5 px-2.5">
+                      <Loader size={14} />
+                      <span className="text-sm text-muted-foreground">
+                        Fetching URL preview...
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               <ContextTray

@@ -325,11 +325,9 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   // Plate's onChange receives the editor instance
   const handleChange = useCallback(() => {
     if (!editor) {
-      console.log("[PlateChatInput] handleChange: no editor");
       return;
     }
     if (isExternalUpdate.current) {
-      console.log("[PlateChatInput] handleChange: skipping external update");
       isExternalUpdate.current = false;
       return;
     }
@@ -340,15 +338,19 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
     onMentionsChange?.(mentions);
   }, [editor, onChange, onMentionsChange, extractContent]);
 
+  // Track the previous value to detect external clears
+  const prevValueRef = useRef(value);
+
   // Sync external value changes to editor (only when value is cleared externally)
   // This happens after form submission
   useEffect(() => {
     if (!editor) return;
 
-    // Get current text using extractContent
-    const { text: currentText } = extractContent(editor);
-    // Only reset if value was cleared externally (e.g., after submit)
-    if (value === "" && currentText !== "") {
+    // Only reset if value was cleared externally (went from non-empty to empty)
+    const wasCleared = prevValueRef.current !== "" && value === "";
+    prevValueRef.current = value;
+
+    if (wasCleared) {
       isExternalUpdate.current = true;
       // Use requestAnimationFrame to ensure this happens after React's render cycle
       requestAnimationFrame(() => {
@@ -365,14 +367,14 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
               } catch (focusError) {
                 // Ignore focus errors
               }
-            }, 50);
+            }, 0);
           }
         } catch (error) {
           console.warn("Error resetting Plate editor:", error);
         }
       });
     }
-  }, [editor, value, initialValue, extractContent, disabled]);
+  }, [editor, value, initialValue, disabled]);
 
   // Focus editor when it becomes enabled (status returns to "ready")
   // Also focus after reset to ensure it's ready for input
@@ -402,7 +404,9 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
         clearTimeout(timeoutId);
       }
     };
-  }, [editor, disabled, extractContent]);
+  // Note: extractContent intentionally omitted - focus should only re-run when disabled changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, disabled]);
 
   return (
     <div className={cn("w-full min-h-[80px] flex items-start", className)}>

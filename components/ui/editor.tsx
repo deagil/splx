@@ -66,7 +66,7 @@ const editorVariants = cva(
     },
     variants: {
       disabled: {
-        true: 'cursor-not-allowed opacity-50',
+        true: 'cursor-not-allowed opacity-50 pointer-events-none',
       },
       focused: {
         true: 'ring-2 ring-ring ring-offset-2',
@@ -108,7 +108,9 @@ export const Editor = ({
       }),
       className
     )}
-    disabled={disabled}
+    // Note: We intentionally don't pass disabled to PlateContent
+    // because Plate doesn't properly re-enable contentEditable when disabled changes.
+    // Instead we use CSS pointer-events-none to prevent interaction while disabled.
     disableDefaultStyles
     {...props}
   />

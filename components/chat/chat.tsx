@@ -182,7 +182,7 @@ export function Chat({
       });
 
       setHasAppendedQuery(true);
-      window.history.replaceState({}, "", `/chat/${id}`);
+      window.history.replaceState({}, "", `?chatId=${id}`);
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
 
@@ -220,35 +220,39 @@ export function Chat({
           setMessages={setMessages}
           status={status}
           votes={votes}
+          inputSlot={
+            !isReadonly && (
+              <div className="pointer-events-none sticky bottom-0 z-10 mx-auto flex w-full max-w-4xl flex-col">
+                {/* Gradient fade overlay */}
+                <div className="h-12 bg-linear-to-t from-background to-transparent" />
+                {/* Input container */}
+                <div className="pointer-events-auto bg-background pb-2">
+                  <MultimodalInput
+                    attachments={attachments}
+                    chatId={id}
+                    input={input}
+                    messages={messages}
+                    onModelChange={setCurrentModelId}
+                    selectedModelId={currentModelId}
+                    selectedVisibilityType={visibilityType}
+                    sendMessage={sendMessage}
+                    setAttachments={setAttachments}
+                    setInput={setInput}
+                    setMessages={setMessages}
+                    status={status}
+                    stop={stop}
+                    usage={usage}
+                  />
+                  <ChatStatusBar
+                    onModelChange={setCurrentModelId}
+                    selectedModelId={currentModelId}
+                    usage={usage}
+                  />
+                </div>
+              </div>
+            )
+          }
         />
-
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl flex-col border-t-0 bg-background">
-          {!isReadonly && (
-            <>
-              <MultimodalInput
-                attachments={attachments}
-                chatId={id}
-                input={input}
-                messages={messages}
-                onModelChange={setCurrentModelId}
-                selectedModelId={currentModelId}
-                selectedVisibilityType={visibilityType}
-                sendMessage={sendMessage}
-                setAttachments={setAttachments}
-                setInput={setInput}
-                setMessages={setMessages}
-                status={status}
-                stop={stop}
-                usage={usage}
-              />
-              <ChatStatusBar
-                onModelChange={setCurrentModelId}
-                selectedModelId={currentModelId}
-                usage={usage}
-              />
-            </>
-          )}
-        </div>
       </div>
 
       <Artifact

@@ -43,7 +43,7 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
             onClick={(suggestion) => {
               // Only navigate if not on dashboard route
               if (!isDashboardRoute) {
-                window.history.replaceState({}, "", `/chat/${chatId}`);
+                window.history.replaceState({}, "", `?chatId=${chatId}`);
               }
               sendMessage({
                 role: "user",

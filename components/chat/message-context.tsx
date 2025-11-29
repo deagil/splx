@@ -113,18 +113,16 @@ export function MessageContext({ skill, mentions = [], attachments = [], classNa
             ))}
           </AnimatePresence>
           
-          {totalCount > 2 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setIsExpanded(false)}
-            >
-              <ChevronDown className="size-3 mr-1 rotate-180" />
-              Collapse
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setIsExpanded(false)}
+          >
+            <ChevronDown className="size-3 mr-1 rotate-180" />
+            Collapse
+          </Button>
         </motion.div>
       ) : (
         // Collapsed view - stacked cards effect
