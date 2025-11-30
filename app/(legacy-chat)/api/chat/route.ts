@@ -409,7 +409,10 @@ export async function POST(request: Request) {
               "requestSuggestions",
               "readUrlContent",
             ],
-          experimental_transform: smoothStream({ chunking: "word" }),
+          experimental_transform: smoothStream({
+            chunking: "word",
+            delayInMs: 20,
+          }),
           // Enable reasoning visibility for reasoning models
           providerOptions: selectedChatModel === "chat-model-reasoning"
             ? {

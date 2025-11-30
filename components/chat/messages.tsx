@@ -1,6 +1,6 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { ArrowDownIcon } from "lucide-react";
 import { memo, useEffect } from "react";
 import { useMessages } from "@/hooks/use-messages";
@@ -47,19 +47,21 @@ function PureMessages({
 
   useDataStream();
 
+  // Scroll to bottom when user submits a message
+  // The useScrollToBottom hook handles "stick to bottom" during streaming
   useEffect(() => {
     if (status === "submitted") {
-      requestAnimationFrame(() => {
-        const container = messagesContainerRef.current;
-        if (container) {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: "smooth",
-          });
-        }
-      });
+      scrollToBottom("smooth");
     }
-  }, [status, messagesContainerRef]);
+  }, [status, scrollToBottom]);
+
+  // Extract last user message info once for ThinkingMessage props
+  const lastUserMessage = messages.filter(m => m.role === "user").at(-1);
+  const thinkingProps = {
+    hasMentions: Boolean((lastUserMessage as unknown as { mentions?: unknown[] })?.mentions?.length),
+    hasAttachments: lastUserMessage?.parts?.some(p => p.type === "file") ?? false,
+    attachmentCount: lastUserMessage?.parts?.filter(p => p.type === "file").length ?? 0,
+  };
 
   return (
     <div
@@ -67,7 +69,7 @@ function PureMessages({
     >
       {/* Scrollable messages area */}
       <div
-        className="overscroll-behavior-contain -webkit-overflow-scrolling-touch flex-1 touch-pan-y overflow-y-scroll"
+        className="overscroll-behavior-contain -webkit-overflow-scrolling-touch flex-1 touch-pan-y overflow-y-scroll scroll-smooth"
         ref={messagesContainerRef}
         style={{ overflowAnchor: "none" }}
       >
@@ -79,35 +81,43 @@ function PureMessages({
               </div>
             )}
 
-            <AnimatePresence mode="popLayout" initial={false}>
-              {messages.map((message, index) => (
-                <PreviewMessage
-                  chatId={chatId}
-                  isLoading={
-                    status === "streaming" && messages.length - 1 === index
-                  }
-                  isReadonly={isReadonly}
-                  key={message.id}
-                  message={message}
-                  regenerate={regenerate}
-                  requiresScrollPadding={
-                    hasSentMessage && index === messages.length - 1 && status !== "streaming"
-                  }
-                  setMessages={setMessages}
-                  vote={
-                    votes
-                      ? votes.find((vote) => vote.message_id === message.id)
-                      : undefined
-                  }
-                />
-              ))}
-            </AnimatePresence>
+            {/* LayoutGroup ensures smooth transitions between ThinkingMessage and messages */}
+            <LayoutGroup>
+              <AnimatePresence mode="popLayout" initial={false}>
+                {messages.map((message, index) => (
+                  <PreviewMessage
+                    chatId={chatId}
+                    isLoading={
+                      status === "streaming" && messages.length - 1 === index
+                    }
+                    isReadonly={isReadonly}
+                    key={message.id}
+                    message={message}
+                    regenerate={regenerate}
+                    requiresScrollPadding={
+                      hasSentMessage && index === messages.length - 1 && status !== "streaming"
+                    }
+                    setMessages={setMessages}
+                    vote={
+                      votes
+                        ? votes.find((vote) => vote.message_id === message.id)
+                        : undefined
+                    }
+                  />
+                ))}
+              </AnimatePresence>
 
-            <AnimatePresence mode="popLayout">
-              {status === "submitted" && (
-                <ThinkingMessage key="thinking" />
-              )}
-            </AnimatePresence>
+              <AnimatePresence mode="wait">
+                {status === "submitted" && (
+                  <ThinkingMessage 
+                    key="thinking" 
+                    hasMentions={thinkingProps.hasMentions}
+                    hasAttachments={thinkingProps.hasAttachments}
+                    attachmentCount={thinkingProps.attachmentCount}
+                  />
+                )}
+              </AnimatePresence>
+            </LayoutGroup>
 
             {/* Spacer to ensure messages can scroll above the sticky input */}
             <div

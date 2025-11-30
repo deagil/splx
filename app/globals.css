@@ -6,6 +6,9 @@
 /* Add KaTeX CSS for math rendering */
 @import 'katex/dist/katex.min.css';
 
+/* FlowToken animations for streaming text */
+@import 'flowtoken/dist/styles.css';
+
 /* custom variant for setting dark mode programmatically */
 @custom-variant dark (&:is(.dark, .dark *));
 
@@ -560,6 +563,17 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* ============================================================================
+   Streaming Text Animation (FlowToken handles primary animations)
+   Additional utility classes for streaming UI
+   ============================================================================ */
+
+/* Smooth text rendering for streaming content */
+[data-streaming="true"] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @theme inline {

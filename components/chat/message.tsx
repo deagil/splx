@@ -172,14 +172,20 @@ const PurePreviewMessage = ({
       className="group/message w-full"
       data-role={message.role}
       data-testid={`message-${message.role}`}
+      exit={{ 
+        opacity: 0, 
+        transition: { duration: 0.15 } 
+      }}
       initial={{ 
         opacity: 0, 
         y: message.role === "user" ? 10 : 0,
         scale: message.role === "user" ? 0.98 : 1 
       }}
+      layout="position"
       transition={{ 
         duration: 0.2, 
         ease: "easeOut",
+        layout: { duration: 0.2 }
       }}
     >
       <div
@@ -340,49 +346,54 @@ const PurePreviewMessage = ({
             </ChainOfThought>
           )}
 
+          {/* Unified reasoning section - combines all reasoning parts into one */}
+          {(() => {
+            // Collect all reasoning parts and combine their text
+            const reasoningParts = message.parts?.filter(p => p.type === "reasoning") || [];
+            const combinedReasoning = reasoningParts
+              .map(p => (p as any).text || "")
+              .filter(Boolean)
+              .join("\n\n");
+            
+            if (!combinedReasoning.trim()) return null;
+            
+            // Check if reasoning is still streaming (no text parts yet or still loading)
+            const hasTextPart = message.parts?.some(p => p.type === "text" && (p as any).text?.trim());
+            const isReasoningStreaming = isLoading && !hasTextPart;
+            
+            return (
+              <MessageReasoning
+                hasTextStarted={hasTextPart || false}
+                isLoading={isReasoningStreaming}
+                key={`reasoning-${message.id}`}
+                reasoning={combinedReasoning}
+              />
+            );
+          })()}
+
           {message.parts?.map((part, partIndex) => {
             const { type } = part;
             const key = `message-${message.id}-part-${partIndex}`;
+
+            // Skip reasoning parts - they're handled above as a unified section
+            if (type === "reasoning") {
+              return null;
+            }
 
             // Skip web search tool calls if we're showing them in Chain of Thought
             if ((type as string) === "tool-web_search" && shouldShowChainOfThought) {
               return null;
             }
 
-            if (type === "reasoning") {
-              // Check if this reasoning part is currently streaming
-              // Reasoning is streaming if:
-              // 1. The message is loading (status is streaming and this is the last message)
-              // 2. This reasoning part is the last part, OR there's no text part after it yet
-              // Show reasoning immediately when streaming starts, even before text parts arrive
-              const isReasoningStreaming =
-                isLoading &&
-                (partIndex === message.parts.length - 1 ||
-                  !message.parts
-                    .slice(partIndex + 1)
-                    .some((p) => p.type === "text"));
-
-              // Show reasoning only if it has content
-              // Don't show empty reasoning parts to prevent flicker and clutter
-              const hasReasoningContent = part.text?.trim().length > 0;
-              
-              // Only show if there's actual content (not just when streaming)
-              // This prevents empty reasoning steps from appearing
-              if (!hasReasoningContent) {
-                return null;
-              }
-
-              return (
-                <MessageReasoning
-                  isLoading={isReasoningStreaming}
-                  key={key}
-                  reasoning={part.text || ""}
-                />
-              );
-            }
-
             if (type === "text") {
               if (mode === "view") {
+                // Check if this text part is actively streaming
+                // (it's the last text part and the message is still loading)
+                const isTextStreaming = 
+                  isLoading && 
+                  message.role === "assistant" &&
+                  partIndex === message.parts.length - 1;
+
                 return (
                   <div key={key}>
                     <MessageContent
@@ -399,7 +410,7 @@ const PurePreviewMessage = ({
                           : undefined
                       }
                     >
-                      <Response>
+                      <Response isStreaming={isTextStreaming}>
                         {sanitizeText(part.text)}
                       </Response>
                     </MessageContent>
@@ -677,151 +688,172 @@ export const PreviewMessage = memo(
   }
 );
 
-type ThinkingStep = {
-  id: string;
-  label: string;
-  description?: string;
-  status: "pending" | "active" | "complete";
+// ============================================================================
+// Unified Message Initialization Component
+// Shows actual processing state with smooth transitions
+// ============================================================================
+
+type InitPhase = "enriching" | "thinking" | "responding";
+
+type ThinkingMessageProps = {
+  /** Whether message has mentions that need enrichment */
+  hasMentions?: boolean;
+  /** Whether message has attachments */
+  hasAttachments?: boolean;
+  /** Number of attachments */
+  attachmentCount?: number;
 };
 
-const ThinkingStepItem = memo(({ step, isLast }: { step: ThinkingStep; isLast: boolean }) => {
-  const statusStyles = {
-    complete: "text-muted-foreground",
-    active: "text-foreground",
-    pending: "text-muted-foreground/40",
-  };
+const InitializationIndicator = memo(({ 
+  label, 
+  isComplete,
+  isActive 
+}: { 
+  label: string; 
+  isComplete: boolean;
+  isActive: boolean;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -4 }}
+    transition={{ duration: 0.15, ease: "easeOut" }}
+    className={cn(
+      "flex items-center gap-2 text-sm",
+      isComplete ? "text-muted-foreground" : "text-foreground"
+    )}
+  >
+    {isActive && !isComplete && (
+      <Loader size={14} className="text-primary" />
+    )}
+    {isComplete && (
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+      >
+        <svg
+          className="size-3.5 text-emerald-500"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </motion.div>
+    )}
+    <span className={cn(
+      "transition-colors duration-150",
+      isActive && !isComplete && "font-medium"
+    )}>
+      {label}
+    </span>
+  </motion.div>
+));
 
-  const dotStyles = {
-    complete: "bg-emerald-500",
-    active: "bg-primary animate-pulse",
-    pending: "bg-muted-foreground/30",
-  };
+InitializationIndicator.displayName = "InitializationIndicator";
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className={cn("flex gap-2.5 text-sm", statusStyles[step.status])}
-    >
-      <div className="relative flex flex-col items-center">
-        <motion.div
-          className={cn("size-2 rounded-full mt-1.5", dotStyles[step.status])}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.15, delay: 0.1 }}
-        />
-        {!isLast && (
-          <motion.div
-            className="w-px flex-1 bg-border mt-1"
-            initial={{ scaleY: 0 }}
-            animate={{ scaleY: 1 }}
-            transition={{ duration: 0.2, delay: 0.15 }}
-            style={{ originY: 0 }}
-          />
-        )}
-      </div>
-      <div className="flex-1 pb-3">
-        <div className="flex items-center gap-2">
-          {step.status === "active" && <Loader size={12} className="text-primary" />}
-          {step.status === "complete" && (
-            <motion.svg
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="size-3 text-emerald-500"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </motion.svg>
-          )}
-          <span>{step.label}</span>
-        </div>
-        {step.description && step.status === "active" && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="text-muted-foreground/70 text-xs mt-0.5"
-          >
-            {step.description}
-          </motion.div>
-        )}
-      </div>
-    </motion.div>
-  );
-});
-
-ThinkingStepItem.displayName = "ThinkingStepItem";
-
-export const ThinkingMessage = () => {
+export const ThinkingMessage = memo(({
+  hasMentions = false,
+  hasAttachments = false,
+  attachmentCount = 0,
+}: ThinkingMessageProps) => {
   const role = "assistant";
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [phase, setPhase] = useState<InitPhase>("enriching");
+  const [enrichComplete, setEnrichComplete] = useState(false);
 
-  const steps: Omit<ThinkingStep, "status">[] = [
-    { id: "read", label: "Reading your message", description: "Parsing input and extracting context" },
-    { id: "analyze", label: "Analyzing context", description: "Processing mentions and attachments" },
-    { id: "prepare", label: "Preparing response", description: "Initializing AI model" },
-  ];
+  // Determine what to show based on message context
+  const hasContext = hasMentions || hasAttachments;
+  const contextLabel = hasAttachments 
+    ? `Reading ${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`
+    : hasMentions 
+    ? "Processing context"
+    : "Reading your message";
 
-  // Progress through steps with timing
+  // Simulate enrichment completion (in real app, this would come from server)
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    
-    // Move to step 1 after 400ms
-    timers.push(setTimeout(() => setCurrentStepIndex(1), 400));
-    // Move to step 2 after 900ms
-    timers.push(setTimeout(() => setCurrentStepIndex(2), 900));
-    
-    return () => {
-      for (const timer of timers) {
-        clearTimeout(timer);
-      }
-    };
-  }, []);
+    const timer = setTimeout(() => {
+      setEnrichComplete(true);
+      setPhase("thinking");
+    }, hasContext ? 600 : 300);
 
-  const stepsWithStatus: ThinkingStep[] = steps.map((step, index) => ({
-    ...step,
-    status: index < currentStepIndex ? "complete" : index === currentStepIndex ? "active" : "pending",
-  }));
+    return () => clearTimeout(timer);
+  }, [hasContext]);
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
       className="group/message w-full"
       data-role={role}
       data-testid="message-assistant-loading"
-      exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
       initial={{ opacity: 0 }}
-      layout
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      layout="position"
+      layoutId="thinking-message"
       transition={{ duration: 0.2 }}
     >
       <div className="flex items-start justify-start gap-3">
         <motion.div
-          className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border"
+          className="-mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.2 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
           <SparklesIcon size={14} />
         </motion.div>
 
-        <div className="flex w-full flex-col pt-0.5">
-          <AnimatePresence mode="sync">
-            {stepsWithStatus.map((step, index) => (
-              <ThinkingStepItem
-                key={step.id}
-                step={step}
-                isLast={index === stepsWithStatus.length - 1}
+        <div className="flex flex-col gap-2 pt-1">
+          <AnimatePresence mode="wait">
+            {/* Show context reading indicator */}
+            {phase === "enriching" && (
+              <InitializationIndicator
+                key="enrich"
+                label={contextLabel}
+                isComplete={false}
+                isActive={true}
               />
-            ))}
+            )}
+            
+            {/* Show completed context + thinking */}
+            {phase === "thinking" && (
+              <motion.div
+                key="thinking-phase"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-col gap-1.5"
+              >
+                {/* Keep context indicator visible as completed */}
+                {hasContext && (
+                  <InitializationIndicator
+                    label={contextLabel}
+                    isComplete={true}
+                    isActive={false}
+                  />
+                )}
+                
+                {/* Active thinking indicator with shimmer */}
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.15 }}
+                  className="flex items-center gap-2 text-sm text-foreground"
+                >
+                  <Loader size={14} className="text-primary" />
+                  <Shimmer duration={1.5}>Thinking...</Shimmer>
+                </motion.div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </div>
     </motion.div>
   );
-};
+});
+
+ThinkingMessage.displayName = "ThinkingMessage";
 
