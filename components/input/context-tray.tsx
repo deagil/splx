@@ -115,13 +115,31 @@ export function ContextTray({ items, onRemoveItem, className, readOnly = false }
 }
 
 /**
+ * URL mention with optional status for error display
+ */
+export type UrlMentionData = {
+  type: "url";
+  label: string;
+  url: string;
+  description?: string;
+  favicon?: string;
+  image?: string;
+  title?: string;
+  id?: string;
+  /** Content pre-fetch status */
+  contentStatus?: "loading" | "loaded" | "error";
+  /** Error message if pre-fetch failed */
+  contentError?: string;
+};
+
+/**
  * Helper to convert skills, mentions, URLs, and attachments to ContextItems
  */
 export function buildContextItems(
   skill: { id: string; name: string; command: string; prompt?: string; description?: string | null } | null,
   mentions: Array<{ type: string; label: string; id?: string; description?: string; [key: string]: unknown }>,
   attachments: Array<{ url: string; name: string; contentType: string }>,
-  urlMentions?: Array<{ type: "url"; label: string; url: string; description?: string; favicon?: string; image?: string; title?: string; id?: string }>
+  urlMentions?: UrlMentionData[]
 ): ContextItem[] {
   const items: ContextItem[] = [];
   
@@ -146,7 +164,7 @@ export function buildContextItems(
     });
   }
   
-  // Add URL mentions
+  // Add URL mentions (with status info for error display)
   if (urlMentions) {
     for (const urlMention of urlMentions) {
       items.push({

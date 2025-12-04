@@ -122,7 +122,6 @@ export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
     </div>
   );
 }
-
 function resolveToken(
   value: string,
   urlParams: Record<string, string>
@@ -151,4 +150,5 @@ function CellValue({ value }: { value: unknown }) {
   }
   return <span>{String(value)}</span>;
 }
+
 

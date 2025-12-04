@@ -70,14 +70,22 @@ function coerceDateString(value: unknown): string {
 }
 
 export async function listPages(
-  tenant: TenantContext
+  tenant: TenantContext,
+  includeSystem = false
 ): Promise<PageRecord[]> {
   const supabase = await getSupabaseClient();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("pages")
     .select("*")
-    .eq("workspace_id", tenant.workspaceId)
-    .order("name", { ascending: true });
+    .eq("workspace_id", tenant.workspaceId);
+
+  // Filter out system pages unless explicitly requested
+  if (!includeSystem) {
+    query = query.eq("is_system", false);
+  }
+
+  const { data, error } = await query.order("name", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to fetch pages: ${error.message}`);
@@ -171,6 +179,86 @@ export async function updatePage(
       throw new PageNotFoundError();
     }
     throw new Error(`Failed to update page: ${error.message}`);
+  }
+
+  return normalizePageRow(data as RawPageRow);
+}
+
+export async function deletePage(
+  tenant: TenantContext,
+  pageId: string
+): Promise<void> {
+  const id = pageIdSchema.parse(pageId);
+  const supabase = await getSupabaseClient();
+
+  // Check if page is a system page
+  const page = await getPageById(tenant, id);
+  if (page?.is_system) {
+    throw new Error("Cannot delete system pages");
+  }
+
+  const { error } = await supabase
+    .from("pages")
+    .delete()
+    .eq("workspace_id", tenant.workspaceId)
+    .eq("id", id)
+    .eq("is_system", false); // Extra safety check
+
+  if (error) {
+    throw new Error(`Failed to delete page: ${error.message}`);
+  }
+}
+
+/**
+ * Get or create a system page. System pages are workspace-scoped
+ * and cannot be edited or deleted by users.
+ */
+export async function getOrCreateSystemPage(
+  tenant: TenantContext,
+  pageId: string,
+  pageDefinition: {
+    name: string;
+    description?: string;
+    blocks: unknown[];
+    settings?: Record<string, unknown>;
+    layout?: Record<string, unknown>;
+  }
+): Promise<PageRecord> {
+  const id = pageIdSchema.parse(pageId);
+  const supabase = await getSupabaseClient();
+
+  // Try to get existing system page
+  const { data: existing } = await supabase
+    .from("pages")
+    .select("*")
+    .eq("workspace_id", tenant.workspaceId)
+    .eq("id", id)
+    .eq("is_system", true)
+    .maybeSingle();
+
+  if (existing) {
+    return normalizePageRow(existing as RawPageRow);
+  }
+
+  // Create system page
+  const { data, error } = await supabase
+    .from("pages")
+    .insert({
+      id,
+      workspace_id: tenant.workspaceId,
+      name: pageDefinition.name,
+      description: pageDefinition.description ?? null,
+      layout: pageDefinition.layout ?? {},
+      blocks: pageDefinition.blocks,
+      settings: pageDefinition.settings ?? {},
+      is_system: true,
+      created_by: null, // System pages have no creator
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create system page: ${error.message}`);
   }
 
   return normalizePageRow(data as RawPageRow);

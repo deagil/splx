@@ -184,6 +184,7 @@ export const page = pgTable("pages", {
     .$type<Record<string, unknown>>()
     .notNull()
     .default({}),
+  is_system: boolean("is_system").notNull().default(false),
   created_by: uuid("created_by").references(() => user.id),
   created_at: timestamp("created_at", { withTimezone: true })
     .notNull()

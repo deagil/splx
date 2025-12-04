@@ -19,12 +19,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { User as DbUser } from "@/lib/db/schema"
 
-const buildOptions: { title: string; href: string; description: string }[] = [
-  {
-    title: "Data",
-    href: "/build/data",
-    description: "Browse and manage your workspace data tables",
-  },
+type MenuOption = {
+  title: string
+  href: string
+  description: string
+  disabled?: boolean
+}
+
+const devOptions: MenuOption[] = [
   {
     title: "Config",
     href: "/build/config",
@@ -32,10 +34,54 @@ const buildOptions: { title: string; href: string; description: string }[] = [
   },
 ]
 
+const buildOptions: MenuOption[] = [
+  {
+    title: "Pages",
+    href: "/pages",
+    description: "Create and manage UI views for your workspace",
+  },
+    {
+    title: "Page Links",
+    href: "/build/page-links",
+    description: "Coming soon - Manage navigation options",
+    disabled: true,
+  },
+  {
+    title: "Workflows",
+    href: "/build/workflows",
+    description: "Coming soon - Automate processes and workflows",
+    disabled: true,
+  },
+  // TODO: fold menus into page links
+  // {
+  //   title: "Menus",
+  //   href: "/build/menus",
+  //   description: "Coming soon - Create custom navigation menus",
+  //   disabled: true,
+  // },
+]
+
+const dataOptions: MenuOption[] = [
+  {
+    title: "Tables",
+    href: "/build/data",
+    description: "Browse and manage your workspace data tables",
+  },
+  {
+    title: "Reports",
+    href: "/data/reports",
+    description: "Coming soon - View and create data reports",
+    disabled: true,
+  },
+]
+
 export function NavigationMenuDemo() {
   const isMobile = useIsMobile()
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<DbUser | null>(null)
+
+  // Check if we're in local mode to show Dev menu
+  const isLocalMode = process.env.NEXT_PUBLIC_APP_MODE === 'local'
 
   useEffect(() => {
     const supabase = createClient()
@@ -201,6 +247,7 @@ export function NavigationMenuDemo() {
                   key={option.title}
                   title={option.title}
                   href={option.href}
+                  disabled={option.disabled}
                 >
                   {option.description}
                 </ListItem>
@@ -208,6 +255,42 @@ export function NavigationMenuDemo() {
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>Data</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[300px] gap-2 p-4">
+              {dataOptions.map((option) => (
+                <ListItem
+                  key={option.title}
+                  title={option.title}
+                  href={option.href}
+                  disabled={option.disabled}
+                >
+                  {option.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        {isLocalMode && (
+          <NavigationMenuItem>
+            <NavigationMenuTrigger>Dev</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <ul className="grid w-[300px] gap-2 p-4">
+                {devOptions.map((option) => (
+                  <ListItem
+                    key={option.title}
+                    title={option.title}
+                    href={option.href}
+                    disabled={option.disabled}
+                  >
+                    {option.description}
+                  </ListItem>
+                ))}
+              </ul>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        )}
       </NavigationMenuList>
     </NavigationMenu>
   )
@@ -217,12 +300,26 @@ function ListItem({
   title,
   children,
   href,
+  disabled,
   ...props
-}: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
+}: React.ComponentPropsWithoutRef<"li"> & { href: string; disabled?: boolean }) {
+  if (disabled) {
+    return (
+      <li {...props}>
+        <div className="block select-none rounded-sm px-3 py-2 cursor-not-allowed opacity-50">
+          <div className="text-sm leading-none font-medium">{title}</div>
+          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+            {children}
+          </p>
+        </div>
+      </li>
+    )
+  }
+
   return (
     <li {...props}>
       <NavigationMenuLink asChild>
-        <Link href={href}>
+        <Link href={href} className="block select-none rounded-sm px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground">
           <div className="text-sm leading-none font-medium">{title}</div>
           <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
             {children}

@@ -20,8 +20,19 @@ import type { Attachment, ChatMessage } from "@/lib/types";
 import type { MentionableItem, UrlMention } from "@/lib/types/mentions";
 import type { Skill } from "@/hooks/use-skills";
 import type { AppUsage } from "@/lib/usage";
+import type { OptimisticMessage } from "@/components/chat/messages";
 import { cn } from "@/lib/utils";
 import { useUrlDetection, extractUrls, toUrlMention } from "@/hooks/use-url-detection";
+
+// Helper for timestamped logging
+function logInput(label: string, data?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[Input UI] ${timestamp} | ${label}`, data);
+  } else {
+    console.log(`[Input UI] ${timestamp} | ${label}`);
+  }
+}
 import {
   PromptInput,
   PromptInputSubmit,
@@ -56,6 +67,7 @@ function PureMultimodalInput({
   selectedVisibilityType,
   selectedModelId,
   onModelChange,
+  onOptimisticMessage,
   usage,
 }: {
   chatId: string;
@@ -72,6 +84,7 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
+  onOptimisticMessage?: (message: OptimisticMessage) => void;
   usage?: AppUsage;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -156,6 +169,13 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
 
   const submitForm = useCallback(() => {
+    const submitStartTime = Date.now();
+    logInput("📝 Submit form called", { 
+      inputLength: input.length,
+      mentionCount: mentions.length,
+      attachmentCount: attachments.length,
+    });
+
     // Only navigate if not on dashboard route
     if (!isDashboardRoute) {
       window.history.pushState({}, "", `?chatId=${chatId}`);
@@ -177,6 +197,29 @@ function PureMultimodalInput({
 
     // Combine regular mentions with URL mentions
     const allMentions = [...validMentions, ...currentUrlMentions];
+
+    // Create optimistic message for instant display
+    if (onOptimisticMessage && input.trim()) {
+      const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      onOptimisticMessage({
+        id: optimisticId,
+        text: input,
+        attachments: attachments.map((a) => ({
+          name: a.name,
+          url: a.url,
+          contentType: a.contentType,
+        })),
+        mentions: allMentions.length > 0 ? allMentions : undefined,
+        skill: selectedSkill
+          ? {
+              id: selectedSkill.id,
+              name: selectedSkill.name,
+              command: selectedSkill.command,
+              prompt: selectedSkill.prompt,
+            }
+          : undefined,
+      });
+    }
 
     // Include mentions in the message - using type assertion since
     // the AI SDK transport will preserve custom fields even if not in the type
@@ -211,8 +254,15 @@ function PureMultimodalInput({
       };
     }
 
+    logInput("📤 Calling sendMessage", { 
+      hasMentions: allMentions.length > 0,
+      hasSkill: Boolean(selectedSkill),
+      hasAttachments: attachments.length > 0,
+    });
+    
     sendMessage(messageToSend);
 
+    logInput("✓ Message sent, clearing form");
     setAttachments([]);
     setMentions([]);
     setSelectedSkill(null);
@@ -234,6 +284,7 @@ function PureMultimodalInput({
     isDashboardRoute,
     getUrlMentions,
     clearUrls,
+    onOptimisticMessage,
   ]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -531,6 +582,7 @@ export const MultimodalInput = memo(
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) return false;
     if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
+    if (prevProps.onOptimisticMessage !== nextProps.onOptimisticMessage) return false;
 
     return true;
   }

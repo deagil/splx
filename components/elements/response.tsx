@@ -27,7 +27,7 @@ export const Response = memo(
           <AnimatedMarkdown
             content={content}
             animation="fadeIn"
-            animationDuration="0.5s"
+            animationDuration="0.6s"
             animationTimingFunction="ease-in-out"
             sep="word"
           />

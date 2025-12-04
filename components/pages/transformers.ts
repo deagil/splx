@@ -182,6 +182,38 @@ function normalizeListBlock(
     )
     : [];
 
+  // Parse new table feature flags
+  const enableSearch = typeof displayConfig.enableSearch === "boolean"
+    ? displayConfig.enableSearch
+    : undefined;
+  const enableColumnVisibility = typeof displayConfig.enableColumnVisibility === "boolean"
+    ? displayConfig.enableColumnVisibility
+    : undefined;
+  const enableColumnResize = typeof displayConfig.enableColumnResize === "boolean"
+    ? displayConfig.enableColumnResize
+    : undefined;
+  const enableColumnPin = typeof displayConfig.enableColumnPin === "boolean"
+    ? displayConfig.enableColumnPin
+    : undefined;
+  const enableColumnDrag = typeof displayConfig.enableColumnDrag === "boolean"
+    ? displayConfig.enableColumnDrag
+    : undefined;
+  const enableRowSelection = typeof displayConfig.enableRowSelection === "boolean"
+    ? displayConfig.enableRowSelection
+    : undefined;
+  const enableStickyHeader = typeof displayConfig.enableStickyHeader === "boolean"
+    ? displayConfig.enableStickyHeader
+    : undefined;
+  const enableActions = typeof displayConfig.enableActions === "boolean"
+    ? displayConfig.enableActions
+    : undefined;
+  const defaultPageSize = typeof displayConfig.defaultPageSize === "number"
+    ? displayConfig.defaultPageSize
+    : undefined;
+  const searchPlaceholder = typeof displayConfig.searchPlaceholder === "string"
+    ? displayConfig.searchPlaceholder
+    : undefined;
+
   return {
     id,
     type: "list",
@@ -193,6 +225,16 @@ function normalizeListBlock(
       showActions,
       editable,
       columns,
+      enableSearch,
+      enableColumnVisibility,
+      enableColumnResize,
+      enableColumnPin,
+      enableColumnDrag,
+      enableRowSelection,
+      enableStickyHeader,
+      enableActions,
+      defaultPageSize,
+      searchPlaceholder,
     },
   };
 }
@@ -504,6 +546,16 @@ function serializeListBlock(block: ListBlockDraft): PageBlock {
       showActions: block.display.showActions,
       editable: block.display.editable,
       columns: block.display.columns,
+      enableSearch: block.display.enableSearch,
+      enableColumnVisibility: block.display.enableColumnVisibility,
+      enableColumnResize: block.display.enableColumnResize,
+      enableColumnPin: block.display.enableColumnPin,
+      enableColumnDrag: block.display.enableColumnDrag,
+      enableRowSelection: block.display.enableRowSelection,
+      enableStickyHeader: block.display.enableStickyHeader,
+      enableActions: block.display.enableActions,
+      defaultPageSize: block.display.defaultPageSize,
+      searchPlaceholder: block.display.searchPlaceholder,
     },
   };
 }

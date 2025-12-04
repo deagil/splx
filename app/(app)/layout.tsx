@@ -69,7 +69,8 @@ async function SidebarWrapper({
             <ChatSidebarTrigger />
           </div>
         </header>
-        <div className="flex-1 overflow-auto px-6 pb-12">
+        {/* page screen padding bottom is 24px */}
+        <div className="flex-1 overflow-auto px-6 pb-6">
           {children}
         </div>
       </SidebarInset>

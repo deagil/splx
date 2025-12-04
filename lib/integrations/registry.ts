@@ -118,3 +118,6 @@ export const mosaicIcons = [
   { id: "stripe", color: "#635BFF" },
 ] as const;
 
+
+
+

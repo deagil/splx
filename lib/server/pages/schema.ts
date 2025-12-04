@@ -84,6 +84,7 @@ export const pageRecordSchema = z.object({
   layout: pageLayoutSchema,
   blocks: z.array(pageBlockSchema),
   settings: pageSettingsSchema,
+  is_system: z.boolean().default(false),
   created_by: z.string().uuid().nullable(),
   created_at: z.string(),
   updated_at: z.string(),

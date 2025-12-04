@@ -3,6 +3,8 @@ export {
   getPageById,
   createPage,
   updatePage,
+  deletePage,
+  getOrCreateSystemPage,
   PageNotFoundError,
 } from "./repository";
 export type {

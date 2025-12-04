@@ -60,6 +60,113 @@ import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 
 export const maxDuration = 60;
 
+// Helper for timestamped logging
+function logWithTimestamp(label: string, data?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  const elapsed = typeof performance !== "undefined"
+    ? `+${performance.now().toFixed(0)}ms`
+    : "";
+  if (data) {
+    console.log(`[Chat API] ${timestamp} ${elapsed} | ${label}`, data);
+  } else {
+    console.log(`[Chat API] ${timestamp} ${elapsed} | ${label}`);
+  }
+}
+
+// Enrichment status type for streaming progress to UI
+export type EnrichmentStatus = {
+  step:
+    | "reading-url"
+    | "processing-mentions"
+    | "personalizing"
+    | "preparing"
+    | "starting";
+  label: string;
+  progress?: number; // 0-100
+};
+
+/**
+ * Cached user preferences fetcher
+ * Caches for 5 minutes per user+workspace combination
+ */
+const getCachedUserPreferences = cache(
+  async (userId: string, workspaceId: string) => {
+    const sql = postgres(process.env.POSTGRES_URL!);
+    const db = drizzle(sql);
+
+    try {
+      // Fetch user data with profile fields
+      const [userData] = await db
+        .select({
+          firstname: user.firstname,
+          lastname: user.lastname,
+          job_title: user.job_title,
+          ai_context: user.ai_context,
+          proficiency: user.proficiency,
+          ai_tone: user.ai_tone,
+          ai_guidance: user.ai_guidance,
+        })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      // Get workspace details
+      const [workspaceData] = await db
+        .select({
+          name: workspace.name,
+          description: workspace.description,
+        })
+        .from(workspace)
+        .where(eq(workspace.id, workspaceId))
+        .limit(1);
+
+      // Get user's role in this workspace
+      let roleLabel: string | undefined;
+      const [workspaceUserData] = await db
+        .select({
+          role_id: workspaceUser.role_id,
+        })
+        .from(workspaceUser)
+        .where(
+          and(
+            eq(workspaceUser.user_id, userId),
+            eq(workspaceUser.workspace_id, workspaceId),
+          ),
+        )
+        .limit(1);
+
+      if (workspaceUserData?.role_id) {
+        const [roleData] = await db
+          .select({
+            label: role.label,
+          })
+          .from(role)
+          .where(
+            and(
+              eq(role.id, workspaceUserData.role_id),
+              eq(role.workspace_id, workspaceId),
+            ),
+          )
+          .limit(1);
+
+        if (roleData) {
+          roleLabel = roleData.label;
+        }
+      }
+
+      return {
+        userData,
+        workspaceData,
+        roleLabel,
+      };
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+  },
+  ["user-preferences"],
+  { revalidate: 300 }, // Cache for 5 minutes
+);
+
 let globalStreamContext: ResumableStreamContext | null = null;
 
 const getTokenlensCatalog = cache(
@@ -99,12 +206,24 @@ export function getStreamContext() {
 }
 
 export async function POST(request: Request) {
+  const requestStartTime = Date.now();
+  logWithTimestamp("📥 Request received");
+
   let requestBody: PostRequestBody;
 
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
+    logWithTimestamp("✓ Request body parsed", {
+      chatId: (json as { id?: string }).id,
+      model: (json as { selectedChatModel?: string }).selectedChatModel,
+      hasMentions: Boolean(
+        (json as { message?: { mentions?: unknown[] } }).message?.mentions
+          ?.length,
+      ),
+    });
   } catch (_) {
+    logWithTimestamp("✗ Request body parse failed");
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
@@ -123,7 +242,12 @@ export async function POST(request: Request) {
       personalizationEnabled?: boolean;
     } = requestBody;
 
+    const authStartTime = Date.now();
     const authUser = await getAuthenticatedUser();
+    logWithTimestamp("✓ Auth completed", {
+      duration: `${Date.now() - authStartTime}ms`,
+      userId: authUser?.id?.slice(0, 8),
+    });
 
     if (!authUser) {
       return new ChatSDKError("unauthorized:chat").toResponse();
@@ -134,122 +258,52 @@ export async function POST(request: Request) {
     // Extract skill from message (from slash commands)
     const skill = (message as any).skill;
 
-    // Fetch user preferences and context for personalization
+    // Resolve tenant context early (needed for preferences caching and chat)
+    const tenant = await resolveTenantContext();
+    const currentWorkspaceId = tenant.workspaceId;
+
+    // Fetch user preferences and context for personalization (CACHED - 5 min TTL)
     let userPreferences: UserPreferences | undefined;
 
     // Always fetch if we have a skill, or if personalization is enabled
     if (personalizationEnabled || skill) {
+      const prefsStartTime = Date.now();
       try {
-        const sql = postgres(process.env.POSTGRES_URL!);
-        const db = drizzle(sql);
+        // Use cached preferences (cache key: userId + workspaceId)
+        const cachedPrefs = await getCachedUserPreferences(
+          userId,
+          currentWorkspaceId,
+        );
 
-        try {
-          // Fetch user data with profile fields
-          const [userData] = await db
-            .select({
-              firstname: user.firstname,
-              lastname: user.lastname,
-              job_title: user.job_title,
-              ai_context: user.ai_context,
-              proficiency: user.proficiency,
-              ai_tone: user.ai_tone,
-              ai_guidance: user.ai_guidance,
-            })
-            .from(user)
-            .where(eq(user.id, userId))
-            .limit(1);
-
-          // Fetch workspace data using tenant context
-          let workspaceData:
-            | { name: string; description: string | null }
-            | undefined;
-          let roleLabel: string | undefined;
-
-          try {
-            const tenant = await resolveTenantContext();
-            const currentWorkspaceId = tenant.workspaceId;
-
-            if (currentWorkspaceId) {
-              // Get workspace details
-              const [ws] = await db
-                .select({
-                  name: workspace.name,
-                  description: workspace.description,
-                })
-                .from(workspace)
-                .where(eq(workspace.id, currentWorkspaceId))
-                .limit(1);
-
-              if (ws) {
-                workspaceData = ws;
-              }
-
-              // Get user's role in this workspace
-              const [workspaceUserData] = await db
-                .select({
-                  role_id: workspaceUser.role_id,
-                })
-                .from(workspaceUser)
-                .where(
-                  and(
-                    eq(workspaceUser.user_id, userId),
-                    eq(workspaceUser.workspace_id, currentWorkspaceId),
-                  ),
-                )
-                .limit(1);
-
-              if (workspaceUserData?.role_id) {
-                // Get the role label
-                const [roleData] = await db
-                  .select({
-                    label: role.label,
-                  })
-                  .from(role)
-                  .where(
-                    and(
-                      eq(role.id, workspaceUserData.role_id),
-                      eq(role.workspace_id, currentWorkspaceId),
-                    ),
-                  )
-                  .limit(1);
-
-                if (roleData) {
-                  roleLabel = roleData.label;
-                }
-              }
-            }
-          } catch (error) {
-            // If tenant context resolution fails, continue without workspace/role data
-            console.warn(
-              "Error resolving tenant context for personalization:",
-              error,
-            );
-          }
-
-          userPreferences = {
-            // User profile
-            firstName: userData?.firstname,
-            lastName: userData?.lastname,
-            jobTitle: userData?.job_title,
-            // AI preferences
-            aiContext: userData?.ai_context,
-            proficiency: userData?.proficiency,
-            aiTone: userData?.ai_tone,
-            aiGuidance: userData?.ai_guidance,
-            personalizationEnabled: personalizationEnabled ?? false,
-            // Workspace context
-            workspaceName: workspaceData?.name,
-            workspaceDescription: workspaceData?.description,
-            // Role context
-            roleLabel,
-            // Skill context (from slash commands)
-            skillPrompt: skill?.prompt,
-            skillName: skill?.name,
-          };
-        } finally {
-          await sql.end({ timeout: 5 });
-        }
+        userPreferences = {
+          // User profile
+          firstName: cachedPrefs.userData?.firstname,
+          lastName: cachedPrefs.userData?.lastname,
+          jobTitle: cachedPrefs.userData?.job_title,
+          // AI preferences
+          aiContext: cachedPrefs.userData?.ai_context,
+          proficiency: cachedPrefs.userData?.proficiency,
+          aiTone: cachedPrefs.userData?.ai_tone,
+          aiGuidance: cachedPrefs.userData?.ai_guidance,
+          personalizationEnabled: personalizationEnabled ?? false,
+          // Workspace context
+          workspaceName: cachedPrefs.workspaceData?.name,
+          workspaceDescription: cachedPrefs.workspaceData?.description,
+          // Role context
+          roleLabel: cachedPrefs.roleLabel,
+          // Skill context (from slash commands)
+          skillPrompt: skill?.prompt,
+          skillName: skill?.name,
+        };
+        logWithTimestamp("✓ User preferences fetched (cached)", {
+          duration: `${Date.now() - prefsStartTime}ms`,
+          hasSkill: Boolean(skill),
+          personalizationEnabled,
+        });
       } catch (error) {
+        logWithTimestamp("✗ User preferences fetch failed", {
+          error: String(error),
+        });
         console.error("Error fetching user preferences:", error);
         // If we have a skill but failed to fetch preferences, still include the skill
         if (skill) {
@@ -274,21 +328,26 @@ export async function POST(request: Request) {
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
 
+    const chatLookupStartTime = Date.now();
     const chat = await getChatById({ id });
     let messagesFromDb: DBMessage[] = [];
     let workspaceId: string;
 
     if (chat) {
       if (chat.user_id !== userId) {
+        logWithTimestamp("✗ Chat access forbidden", { chatId: id });
         return new ChatSDKError("forbidden:chat").toResponse();
       }
       workspaceId = chat.workspace_id;
       // Only fetch messages if chat already exists
       messagesFromDb = await getMessagesByChatId({ id });
+      logWithTimestamp("✓ Existing chat loaded", {
+        duration: `${Date.now() - chatLookupStartTime}ms`,
+        messageCount: messagesFromDb.length,
+      });
     } else {
-      // Get workspace_id from tenant context for new chat
-      const tenant = await resolveTenantContext();
-      workspaceId = tenant.workspaceId;
+      // Use already-resolved tenant context for new chat
+      workspaceId = currentWorkspaceId;
 
       const title = await generateTitleFromUserMessage({
         message,
@@ -299,6 +358,11 @@ export async function POST(request: Request) {
         userId,
         title,
         visibility: selectedVisibilityType,
+      });
+      logWithTimestamp("✓ New chat created", {
+        duration: `${Date.now() - chatLookupStartTime}ms`,
+        chatId: id,
+        title: title?.slice(0, 30),
       });
       // New chat - no need to fetch messages, it's empty
     }
@@ -311,28 +375,28 @@ export async function POST(request: Request) {
       mentions: requestBody.message.mentions,
     };
 
-    // Debug: Log mentions received from client
-    if (
-      messageWithMentions.mentions && messageWithMentions.mentions.length > 0
-    ) {
-      console.log(
-        "[Chat API] Received mentions:",
-        messageWithMentions.mentions,
-      );
+    const mentionCount = messageWithMentions.mentions?.length ?? 0;
+    if (mentionCount > 0) {
+      logWithTimestamp("📎 Mentions detected", {
+        count: mentionCount,
+        types: messageWithMentions.mentions?.map((m: { type: string }) =>
+          m.type
+        ),
+      });
     }
 
     // Create enriched message for AI (with mention data as text)
+    const enrichmentStartTime = Date.now();
     let enrichedMessageForAI = messageWithMentions;
     const enrichedText = await createEnrichedMessageContent(
       messageWithMentions,
     );
 
-    // Debug: Log enrichment result
     if (enrichedText && enrichedText.trim()) {
-      console.log(
-        "[Chat API] Message enriched with mention data, length:",
-        enrichedText.length,
-      );
+      logWithTimestamp("✓ Message enriched with mention data", {
+        duration: `${Date.now() - enrichmentStartTime}ms`,
+        enrichedTextLength: enrichedText.length,
+      });
     }
 
     // If we have enriched text (mentions converted to text), create version for AI
@@ -366,6 +430,7 @@ export async function POST(request: Request) {
 
     // Save the original message to database (preserve original text and mentions separately)
     // This allows us to display mentions as chips in the UI while sending enriched text to AI
+    const saveUserMsgStartTime = Date.now();
     await saveMessages({
       messages: [
         {
@@ -380,11 +445,23 @@ export async function POST(request: Request) {
         },
       ],
     });
+    logWithTimestamp("✓ User message saved to DB", {
+      duration: `${Date.now() - saveUserMsgStartTime}ms`,
+      messageId: message.id,
+    });
 
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
     let finalMergedUsage: AppUsage | undefined;
+    let streamStartTime: number;
+    let firstChunkTime: number | undefined;
+
+    logWithTimestamp("🚀 Starting AI stream", {
+      model: selectedChatModel,
+      totalSetupTime: `${Date.now() - requestStartTime}ms`,
+    });
+    streamStartTime = Date.now();
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
@@ -484,7 +561,14 @@ export async function POST(request: Request) {
       },
       generateId: generateUUID,
       onFinish: async ({ messages }) => {
-        // Log complete messages after streaming finishes
+        const streamDuration = Date.now() - streamStartTime;
+        logWithTimestamp("✅ AI stream completed", {
+          streamDuration: `${streamDuration}ms`,
+          messageCount: messages.length,
+          totalTokens: finalMergedUsage?.totalTokens,
+        });
+
+        // Log complete messages after streaming finishes (detailed)
         console.log(
           "[Complete Messages]",
           JSON.stringify(
@@ -524,6 +608,7 @@ export async function POST(request: Request) {
           ),
         );
 
+        const saveResponseStartTime = Date.now();
         await saveMessages({
           messages: messages.map((currentMessage) => ({
             id: currentMessage.id,
@@ -536,6 +621,10 @@ export async function POST(request: Request) {
             mentions: null,
           })),
         });
+        logWithTimestamp("✓ AI response saved to DB", {
+          duration: `${Date.now() - saveResponseStartTime}ms`,
+          messageCount: messages.length,
+        });
 
         if (finalMergedUsage) {
           try {
@@ -547,6 +636,11 @@ export async function POST(request: Request) {
             console.warn("Unable to persist last usage for chat", id, err);
           }
         }
+
+        logWithTimestamp("🏁 Request complete", {
+          totalDuration: `${Date.now() - requestStartTime}ms`,
+          chatId: id,
+        });
       },
       onError: () => {
         return "Oops, an error occurred!";

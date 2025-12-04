@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
 import {
@@ -29,7 +29,7 @@ import type { AppUsage } from "@/lib/usage";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 import { Artifact } from "../artifact/artifact";
 import { useDataStream } from "../shared/data-stream-provider";
-import { Messages } from "../chat/messages";
+import { Messages, type OptimisticMessage } from "../chat/messages";
 import { MultimodalInput } from "../input/multimodal-input";
 import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
 import { toast } from "../shared/toast";
@@ -262,6 +262,39 @@ export function ChatSidebarContent({
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
+  
+  // Optimistic message state for instant display
+  const [optimisticMessage, setOptimisticMessage] = useState<OptimisticMessage | null>(null);
+
+  // Callback for MultimodalInput to set optimistic message before sendMessage
+  const handleOptimisticMessage = useCallback((message: OptimisticMessage) => {
+    setOptimisticMessage(message);
+  }, []);
+
+  // Clear optimistic message when:
+  // 1. It appears in the real messages array, OR
+  // 2. Status changes to streaming (server has acknowledged the message)
+  useEffect(() => {
+    if (optimisticMessage) {
+      // Check if any user message in the array matches our optimistic message text
+      const messageExists = messages.some((msg) => {
+        if (msg.role !== "user") return false;
+        const textPart = msg.parts?.find(p => p.type === "text") as { text?: string } | undefined;
+        return textPart?.text === optimisticMessage.text;
+      });
+      
+      if (messageExists) {
+        setOptimisticMessage(null);
+      }
+    }
+  }, [messages, optimisticMessage]);
+
+  // Also clear when streaming starts (server acknowledged the message)
+  useEffect(() => {
+    if (status === "streaming" && optimisticMessage) {
+      setOptimisticMessage(null);
+    }
+  }, [status, optimisticMessage]);
 
   // Update messages when fetched messages load (for existing chats)
   useEffect(() => {
@@ -390,6 +423,7 @@ export function ChatSidebarContent({
                 isArtifactVisible={isArtifactVisible}
                 isReadonly={isReadonly}
                 messages={messages}
+                optimisticMessage={optimisticMessage}
                 regenerate={regenerate}
                 selectedModelId={initialChatModel}
                 setMessages={setMessages}
@@ -408,6 +442,7 @@ export function ChatSidebarContent({
                             chatId={chatId}
                             input={input}
                             messages={messages}
+                            onOptimisticMessage={handleOptimisticMessage}
                             selectedModelId={currentModelId}
                             selectedVisibilityType={visibilityType}
                             sendMessage={sendMessage}

@@ -257,19 +257,68 @@ export async function extractLookupMentionData(
 
 /**
  * Extract data for a URL mention
- * Fetches full page content via Jina Reader API
+ * Uses pre-fetched content if available, otherwise fetches via Jina Reader API
+ * Skips retry if pre-fetch already failed with a known error (e.g., domain blocked)
  */
 export async function extractUrlMentionData(
-  mention: UrlMention
+  mention: UrlMention & { 
+    prefetchedContent?: string;
+    contentStatus?: "loading" | "loaded" | "error";
+    contentError?: string;
+  }
 ): Promise<string> {
   try {
-    // Use Jina Reader to fetch full content in markdown format
+    // Check if we have pre-fetched content (saves ~20-30s!)
+    if (mention.prefetchedContent) {
+      console.log(`[URL Enrichment] Using pre-fetched content for ${mention.url} (${mention.prefetchedContent.length} chars)`);
+      
+      // Format with title and URL info
+      let result = `[Web Page: ${mention.title || mention.label}]\n`;
+      result += `URL: ${mention.url}\n`;
+      result += `(Content pre-fetched by client)\n`;
+      result += `\n${mention.prefetchedContent}`;
+
+      return result;
+    }
+
+    // If pre-fetch failed with a known error (e.g., domain blocked), skip retry
+    // Both use the same service, so retry would likely fail too
+    if (mention.contentStatus === "error" && mention.contentError) {
+      const errorLower = mention.contentError.toLowerCase();
+      if (errorLower.includes("blocked") || errorLower.includes("domain temporarily")) {
+        console.log(`[URL Enrichment] Skipping retry - pre-fetch already failed with known error: ${mention.url}`);
+        return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved - the content service has temporarily blocked this domain. The user referenced this URL in their message.)`;
+      }
+    }
+
+    // Fallback: fetch via Jina Reader (slow path)
+    // Only attempt if pre-fetch didn't fail or failed for unknown reason
+    console.log(`[URL Enrichment] No pre-fetched content, fetching via Jina Reader for ${mention.url}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
     const response = await fetch(`https://r.jina.ai/${mention.url}`, {
-      headers: { Accept: "text/markdown" },
+      signal: controller.signal,
+      headers: { 
+        Accept: "text/markdown",
+        "User-Agent": "Mozilla/5.0 (compatible; SplxBot/1.0)",
+      },
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return `[URL: ${mention.title || mention.url}]\n\nFailed to fetch content from URL: ${response.status}`;
+      const errorText = await response.text().catch(() => "");
+      
+      // Check if domain is blocked
+      if (response.status === 451 || errorText.includes("blocked")) {
+        console.warn(`[URL Enrichment] Domain blocked by Jina Reader: ${mention.url}`);
+        return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved - the content service has temporarily blocked this domain. The user referenced this URL in their message.)`;
+      }
+      
+      console.warn(`[URL Enrichment] Failed to fetch ${mention.url}: ${response.status}`);
+      return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved. The user referenced this URL in their message.)`;
     }
 
     const content = await response.text();
@@ -278,6 +327,8 @@ export async function extractUrlMentionData(
     const maxLength = 15000;
     const truncated = content.length > maxLength;
     const finalContent = truncated ? content.slice(0, maxLength) : content;
+
+    console.log(`[URL Enrichment] Fetched ${mention.url} (${content.length} chars${truncated ? ", truncated" : ""})`);
 
     // Format with title and URL info
     let result = `[Web Page: ${mention.title || mention.label}]\n`;
@@ -289,8 +340,13 @@ export async function extractUrlMentionData(
 
     return result;
   } catch (error) {
-    console.error(`Error extracting URL mention data:`, error);
-    return `[URL: ${mention.title || mention.url}]\n\nError fetching content: ${error instanceof Error ? error.message : "Unknown error"}`;
+    if (error instanceof Error && error.name === "AbortError") {
+      console.warn(`[URL Enrichment] Timeout fetching ${mention.url}`);
+      return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Request timed out while fetching content. The user referenced this URL in their message.)`;
+    }
+    
+    console.error(`[URL Enrichment] Error for ${mention.url}:`, error);
+    return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Could not fetch content - ${error instanceof Error ? error.message : "Unknown error"}. The user referenced this URL in their message.)`;
   }
 }
 

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   HoverCard,
@@ -16,6 +17,7 @@ import {
   getContextLabel,
   getContextDescription,
 } from "./context-card";
+import type { UrlMention } from "@/lib/types/mentions";
 
 /**
  * Get type label for display
@@ -44,10 +46,22 @@ function getTypeLabel(item: ContextItem): string {
 }
 
 /**
+ * Get URL content status for display
+ */
+function getUrlContentStatus(item: ContextItem): { status?: "loading" | "loaded" | "error"; error?: string } | null {
+  if (item.type !== "mention" || item.data.type !== "url") return null;
+  const urlData = item.data as UrlMention & { contentStatus?: "loading" | "loaded" | "error"; contentError?: string };
+  return {
+    status: urlData.contentStatus,
+    error: urlData.contentError,
+  };
+}
+
+/**
  * Get additional metadata for popover display
  */
-function getMetadata(item: ContextItem): Array<{ label: string; value: string }> {
-  const metadata: Array<{ label: string; value: string }> = [];
+function getMetadata(item: ContextItem): Array<{ label: string; value: string; link?: boolean }> {
+  const metadata: Array<{ label: string; value: string; link?: boolean }> = [];
   
   if (item.type === "skill") {
     if (item.data.command) {
@@ -59,6 +73,15 @@ function getMetadata(item: ContextItem): Array<{ label: string; value: string }>
   if (item.type === "file") {
     if (item.data.contentType) {
       metadata.push({ label: "Type", value: item.data.contentType });
+    }
+    return metadata;
+  }
+  
+  // URL mentions - show URL as clickable link
+  if (item.type === "mention" && item.data.type === "url") {
+    const urlData = item.data as UrlMention;
+    if (urlData.url) {
+      metadata.push({ label: "URL", value: urlData.url, link: true });
     }
     return metadata;
   }
@@ -166,15 +189,64 @@ export function ContextPopover({
             </p>
           )}
           
+          {/* URL content status (error/loading) */}
+          {(() => {
+            const urlStatus = getUrlContentStatus(item);
+            if (!urlStatus) return null;
+            
+            if (urlStatus.status === "loading") {
+              return (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+                  <Loader2 className="size-3 animate-spin" />
+                  <span>Loading article content...</span>
+                </div>
+              );
+            }
+            
+            if (urlStatus.status === "error" && urlStatus.error) {
+              return (
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-start gap-2 text-xs">
+                    <AlertCircle className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-amber-500 mb-1">Content pre-fetch failed</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {urlStatus.error}
+                      </p>
+                      <p className="text-muted-foreground/80 mt-1.5 text-[11px]">
+                        The server will attempt to fetch content during message processing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            
+            return null;
+          })()}
+          
           {/* Metadata */}
           {metadata.length > 0 && (
             <div className="space-y-1.5 pt-2 border-t border-border">
               {metadata.map((meta) => (
                 <div key={meta.label} className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{meta.label}</span>
-                  <span className="font-mono text-foreground truncate max-w-[150px]">
-                    {meta.value}
-                  </span>
+                  {meta.link ? (
+                    <a
+                      href={meta.value}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-foreground truncate max-w-[150px] hover:text-primary hover:underline flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="truncate">{meta.value}</span>
+                      <ExternalLink className="size-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="font-mono text-foreground truncate max-w-[150px]">
+                      {meta.value}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

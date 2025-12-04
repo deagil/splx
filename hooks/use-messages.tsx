@@ -15,6 +15,8 @@ export function useMessages({
     scrollToBottom,
     onViewportEnter,
     onViewportLeave,
+    isPinned,
+    setIsPinned,
   } = useScrollToBottom();
 
   const [hasSentMessage, setHasSentMessage] = useState(false);
@@ -33,5 +35,7 @@ export function useMessages({
     onViewportEnter,
     onViewportLeave,
     hasSentMessage,
+    isPinned,
+    setIsPinned,
   };
 }

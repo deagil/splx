@@ -3,9 +3,19 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
+
+// Helper for timestamped client-side logging
+function logUI(label: string, data?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[Chat UI] ${timestamp} | ${label}`, data);
+  } else {
+    console.log(`[Chat UI] ${timestamp} | ${label}`);
+  }
+}
 import { ChatHeader } from "@/components/chat/chat-header";
 import {
   AlertDialog,
@@ -110,10 +120,16 @@ export function Chat({
     };
   }, [currentModelId]);
 
+  // Track status changes for logging
+  const prevStatusRef = useRef<string | null>(null);
+  const messageSubmitTimeRef = useRef<number | null>(null);
+  const firstChunkTimeRef = useRef<number | null>(null);
+  const streamStartTimeRef = useRef<number | null>(null);
+
   const {
     messages,
     setMessages,
-    sendMessage,
+    sendMessage: originalSendMessage,
     status,
     stop,
     regenerate,
@@ -128,6 +144,10 @@ export function Chat({
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
+        logUI("📤 Sending request to API", { 
+          chatId: request.id,
+          model: currentModelIdRef.current,
+        });
         return {
           body: {
             id: request.id,
@@ -144,15 +164,36 @@ export function Chat({
       },
     }),
     onData: (dataPart) => {
+      // Log first chunk received
+      if (!firstChunkTimeRef.current && streamStartTimeRef.current) {
+        firstChunkTimeRef.current = Date.now();
+        logUI("📨 First chunk received (TTFB)", { 
+          timeToFirstByte: `${firstChunkTimeRef.current - streamStartTimeRef.current}ms`,
+          type: dataPart.type,
+        });
+      }
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
       if (dataPart.type === "data-usage") {
         setUsage(dataPart.data);
+        logUI("📊 Usage data received", { 
+          totalTokens: (dataPart.data as AppUsage).totalTokens,
+        });
       }
     },
     onFinish: () => {
+      const totalTime = messageSubmitTimeRef.current 
+        ? Date.now() - messageSubmitTimeRef.current 
+        : undefined;
+      logUI("✅ Stream finished", { 
+        totalRoundTrip: totalTime ? `${totalTime}ms` : undefined,
+      });
       mutate(unstable_serialize(getChatHistoryPaginationKey));
+      // Reset timing refs
+      firstChunkTimeRef.current = null;
+      streamStartTimeRef.current = null;
     },
     onError: (error) => {
+      logUI("❌ Stream error", { error: error.message });
       if (error instanceof ChatSDKError) {
         // Check if it's a credit card error
         if (
@@ -168,6 +209,28 @@ export function Chat({
       }
     },
   });
+
+  // Wrapped sendMessage to track timing
+  const sendMessage = useCallback((...args: Parameters<typeof originalSendMessage>) => {
+    messageSubmitTimeRef.current = Date.now();
+    streamStartTimeRef.current = Date.now();
+    firstChunkTimeRef.current = null;
+    logUI("📝 User submitting message");
+    return originalSendMessage(...args);
+  }, [originalSendMessage]);
+
+  // Log status transitions
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      const duration = messageSubmitTimeRef.current 
+        ? Date.now() - messageSubmitTimeRef.current 
+        : undefined;
+      logUI(`🔄 Status changed: ${prevStatusRef.current || 'initial'} → ${status}`, {
+        timeSinceSubmit: duration ? `${duration}ms` : undefined,
+      });
+      prevStatusRef.current = status;
+    }
+  }, [status]);
 
   const searchParams = useSearchParams();
   const query = searchParams.get("query");

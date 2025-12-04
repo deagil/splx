@@ -8,12 +8,31 @@ export function useScrollToBottom() {
   const endRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   
-  // Track if we should stick to bottom (auto-scroll as content arrives)
+  // Track if pinned mode is enabled (auto-scroll as content arrives)
+  // Initialize from localStorage if available
+  const [isPinned, setIsPinned] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("chat-scroll-pinned");
+      return stored !== "false"; // Default to true (pinned) if not set
+    }
+    return true;
+  });
+  
+  // Track if we should stick to bottom (respects isPinned setting)
   const shouldStickRef = useRef(true);
   // Track last scroll position to detect scroll direction
   const lastScrollTopRef = useRef(0);
   // Debounce timer for re-enabling stick
   const stickDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persist isPinned to localStorage
+  useEffect(() => {
+    localStorage.setItem("chat-scroll-pinned", isPinned.toString());
+    // When pinned mode is enabled, immediately start sticking
+    if (isPinned) {
+      shouldStickRef.current = true;
+    }
+  }, [isPinned]);
 
   const { data: scrollBehavior = false, mutate: setScrollBehavior } =
     useSWR<ScrollFlag>("messages:should-scroll", null, { fallbackData: false });
@@ -27,6 +46,12 @@ export function useScrollToBottom() {
     // Check if we are within 100px of the bottom
     const atBottom = scrollTop + clientHeight >= scrollHeight - 100;
     setIsAtBottom(atBottom);
+    
+    // If pinned mode is disabled, don't manage stick behavior
+    if (!isPinned) {
+      shouldStickRef.current = false;
+      return;
+    }
     
     // Detect if user scrolled UP (away from bottom)
     const scrolledUp = scrollTop < lastScrollTopRef.current - 5; // 5px threshold
@@ -57,11 +82,12 @@ export function useScrollToBottom() {
         }
       }, 300);
     }
-  }, []);
+  }, [isPinned]);
 
   // Auto-scroll to bottom when content changes (stick to bottom behavior)
   const scrollToBottomIfStuck = useCallback(() => {
-    if (!containerRef.current || !shouldStickRef.current) {
+    // Don't auto-scroll if pinned mode is disabled or not stuck
+    if (!containerRef.current || !shouldStickRef.current || !isPinned) {
       return;
     }
     
@@ -69,7 +95,7 @@ export function useScrollToBottom() {
     // Use instant scroll for content updates to keep up with streaming
     container.scrollTop = container.scrollHeight;
     lastScrollTopRef.current = container.scrollTop;
-  }, []);
+  }, [isPinned]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -166,5 +192,7 @@ export function useScrollToBottom() {
     scrollToBottom,
     onViewportEnter,
     onViewportLeave,
+    isPinned,
+    setIsPinned,
   };
 }

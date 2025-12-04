@@ -63,7 +63,7 @@ export function PageScreen({
     setError(null);
     try {
       const response = await fetch(
-        `/app/(app)/api/pages/${currentPage.id}/save`,
+        `/api/pages/${currentPage.id}/save`,
         {
           method: "PUT",
           headers: {
@@ -106,8 +106,9 @@ export function PageScreen({
     }
   };
 
+  //page screen padding top and bottom is 16px
   return (
-    <div className="flex flex-1 flex-col gap-6 py-6">
+    <div className="flex flex-1 flex-col gap-6 py-4">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">

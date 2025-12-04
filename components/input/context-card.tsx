@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Zap, User, Table2, Database, FileText, LayoutGrid, Search, File, Image, FileCode, FileSpreadsheet, Globe } from "lucide-react";
+import { X, Zap, User, Table2, Database, FileText, LayoutGrid, Search, File, Image, FileCode, FileSpreadsheet, Globe, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { MentionMetadata, MentionType, UrlMention } from "@/lib/types/mentions";
@@ -178,6 +178,26 @@ function isUrlMentionWithFavicon(item: ContextItem): item is { type: "mention"; 
 }
 
 /**
+ * Extended URL mention data with content status
+ */
+type UrlMentionWithStatus = UrlMention & {
+  contentStatus?: "loading" | "loaded" | "error";
+  contentError?: string;
+};
+
+/**
+ * Check if item is a URL mention with content status
+ */
+function getUrlContentStatus(item: ContextItem): { status?: "loading" | "loaded" | "error"; error?: string } | null {
+  if (item.type !== "mention" || item.data.type !== "url") return null;
+  const urlData = item.data as UrlMentionWithStatus;
+  return {
+    status: urlData.contentStatus,
+    error: urlData.contentError,
+  };
+}
+
+/**
  * Compact context card for skills, mentions, and files
  * Chunkier design inspired by Dia's context tray
  */
@@ -196,26 +216,44 @@ export function ContextCard({ item, onRemove, readOnly = false, className }: Con
   const showFavicon = isUrlMentionWithFavicon(item);
   const faviconUrl = showFavicon ? (item.data as UrlMention).favicon : undefined;
 
+  // Check URL content status for error/loading indicators
+  const urlStatus = getUrlContentStatus(item);
+  const hasContentError = urlStatus?.status === "error";
+  const isContentLoading = urlStatus?.status === "loading";
+
+  // Override colors for error state
+  const effectiveColors = hasContentError
+    ? {
+        border: "border-amber-500/40",
+        icon: colors.icon,
+        bg: "bg-amber-500/5",
+      }
+    : colors;
+
   return (
     <div
       className={cn(
         "group relative inline-flex h-9 items-center gap-2 rounded-xl border px-3",
         "transition-all duration-150 ease-out",
         "hover:shadow-sm",
-        colors.border,
-        colors.bg,
+        effectiveColors.border,
+        effectiveColors.bg,
+        hasContentError && "border-dashed",
         className
       )}
     >
       <div className={cn(
         "flex size-5 items-center justify-center rounded-md overflow-hidden",
-        colors.bg,
+        effectiveColors.bg,
       )}>
         {showFavicon && faviconUrl ? (
           <img 
             src={faviconUrl} 
             alt="" 
-            className="size-3.5 shrink-0 object-contain"
+            className={cn(
+              "size-3.5 shrink-0 object-contain",
+              hasContentError && "opacity-60"
+            )}
             onError={(e) => {
               // Hide broken favicon images
               (e.target as HTMLImageElement).style.display = "none";
@@ -227,12 +265,23 @@ export function ContextCard({ item, onRemove, readOnly = false, className }: Con
             }}
           />
         ) : (
-          <Icon className={cn("size-3.5 shrink-0", colors.icon)} />
+          <Icon className={cn("size-3.5 shrink-0", effectiveColors.icon)} />
         )}
       </div>
-      <span className="max-w-[120px] truncate text-sm font-medium">
+      <span className={cn(
+        "max-w-[120px] truncate text-sm font-medium",
+        hasContentError && "opacity-80"
+      )}>
         {label}
       </span>
+      
+      {/* Status indicators */}
+      {isContentLoading && (
+        <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
+      )}
+      {hasContentError && (
+        <AlertCircle className="size-3 shrink-0 text-amber-500" />
+      )}
       
       {!readOnly && onRemove && (
         <Button

@@ -39,6 +39,50 @@ import {
 } from "../ai-elements/chain-of-thought";
 import { SearchIcon } from "lucide-react";
 
+// ============================================================================
+// Typing Indicator - Shows when waiting for first token in stream
+// ============================================================================
+
+const TypingDot = memo(({ delay }: { delay: number }) => (
+  <motion.span
+    className="inline-block size-1.5 rounded-full bg-current"
+    initial={{ opacity: 0.4, y: 0 }}
+    animate={{ 
+      opacity: [0.4, 1, 0.4],
+      y: [0, -3, 0]
+    }}
+    transition={{
+      duration: 0.6,
+      repeat: Number.POSITIVE_INFINITY,
+      delay,
+      ease: "easeInOut",
+    }}
+  />
+));
+
+TypingDot.displayName = "TypingDot";
+
+/**
+ * Typing indicator shown when assistant is about to respond
+ * but hasn't sent any text yet (stream started, waiting for first token)
+ */
+export const TypingIndicator = memo(() => (
+  <motion.div
+    className="flex items-center gap-1 text-muted-foreground py-2"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.15 }}
+    data-testid="typing-indicator"
+  >
+    <TypingDot delay={0} />
+    <TypingDot delay={0.15} />
+    <TypingDot delay={0.3} />
+  </motion.div>
+));
+
+TypingIndicator.displayName = "TypingIndicator";
+
 /**
  * Get icon based on mention type (matching MentionChip logic)
  */
@@ -168,24 +212,21 @@ const PurePreviewMessage = ({
 
   return (
     <motion.div
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 1, y: 0 }}
       className="group/message w-full"
       data-role={message.role}
       data-testid={`message-${message.role}`}
       exit={{ 
         opacity: 0, 
-        transition: { duration: 0.15 } 
+        transition: { duration: 0.1 } 
       }}
       initial={{ 
         opacity: 0, 
-        y: message.role === "user" ? 10 : 0,
-        scale: message.role === "user" ? 0.98 : 1 
+        y: message.role === "user" ? 8 : 0
       }}
-      layout="position"
       transition={{ 
-        duration: 0.2, 
-        ease: "easeOut",
-        layout: { duration: 0.2 }
+        duration: 0.15, 
+        ease: "easeOut"
       }}
     >
       <div
@@ -369,6 +410,34 @@ const PurePreviewMessage = ({
                 reasoning={combinedReasoning}
               />
             );
+          })()}
+
+          {/* Typing indicator - shows when streaming but no text content yet */}
+          {(() => {
+            // Check if we should show typing indicator:
+            // 1. Message is loading (streaming in progress)
+            // 2. It's an assistant message
+            // 3. No text content has arrived yet
+            const hasTextContent = message.parts?.some(
+              (p) => p.type === "text" && (p as { text?: string }).text?.trim()
+            );
+            const hasReasoningContent = message.parts?.some(
+              (p) => p.type === "reasoning" && (p as { text?: string }).text?.trim()
+            );
+            const showTypingIndicator = 
+              isLoading && 
+              message.role === "assistant" && 
+              !hasTextContent &&
+              !hasReasoningContent;
+
+            if (showTypingIndicator) {
+              return (
+                <AnimatePresence>
+                  <TypingIndicator key="typing" />
+                </AnimatePresence>
+              );
+            }
+            return null;
           })()}
 
           {message.parts?.map((part, partIndex) => {
@@ -690,21 +759,54 @@ export const PreviewMessage = memo(
 
 // ============================================================================
 // Unified Message Initialization Component
-// Shows actual processing state with smooth transitions
+// Shows contextual processing state with smooth transitions
+// Makes the UI feel snappy by showing appropriate feedback
 // ============================================================================
 
-type InitPhase = "enriching" | "thinking" | "responding";
+type ThinkingPhase = 
+  | "reading-article"
+  | "gathering-context"
+  | "processing"
+  | "thinking";
 
 type ThinkingMessageProps = {
   /** Whether message has mentions that need enrichment */
   hasMentions?: boolean;
+  /** Whether message has URL mentions specifically */
+  hasUrlMentions?: boolean;
   /** Whether message has attachments */
   hasAttachments?: boolean;
   /** Number of attachments */
   attachmentCount?: number;
+  /** Number of URL mentions */
+  urlCount?: number;
 };
 
-const InitializationIndicator = memo(({ 
+/** Get contextual label for current processing phase */
+function getPhaseLabel(phase: ThinkingPhase, props: ThinkingMessageProps): string {
+  switch (phase) {
+    case "reading-article":
+      return props.urlCount && props.urlCount > 1 
+        ? `Reading ${props.urlCount} articles...`
+        : "Reading article...";
+    case "gathering-context":
+      if (props.hasAttachments) {
+        return props.attachmentCount && props.attachmentCount > 1
+          ? `Processing ${props.attachmentCount} files...`
+          : "Processing file...";
+      }
+      return "Gathering context...";
+    case "processing":
+      return "Processing...";
+    case "thinking":
+      return "Thinking...";
+    default:
+      return "Thinking...";
+  }
+}
+
+/** Animated step indicator with spinner or checkmark */
+const StepIndicator = memo(({ 
   label, 
   isComplete,
   isActive 
@@ -714,9 +816,9 @@ const InitializationIndicator = memo(({
   isActive: boolean;
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 8 }}
+    initial={{ opacity: 0, y: 6 }}
     animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -4 }}
+    exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
     transition={{ duration: 0.15, ease: "easeOut" }}
     className={cn(
       "flex items-center gap-2 text-sm",
@@ -754,46 +856,83 @@ const InitializationIndicator = memo(({
   </motion.div>
 ));
 
-InitializationIndicator.displayName = "InitializationIndicator";
+StepIndicator.displayName = "StepIndicator";
 
 export const ThinkingMessage = memo(({
   hasMentions = false,
+  hasUrlMentions = false,
   hasAttachments = false,
   attachmentCount = 0,
+  urlCount = 0,
 }: ThinkingMessageProps) => {
   const role = "assistant";
-  const [phase, setPhase] = useState<InitPhase>("enriching");
-  const [enrichComplete, setEnrichComplete] = useState(false);
+  const [completedPhases, setCompletedPhases] = useState<ThinkingPhase[]>([]);
+  const [currentPhase, setCurrentPhase] = useState<ThinkingPhase | null>(null);
 
-  // Determine what to show based on message context
-  const hasContext = hasMentions || hasAttachments;
-  const contextLabel = hasAttachments 
-    ? `Reading ${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''}`
-    : hasMentions 
-    ? "Processing context"
-    : "Reading your message";
-
-  // Simulate enrichment completion (in real app, this would come from server)
+  // Determine phases based on message context
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setEnrichComplete(true);
-      setPhase("thinking");
-    }, hasContext ? 600 : 300);
+    const phases: ThinkingPhase[] = [];
+    
+    // Build phase sequence based on what's in the message
+    if (hasUrlMentions) {
+      phases.push("reading-article");
+    }
+    if (hasMentions && !hasUrlMentions) {
+      phases.push("gathering-context");
+    }
+    if (hasAttachments) {
+      phases.push("gathering-context");
+    }
+    // Always end with thinking
+    phases.push("thinking");
 
-    return () => clearTimeout(timer);
-  }, [hasContext]);
+    // Start with first phase
+    if (phases.length > 0) {
+      setCurrentPhase(phases[0]);
+    }
+
+    // Progress through phases with realistic timing
+    let phaseIndex = 0;
+    const progressPhase = () => {
+      if (phaseIndex < phases.length - 1) {
+        // Mark current as complete, move to next
+        setCompletedPhases(prev => [...prev, phases[phaseIndex]]);
+        phaseIndex++;
+        setCurrentPhase(phases[phaseIndex]);
+      }
+    };
+
+    // Timing based on phase type (feels natural)
+    const timers: NodeJS.Timeout[] = [];
+    let elapsed = 0;
+    
+    for (let i = 0; i < phases.length - 1; i++) {
+      const phase = phases[i];
+      // URL reading feels longer (even though it's pre-fetched, user expects it)
+      const duration = phase === "reading-article" ? 800 : 
+                       phase === "gathering-context" ? 500 : 300;
+      elapsed += duration;
+      timers.push(setTimeout(progressPhase, elapsed));
+    }
+
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [hasMentions, hasUrlMentions, hasAttachments]);
+
+  const props = { hasMentions, hasUrlMentions, hasAttachments, attachmentCount, urlCount };
 
   return (
     <motion.div
       className="group/message w-full"
       data-role={role}
       data-testid="message-assistant-loading"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-      layout="position"
-      layoutId="thinking-message"
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.1 } }}
+      transition={{ duration: 0.15 }}
     >
       <div className="flex items-start justify-start gap-3">
         <motion.div
@@ -805,47 +944,34 @@ export const ThinkingMessage = memo(({
           <SparklesIcon size={14} />
         </motion.div>
 
-        <div className="flex flex-col gap-2 pt-1">
-          <AnimatePresence mode="wait">
-            {/* Show context reading indicator */}
-            {phase === "enriching" && (
-              <InitializationIndicator
-                key="enrich"
-                label={contextLabel}
-                isComplete={false}
-                isActive={true}
+        <div className="flex flex-col gap-1.5 pt-1">
+          <AnimatePresence mode="popLayout">
+            {/* Show completed phases */}
+            {completedPhases.map((phase) => (
+              <StepIndicator
+                key={phase}
+                label={getPhaseLabel(phase, props)}
+                isComplete={true}
+                isActive={false}
               />
-            )}
+            ))}
             
-            {/* Show completed context + thinking */}
-            {phase === "thinking" && (
+            {/* Show current active phase */}
+            {currentPhase && (
               <motion.div
-                key="thinking-phase"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                key={currentPhase}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex flex-col gap-1.5"
+                className="flex items-center gap-2 text-sm text-foreground"
               >
-                {/* Keep context indicator visible as completed */}
-                {hasContext && (
-                  <InitializationIndicator
-                    label={contextLabel}
-                    isComplete={true}
-                    isActive={false}
-                  />
+                <Loader size={14} className="text-primary" />
+                {currentPhase === "thinking" ? (
+                  <Shimmer duration={1.5}>{getPhaseLabel(currentPhase, props)}</Shimmer>
+                ) : (
+                  <span className="font-medium">{getPhaseLabel(currentPhase, props)}</span>
                 )}
-                
-                {/* Active thinking indicator with shimmer */}
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.15 }}
-                  className="flex items-center gap-2 text-sm text-foreground"
-                >
-                  <Loader size={14} className="text-primary" />
-                  <Shimmer duration={1.5}>Thinking...</Shimmer>
-                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>

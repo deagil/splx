@@ -467,6 +467,10 @@ Run `pnpm lint` to check, `pnpm format` to auto-fix.
 Create `.env.local`:
 
 ```bash
+# Application Mode (required)
+APP_MODE=local  # 'local' or 'hosted' - determines database architecture
+NEXT_PUBLIC_APP_MODE=local  # Must match APP_MODE - controls UI features like Dev menu
+
 # Supabase (required)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
@@ -487,7 +491,7 @@ VERCEL_URL=your_vercel_url  # Auto-set on Vercel deployments
 
 ## Development Notes
 
-- **Package Manager**: Uses pnpm (version `10.20.0` - see `packageManager` field)
+- **Package Manager**: Uses pnpm (version `10.24.0` - see `packageManager` field)
 - **Node Version**: Requires Node.js 18+ for Next.js 16
 - **Type Safety**: Strict TypeScript 5.9 with Ultracite linting
 - **Database Migrations**: All migrations in `supabase/migrations/` as SQL files. Drizzle migrations in `lib/db/migrations/` are reference only.

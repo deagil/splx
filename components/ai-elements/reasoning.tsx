@@ -328,7 +328,7 @@ export const ReasoningContent = memo(
                               <AnimatedMarkdown
                                 content={step.content}
                                 animation="fadeIn"
-                                animationDuration="0.5s"
+                                animationDuration="0.6s"
                                 animationTimingFunction="ease-in-out"
                                 sep="word"
                               />
@@ -355,7 +355,7 @@ export const ReasoningContent = memo(
                 <AnimatedMarkdown
                   content={content}
                   animation="fadeIn"
-                  animationDuration="0.5s"
+                  animationDuration="0.6s"
                   animationTimingFunction="ease-in-out"
                   sep="word"
                 />

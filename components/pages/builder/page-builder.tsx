@@ -707,6 +707,99 @@ function ListBlockForm({
       </div>
 
       <div>
+        <h5 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+          Table Features
+        </h5>
+        <div className="grid gap-4 md:grid-cols-3">
+          <CheckboxField
+            id={`list-search-${block.id}`}
+            label="Enable search"
+            checked={block.display.enableSearch ?? true}
+            onChange={(checked) =>
+              updateDisplay({ enableSearch: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-row-selection-${block.id}`}
+            label="Row selection"
+            checked={block.display.enableRowSelection ?? false}
+            onChange={(checked) =>
+              updateDisplay({ enableRowSelection: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-sticky-header-${block.id}`}
+            label="Sticky headers"
+            checked={block.display.enableStickyHeader ?? true}
+            onChange={(checked) =>
+              updateDisplay({ enableStickyHeader: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-column-visibility-${block.id}`}
+            label="Column visibility toggle"
+            checked={block.display.enableColumnVisibility ?? false}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnVisibility: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-column-resize-${block.id}`}
+            label="Column resizing"
+            checked={block.display.enableColumnResize ?? false}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnResize: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-column-pin-${block.id}`}
+            label="Column pinning"
+            checked={block.display.enableColumnPin ?? false}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnPin: checked })
+            }
+          />
+          <CheckboxField
+            id={`list-column-drag-${block.id}`}
+            label="Column reordering"
+            checked={block.display.enableColumnDrag ?? false}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnDrag: checked })
+            }
+          />
+          <Field>
+            <Label htmlFor={`list-page-size-${block.id}`}>Page size</Label>
+            <Input
+              id={`list-page-size-${block.id}`}
+              type="number"
+              min={1}
+              max={100}
+              value={block.display.defaultPageSize ?? 10}
+              onChange={(event) =>
+                updateDisplay({
+                  defaultPageSize: Number.parseInt(event.target.value) || 10,
+                })
+              }
+              placeholder="10"
+            />
+          </Field>
+          <Field>
+            <Label htmlFor={`list-search-placeholder-${block.id}`}>Search placeholder</Label>
+            <Input
+              id={`list-search-placeholder-${block.id}`}
+              value={block.display.searchPlaceholder ?? ""}
+              onChange={(event) =>
+                updateDisplay({
+                  searchPlaceholder: event.target.value || undefined,
+                })
+              }
+              placeholder="Search..."
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div>
         <header className="flex items-center justify-between">
           <h5 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Filters

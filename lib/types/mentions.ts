@@ -102,6 +102,8 @@ export const urlMentionSchema = mentionMetadataSchema.extend({
   title: z.string().optional(), // Page title from OG metadata
   favicon: z.string().optional(), // Favicon URL
   image: z.string().optional(), // OG image URL
+  /** Pre-fetched content from Jina Reader (saves ~20-30s during enrichment) */
+  prefetchedContent: z.string().optional(),
 });
 
 export type UrlMention = z.infer<typeof urlMentionSchema>;
