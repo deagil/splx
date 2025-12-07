@@ -58,14 +58,20 @@ You will need to use the environment variables [defined in `.env.example`](.env.
 
 > Note: You should not commit your `.env` file or it will expose secrets that will allow others to control access to your various AI and authentication provider accounts.
 
-1. Install Vercel CLI: `npm i -g vercel`
+1. Install Vercel CLI: `pnpm dlx vercel@latest --global` (or reuse an existing global install).
 2. Link local instance with Vercel and GitHub accounts (creates `.vercel` directory): `vercel link`
 3. Download your environment variables: `vercel env pull`
 
 ```bash
-npm install
+pnpm install
 supabase db up # Setup database or apply latest database changes
-npm run dev
+pnpm dev
 ```
+
+Dev server: pnpm dev
+Type check: pnpm type-check
+Build: pnpm build
+Lint/format: pnpm lint, pnpm format
+Update checks: pnpm dlx npm-check-updates (or pnpm exec ncu)
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).

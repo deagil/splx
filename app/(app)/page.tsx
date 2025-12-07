@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { user } from "@/lib/db/schema";
@@ -65,16 +64,6 @@ async function RootPageContent() {
 }
 
 export default function RootPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="animate-spin">Loading...</div>
-        </div>
-      }
-    >
-      <RootPageContent />
-    </Suspense>
-  );
+  return <RootPageContent />;
 }
 

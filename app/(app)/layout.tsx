@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import Script from "next/script";
 import { Suspense } from "react";
 import { DataStreamProvider } from "@/components/shared/data-stream-provider";
+import { AppLoader } from "@/components/shared/app-loader";
 import { ChatSidebarWrapper } from "@/components/sidebar/chat-sidebar-wrapper";
 import { SidebarWidthManager } from "@/components/sidebar/sidebar-width-manager";
 import { ChatSidebarTrigger } from "@/components/sidebar/chat-sidebar-trigger";
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/sidebar";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner"
 import type { User } from "next-auth";
 
 async function SidebarWrapper({
@@ -103,9 +103,7 @@ async function LayoutContent({
       <DataStreamProvider>
         <Suspense
           fallback={
-            <div className="flex min-h-screen items-center justify-center">
-              <Spinner />
-            </div>
+            <AppLoader label="Loading workspace data" />
           }
         >
           <SidebarWrapper>
@@ -123,13 +121,7 @@ export default function Layout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="animate-spin">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AppLoader label="Preparing your workspace" />}>
       <LayoutContent>{children}</LayoutContent>
     </Suspense>
   );

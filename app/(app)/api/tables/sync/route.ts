@@ -22,6 +22,7 @@ import {
   generateListPageBlock,
   generatePageSettings,
 } from "@/lib/server/tables/pages/templates";
+import { invalidateTableMetadataCache } from "@/lib/server/tables/cache";
 
 type ColumnInfo = {
   column_name: string;
@@ -334,6 +335,7 @@ export async function POST() {
                 tableConfig,
                 description
               );
+              await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });
             }
           } else {
@@ -369,6 +371,7 @@ export async function POST() {
                 tableConfig,
                 description
               );
+              await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });
             }
           }

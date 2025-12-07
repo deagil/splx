@@ -1,16 +1,96 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel } from "@tanstack/react-table";
+import { Card, CardHeader, CardHeading, CardTable, CardFooter } from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import type { FieldMetadata } from "@/lib/server/tables";
 import type { ListBlockDraft } from "../types";
-import { useListBlockData } from "../hooks";
+import { useListBlockData, useTableMetadata } from "../hooks";
 
 export type ListBlockViewProps = {
   block: ListBlockDraft;
   urlParams: Record<string, string>;
 };
 
+type TableRow = Record<string, unknown>;
+
 export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
   const { data, isLoading, error } = useListBlockData(block, urlParams);
+  const { table: tableMetadata, isLoading: isMetadataLoading, error: metadataError } = useTableMetadata(
+    block.tableName || null
+  );
+  const { copy } = useCopyToClipboard();
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const fieldMetaMap = useMemo(() => {
+    const meta = new Map<string, NonNullable<typeof tableMetadata>["config"]["field_metadata"][number]>();
+    if (tableMetadata?.config?.field_metadata) {
+      for (const field of tableMetadata.config.field_metadata) {
+        meta.set(field.field_name, field);
+      }
+    }
+    return meta;
+  }, [tableMetadata]);
+
+  const resolvedColumns = useMemo(() => {
+    const availableColumns = data?.columns ?? [];
+    if (block.display.columns.length === 0) {
+      return availableColumns;
+    }
+    return block.display.columns.filter((column) => availableColumns.includes(column));
+  }, [block.display.columns, data?.columns]);
+
+  const rows = data?.rows ?? [];
+
+  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
+    return resolvedColumns.map((columnName) => {
+      const meta = fieldMetaMap.get(columnName);
+      const headerLabel = meta?.display_name ?? columnName;
+      return {
+        id: columnName,
+        accessorKey: columnName,
+        header: ({ column }) => <DataGridColumnHeader title={headerLabel} visibility={true} column={column} />,
+        cell: ({ row }) => formatCellValue((row.original as TableRow)[columnName], meta, copy),
+        enableSorting: true,
+        enableHiding: true,
+        enableResizing: true,
+        size: 180,
+      } satisfies ColumnDef<TableRow>;
+    });
+  }, [copy, fieldMetaMap, resolvedColumns]);
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: {
+      pagination,
+      sorting,
+    },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    columnResizeMode: "onChange",
+    pageCount: Math.max(1, Math.ceil((rows.length || 1) / pagination.pageSize)),
+  });
 
   const resolvedFilters = useMemo(
     () =>
@@ -21,90 +101,80 @@ export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
     [block.filters, urlParams]
   );
 
+  const hasError = error ?? metadataError;
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">
-          Table: <span className="font-mono">{block.tableName || "—"}</span>
-        </span>
-        <span>Format: {block.display.format}</span>
-        <span>Actions: {block.display.showActions ? "Enabled" : "Hidden"}</span>
-        <span>Editable: {block.display.editable ? "Yes" : "No"}</span>
-      </div>
+      <DataGrid
+        table={table}
+        recordCount={rows.length}
+        tableClassNames={{
+          edgeCell: "px-5",
+        }}
+        tableLayout={{
+          columnsPinnable: true,
+          columnsResizable: true,
+          columnsMovable: true,
+          columnsVisibility: true,
+        }}
+      >
+        <Card>
+          <CardHeader className="py-3.5">
+            <CardHeading className="space-y-1">
+              <div className="text-sm font-medium text-foreground">
+                {block.tableName || "Select a table"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {tableMetadata?.name ?? "Loading metadata..."}
+              </div>
+            </CardHeading>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" appearance="outline">
+                {block.display.columns.length > 0 ? `${block.display.columns.length} columns` : "All columns"}
+              </Badge>
+              <Badge variant="secondary" appearance="outline">
+                {block.display.showActions ? "Actions enabled" : "Actions hidden"}
+              </Badge>
+            </div>
+          </CardHeader>
+          {isLoading || isMetadataLoading ? (
+            <div className="px-4 py-6 text-sm text-muted-foreground">Loading table data…</div>
+          ) : hasError ? (
+            <div className="px-4 py-6 text-sm text-destructive">{hasError}</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted-foreground">No rows found for the current filters.</div>
+          ) : (
+            <>
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter>
+                <DataGridPagination />
+              </CardFooter>
+            </>
+          )}
+        </Card>
+      </DataGrid>
 
-      {block.display.columns.length > 0 ? (
-        <div className="rounded-md border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
-          Columns: {block.display.columns.join(", ")}
+      <div className="space-y-2 rounded-md border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-foreground">Filters</span>
+          <span className="text-muted-foreground">
+            {resolvedFilters.length === 0 ? "No filters" : `${resolvedFilters.length} applied`}
+          </span>
         </div>
-      ) : null}
-
-      <div className="rounded-md border border-dashed border-border/60 bg-background p-3 text-xs text-muted-foreground">
-        <p className="font-semibold text-foreground">
-          {data?.tableName ?? (block.tableName || "Preview")}
-        </p>
-        {isLoading ? (
-          <p className="mt-1">Loading table rows…</p>
-        ) : error ? (
-          <p className="mt-1 text-red-600">{error}</p>
-        ) : data ? (
-          <div className="mt-3 overflow-auto rounded border border-border/50">
-            <table className="min-w-full text-left text-xs text-foreground">
-              <thead className="bg-muted/60">
-                <tr>
-                  {data.columns.map((column) => (
-                    <th key={column} className="px-3 py-2 font-semibold">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={Math.max(1, data.columns.length)}
-                      className="px-3 py-3 text-center text-muted-foreground"
-                    >
-                      No rows found for the current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  data.rows.map((row, index) => (
-                    <tr
-                      key={`row-${index.toString()}`}
-                      className="even:bg-muted/40"
-                    >
-                      {data.columns.map((column) => {
-                        const cell = (row as Record<string, unknown>)[column];
-                        return (
-                          <td key={column} className="px-3 py-2">
-                            <CellValue value={cell} />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-1">Table preview unavailable.</p>
-        )}
-      </div>
-
-      <div>
-        <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Filters
-        </h5>
+        <Separator />
         {resolvedFilters.length === 0 ? (
-          <p className="mt-1 text-xs text-muted-foreground">No filters applied.</p>
+          <p className="text-muted-foreground">No filters applied.</p>
         ) : (
-          <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+          <ul className="space-y-2">
             {resolvedFilters.map((filter) => (
               <li
                 key={filter.id}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2"
+                className="flex flex-wrap items-center gap-2 rounded border border-border/50 bg-background px-2 py-1.5"
               >
                 <span className="font-mono text-foreground">{filter.column}</span>
                 <span>{filter.operator}</span>
@@ -122,10 +192,8 @@ export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
     </div>
   );
 }
-function resolveToken(
-  value: string,
-  urlParams: Record<string, string>
-): string | null {
+
+function resolveToken(value: string, urlParams: Record<string, string>): string | null {
   if (!value || !value.startsWith("url.")) {
     return value;
   }
@@ -133,22 +201,170 @@ function resolveToken(
   return urlParams[key] ?? null;
 }
 
-function CellValue({ value }: { value: unknown }) {
+function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: (text: string) => void) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground/70">—</span>;
   }
+
+  const fieldType = (meta?.ui_hints?.field_type as string | undefined)?.toLowerCase();
+  const dataType = meta?.data_type?.toLowerCase();
+
+  if (typeof value === "string") {
+    if (fieldType === "uuid" || dataType === "uuid") {
+      const truncated =
+        value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-auto px-0 text-foreground underline-offset-4 hover:underline"
+          onClick={() => copy(value)}
+        >
+          {truncated}
+        </Button>
+      );
+    }
+
+    if (fieldType === "email") {
+      return (
+        <Link href={`mailto:${value}`} className="text-primary hover:underline">
+          {value}
+        </Link>
+      );
+    }
+
+    if (fieldType === "phone") {
+      return (
+        <Link href={`tel:${value}`} className="text-primary hover:underline">
+          {value}
+        </Link>
+      );
+    }
+
+    if (fieldType === "url") {
+      return (
+        <Link href={value} className="text-primary hover:underline" target="_blank" rel="noreferrer noopener">
+          {value}
+        </Link>
+      );
+    }
+
+    if (fieldType === "textarea" || fieldType === "long_text") {
+      return renderLongTextWithHover(value);
+    }
+
+    if (fieldType === "date" || (dataType && dataType.includes("timestamp"))) {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
+        const relative = formatRelativeTime(date);
+        const full = formatFullDate(date);
+        return renderHoverSwap(relative, full);
+      }
+    }
+  }
+
+  if (typeof value === "number") {
+    if (fieldType === "currency") {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value);
+    }
+    return value.toLocaleString();
+  }
+
   if (typeof value === "object") {
     try {
       return (
-        <code className="text-[11px]">
-          {JSON.stringify(value, null, 0)}
+        <code className="text-[11px] text-foreground">
+          {JSON.stringify(value)}
         </code>
       );
     } catch {
-      return <span>{String(value)}</span>;
+      return String(value);
     }
   }
-  return <span>{String(value)}</span>;
+
+  return String(value);
 }
 
+function renderHoverSwap(primary: string, full: string) {
+  const minCh = Math.max(primary.length, full.length);
+  return (
+    <span
+      className="group inline-flex cursor-default whitespace-nowrap"
+      style={{ minWidth: `${minCh}ch` }}
+    >
+      <span className="group-hover:hidden">{primary}</span>
+      <span className="hidden group-hover:inline">{full}</span>
+    </span>
+  );
+}
 
+function renderLongTextWithHover(text: string) {
+  const limit = 120;
+  const truncated = text.length > limit ? `${text.slice(0, limit)}…` : text;
+
+  return (
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        <span className="inline-flex max-w-[240px] cursor-default truncate whitespace-nowrap">
+          {truncated}
+        </span>
+      </HoverCardTrigger>
+      <HoverCardContent className="max-w-md text-sm whitespace-pre-wrap wrap-break-word">
+        {text}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+function formatFullDate(date: Date) {
+  const day = date.getDate();
+  const month = date.toLocaleString("en-GB", { month: "short" });
+  const ordinal =
+    day % 10 === 1 && day !== 11
+      ? "st"
+      : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+          ? "rd"
+          : "th";
+  const time = date.toLocaleString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${month} ${day}${ordinal}, ${time.toLowerCase()}`;
+}
+
+function formatRelativeTime(date: Date) {
+  const diffMs = date.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const month = 30 * day;
+  const year = 365 * day;
+
+  if (absMs < minute) {
+    return rtf.format(Math.round(diffMs / 1000), "second");
+  }
+  if (absMs < hour) {
+    return rtf.format(Math.round(diffMs / minute), "minute");
+  }
+  if (absMs < day) {
+    return rtf.format(Math.round(diffMs / hour), "hour");
+  }
+  if (absMs < month) {
+    return rtf.format(Math.round(diffMs / day), "day");
+  }
+  if (absMs < year) {
+    return rtf.format(Math.round(diffMs / month), "month");
+  }
+  return rtf.format(Math.round(diffMs / year), "year");
+}

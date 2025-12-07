@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { DataStreamProvider } from "@/components/shared/data-stream-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppLoader } from "@/components/shared/app-loader";
 import { auth } from "../(legacy-auth)/auth";
 
 async function SidebarWrapper({
@@ -38,16 +39,16 @@ export default function Layout({
           fallback={
             <SidebarProvider defaultOpen={true}>
               <AppSidebar user={undefined} />
-              <SidebarInset>
-                <div className="flex items-center justify-center p-4">
-                  <div className="animate-spin">Loading...</div>
-                </div>
+              <SidebarInset className="min-h-dvh">
+                <AppLoader label="Loading workspace" />
               </SidebarInset>
             </SidebarProvider>
           }
         >
           <SidebarWrapper>
-            <Suspense fallback={<div className="p-4">Loading page...</div>}>
+            <Suspense
+              fallback={<AppLoader label="Loading page content" />}
+            >
               {children}
             </Suspense>
           </SidebarWrapper>

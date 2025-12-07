@@ -30,22 +30,10 @@ export function ViewBlock({
 
   return (
     <section
-      aria-labelledby={`block-${id}`}
-      className={cn(
-        "flex flex-col rounded-lg border border-border/60 bg-background shadow-sm",
-        "overflow-hidden"
-      )}
+      aria-label={`${type} block ${id}`}
+      className={cn("flex h-full flex-col min-w-0")}
       style={style}
     >
-      <header
-        id={`block-${id}`}
-        className="flex items-center justify-between border-b border-border/70 bg-muted/60 px-4 py-2 text-sm font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        <span>{type} block</span>
-        <span className="font-mono text-xs text-muted-foreground/80">
-          {id}
-        </span>
-      </header>
       <div className="flex flex-1 flex-col">{children}</div>
     </section>
   );

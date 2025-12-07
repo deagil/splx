@@ -8,6 +8,7 @@ import {
   deleteTableConfig,
   TableNotFoundError,
 } from "@/lib/server/tables";
+import { invalidateTableMetadataCache } from "@/lib/server/tables/cache";
 
 export async function GET(
   _request: Request,
@@ -39,6 +40,7 @@ export async function PATCH(
     const { tableId } = await params;
     const payload = await request.json();
     const table = await updateTableConfig(tenant, tableId, payload);
+    await invalidateTableMetadataCache(tenant, tableId);
     return NextResponse.json({ table });
   } catch (error) {
     return handleError(error);
@@ -54,6 +56,7 @@ export async function DELETE(
     requireCapability(tenant, "tables.edit");
     const { tableId } = await params;
     await deleteTableConfig(tenant, tableId);
+    await invalidateTableMetadataCache(tenant, tableId);
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleError(error);

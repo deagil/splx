@@ -7,6 +7,7 @@ import type {
   TriggerBlockDraft,
 } from "./types";
 import { useMentionableData } from "./mention-context";
+import type { TableRecord } from "@/lib/server/tables";
 
 export type ListBlockData = {
   columns: string[];
@@ -25,6 +26,69 @@ export type RecordBlockData = {
   record: Record<string, unknown> | null;
   tableName: string;
 };
+
+export function useTableMetadata(tableName: string | null) {
+  const [table, setTable] = useState<TableRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState(0);
+
+  const fetchMetadata = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!tableName) {
+        setTable(null);
+        setError("Table is not configured");
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `/api/tables/metadata?table=${encodeURIComponent(tableName)}`,
+          { signal }
+        );
+
+        if (!response.ok) {
+          const payload = await safeJson(response);
+          throw new Error(payload?.error ?? "Failed to load table metadata");
+        }
+
+        const payload = (await response.json()) as { table: TableRecord };
+        setTable(payload.table);
+      } catch (caught) {
+        if ((caught as Error)?.name === "AbortError") {
+          return;
+        }
+        setError(
+          caught instanceof Error ? caught.message : "Unknown error"
+        );
+        setTable(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [tableName]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMetadata(controller.signal);
+    return () => controller.abort();
+  }, [fetchMetadata, requestId]);
+
+  const reload = useCallback(() => {
+    setRequestId((current) => current + 1);
+  }, []);
+
+  return {
+    table,
+    isLoading,
+    error,
+    reload,
+  };
+}
 
 export function useListBlockData(
   block: ListBlockDraft,
