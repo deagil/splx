@@ -87,6 +87,16 @@ export type ListBlockDraft = {
     showActions: boolean;
     editable: boolean;
     columns: string[];
+    enableSearch?: boolean;
+    enableColumnVisibility?: boolean;
+    enableColumnResize?: boolean;
+    enableColumnPin?: boolean;
+    enableColumnDrag?: boolean;
+    enableRowSelection?: boolean;
+    enableStickyHeader?: boolean;
+    enableActions?: boolean;
+    defaultPageSize?: number;
+    searchPlaceholder?: string;
   };
 };
 

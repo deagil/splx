@@ -17,25 +17,32 @@ export function ViewBlock({
   position,
   children,
 }: ViewBlockProps) {
+  const columnStart = clamp(position.x + 1, 1, 12);
+  const maxWidth = 12 - columnStart + 1;
+  const width = clamp(position.width, 1, maxWidth);
+  const rowStart = clamp(position.y + 1, 1, Number.POSITIVE_INFINITY);
+  const height = clamp(position.height, 1, Number.POSITIVE_INFINITY);
+
   const style: CSSProperties = {
-    gridColumn: `span ${Math.max(1, Math.min(position.width, 12))} / span ${Math.max(
-      1,
-      Math.min(position.width, 12)
-    )}`,
-    gridRow: `span ${Math.max(1, Math.min(position.height, 12))} / span ${Math.max(
-      1,
-      Math.min(position.height, 12)
-    )}`,
+    gridColumn: `${columnStart} / span ${width}`,
+    gridRow: `${rowStart} / span ${height}`,
   };
 
   return (
     <section
       aria-label={`${type} block ${id}`}
-      className={cn("flex h-full flex-col min-w-0")}
+      className={cn("flex h-full min-h-0 flex-col min-w-0")}
       style={style}
     >
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className="flex flex-1 min-h-0 flex-col">{children}</div>
     </section>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(max)) {
+    return Math.max(min, value);
+  }
+  return Math.min(Math.max(value, min), max);
 }
 

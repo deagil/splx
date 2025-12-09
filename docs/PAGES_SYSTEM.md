@@ -1,5 +1,120 @@
 # Pages System
 
+Short guide to building and developing pages in Splx Studio.
+
+## Glossary
+- **Page**: A canvas of blocks plus page settings (name/description, URL params, header visibility).
+- **Block**: A widget of type `list`, `record`, `report` (early), or `trigger`.
+- **Grid**: 12-column layout with block positions `{ x, y, width, height }`.
+- **View modes**: `read` (view) and `edit` (builder). Edit adds controls, drag/resize, add-block, and settings overlay.
+- **Templates**: Prebuilt layouts (List view, Detail view) applied from the header.
+- **Add block**: “+” in the edit header that inserts a chosen block type onto the grid.
+- **Settings overlay**: In-place pane that replaces block content; Simple vs Advanced configuration.
+- **Filters / URL params**: Filters can reference `url.<param>`; page settings declare expected params.
+- **Mentions**: Blocks register data for AI chat context via `MentionContextProvider`.
+
+---
+
+## User Guide
+
+### Read vs Edit
+- Toggle between View and Edit in the page header (`Edit Page` / `Done`). If you cannot edit, you stay in read mode.
+- Header visibility can be toggled only in edit; hidden headers still show while editing so you can unhide.
+
+### Adding blocks
+- In edit mode, click the “+” next to Templates, then choose List / Record / Report / Trigger.
+- Placement heuristic: tries to place to the right of the last block if there is space for the block width; otherwise places directly below; otherwise finds the first open grid slot.
+- Default sizes: List 6×4, Record 6×5, Report 6×4, Trigger 4×2. You can resize after adding.
+
+### Moving & resizing
+- Drag by the block header (grab cursor). Resize with the bottom-right handle; a vignette under the handle improves contrast on the cutting-mat background.
+- Blocks snap to the 12-column grid; overlap is prevented by the placement logic.
+
+### Configuring blocks
+- In edit mode, click the sliders icon on a block. The block flips to a settings overlay:
+  - **Simple**: quick fields (table dropdown from your data tables, display format toggle, row actions/search toggles).
+  - **Advanced**: full form for the block type.
+- Close with the same icon; Delete stays in place. The overlay scrolls inside the block height so controls do not jump.
+
+### Templates
+- Templates button in the header opens a chooser (List view, Detail view). Applying replaces existing blocks/settings, with a confirmation if blocks already exist.
+
+### Filters & URL params
+- List filters support: equals, not_equals, contains, comparison operators, is_null, is_not_null.
+- Use `url.<param>` in filter values to bind to page URL params. A pill in the block header shows a summary and opens a hover card with resolved values.
+
+### Saving
+- Autosave runs in edit mode with ~800ms debounce. Status chip shows Saving / Saved / Save failed. Autosave pauses when leaving edit mode.
+
+### Mentions
+- Pages render inside `MentionContextProvider`; list data registers mentionable context for AI chat automatically when loaded.
+
+---
+
+## Developer Guide
+
+### Component map
+- `components/pages/page-screen.tsx`: Entry point; handles view/edit, header controls (templates, hide header, add block), autosave, block creation defaults, placement heuristic.
+- `components/pages/page-grid-editor.tsx`: Edit grid (12 cols, row height 110). Drag/resize via pointer events; settings overlay (Simple/Advanced); vignette and shadow; passes edit controls to block views.
+- `components/pages/page-viewer.tsx`: Read-only renderer with `MentionContextProvider`.
+- `components/pages/view-block.tsx`: Positions blocks on the grid and clamps positions.
+- Block views:
+  - `blocks/list-block-view.tsx`: Data grid with filters, search, sorting, pagination, column controls, filter summary hover. Edit controls for configure/remove/drag.
+  - `blocks/record-block-view.tsx`, `blocks/trigger-block-view.tsx`, `blocks/report-block-view.tsx`: Render other block types (report is present but chart/data plumbing is minimal).
+- Types: `components/pages/types.ts` holds block drafts, positions, filter operators, display formats.
+- Hooks: `components/pages/hooks.ts` fetches list data (`/api/supabase/table`), table metadata (`/api/tables/metadata`), and registers mention data.
+
+### Data flow & autosave
+- `PageScreen` owns `draft` state; autosaves via PUT `/api/pages/:id/save` with `draftToSavePayload`.
+- Autosave debounce: 800ms in edit mode; updates `currentPage` on success and resets skip flag.
+- `viewMode` comes from URL `?viewMode=edit`; toggle adds/removes the param.
+
+### Add-block defaults & placement
+- Defaults: List (6×4, `tableName: "records"`), Record (6×5, `recordId: "url.id"`), Report (6×4, `reportId: "report-id"`), Trigger (4×2).
+- Placement (`PageScreen`): try right of the last block if space and no overlap; else directly below; else scan rows for first free spot; else append after the lowest row.
+
+### Drag / resize
+- Drag start: block header `onPointerDown` → `startInteraction` in `page-grid-editor.tsx`; computes deltas vs grid column width and row height; clamps within grid bounds.
+- Resize: bottom-right handle (Expand icon) uses the same pointer logic with min width/height (≥2).
+
+### Settings overlay
+- Overlay replaces block content; header spacing matches normal view; Simple vs Advanced toggle.
+- Simple list settings: data table select (from `/api/tables?type=data`), display format toggle (table/cards/grid), row actions and search toggles.
+- Advanced uses `block-forms.tsx` forms per block type.
+
+### List block behavior
+- Data fetch: `/api/supabase/table` with filters derived from block filters (url params resolved).
+- Metadata fetch: `/api/tables/metadata?table=<name>` for display names and field hints.
+- Features: sorting, pagination, column resize/reorder/pin (when enabled), search, row actions toggle, sticky header toggle, filter summary hover.
+
+### API touchpoints
+- `/api/pages/:id/save` — autosave drafts.
+- `/api/tables?type=data` — list data tables for selects.
+- `/api/tables/metadata?table=...` — table metadata.
+- `/api/supabase/table` — list block data.
+
+### Status by block type
+- **List**: Implemented (data grid, filters, search, pagination, column controls, filter summary).
+- **Record**: Renders single record; modes and formats defined; editing/create flows depend on server data shape.
+- **Trigger**: Renders action button; config fields present (hook name, confirmation); backend hook wiring depends on triggers implementation.
+- **Report**: Type and chartType/title fields exist; chart/data integration is minimal/early.
+
+### Layout details
+- Grid: 12 columns, row height 110px, gap via `grid` + `gap-4`.
+- `ViewBlock` clamps positions; `PageGridEditor` enforces min width/height on resize.
+- Vignette sits under the resize handle (handle has higher z-index); block shadows are present in edit mode to contrast against the cutting-mat background.
+
+---
+
+## Quick reference (paths)
+- Header, add-block, autosave: `components/pages/page-screen.tsx`
+- Grid/editor: `components/pages/page-grid-editor.tsx`
+- Block positioning: `components/pages/view-block.tsx`
+- Block views: `components/pages/blocks/*.tsx`
+- Types: `components/pages/types.ts`
+- Data hooks: `components/pages/hooks.ts`
+# Pages System
+
 ## Overview
 
 The Pages System is a visual page builder that allows users to create custom interfaces by composing reusable blocks. Each page is a collection of blocks (List, Record, Report, Trigger) arranged in a layout with dynamic filtering, URL parameter binding, and responsive design. Pages integrate with the AI Chat system to provide contextual data mentions.

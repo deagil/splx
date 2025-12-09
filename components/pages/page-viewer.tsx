@@ -32,7 +32,10 @@ export function PageViewer({ page, urlParams }: PageViewerProps) {
 
   return (
     <MentionContextProvider page={page}>
-      <div className="grid grid-cols-12 gap-4 lg:grid-cols-6 sm:grid-cols-1">
+      <div
+        className="grid grid-cols-12 gap-4"
+        style={{ gridAutoRows: "minmax(110px, auto)", gridAutoFlow: "row dense" }}
+      >
         {draft.blocks.map((block) => (
           <ViewBlock
             key={block.id}

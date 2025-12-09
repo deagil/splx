@@ -1,77 +1,80 @@
-<a href="https://chat.vercel.ai/">
-  <img alt="Next.js 14 and App Router-ready AI chatbot." src="app/(chat)/opengraph-image.png">
-  <h1 align="center">Chat SDK</h1>
-</a>
+# Splx Studio
 
-<p align="center">
-    Chat SDK is a free, open-source template built with Next.js and the AI SDK that helps you quickly build powerful chatbot applications.
-</p>
+Splx Studio is a multi-tenant workspace for building data-driven pages and collaborating with AI. It pairs a visual page builder, dynamic tables, and contextual AI chat so teams can design views, act on data, and talk to their content in one place.
 
-<p align="center">
-  <a href="https://chat-sdk.dev"><strong>Read Docs</strong></a> ·
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#model-providers"><strong>Model Providers</strong></a> ·
-  <a href="#deploy-your-own"><strong>Deploy Your Own</strong></a> ·
-  <a href="#running-locally"><strong>Running locally</strong></a>
-</p>
-<br/>
+## What's inside
 
-## Features
+- Visual page builder with grid-based layout, templates, and reusable blocks (List, Record, Trigger; Report planned)
+- AI chat with streaming responses, @mentions for pages/blocks/tables/records, file uploads, and multiple model providers (OpenAI, xAI via gateway)
+- Data tables with creation wizard, metadata sync from Postgres, and configuration views for labels and field display
+- Workspace settings for profile, members/roles, collaboration/gov guidance, and connected apps (Postgres + AI providers)
+- Local vs hosted modes with clear main DB vs resource store separation
 
-- [Next.js](https://nextjs.org) App Router
-  - Advanced routing for seamless navigation and performance
-  - React Server Components (RSCs) and Server Actions for server-side rendering and increased performance
-- [AI SDK](https://ai-sdk.dev/docs/introduction)
-  - Unified API for generating text, structured objects, and tool calls with LLMs
-  - Hooks for building dynamic chat and generative user interfaces
-  - Supports xAI (default), OpenAI, Fireworks, and other model providers
-- [shadcn/ui](https://ui.shadcn.com)
-  - Styling with [Tailwind CSS](https://tailwindcss.com)
-  - Component primitives from [Radix UI](https://radix-ui.com) for accessibility and flexibility
-- Data Persistence
-  - [Neon Serverless Postgres](https://vercel.com/marketplace/neon) for saving chat history and user data
-  - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
-- [Auth.js](https://authjs.dev)
-  - Simple and secure authentication
+## Feature tour
 
-## Model Providers
+### Visual page builder
+- Compose pages on a 12-column grid; duplicate, position, and remove blocks with inline settings.
+- Blocks:
+  - **List**: Bind to tables, filter (including URL params), search, paginate, toggle row actions, inline editing, column visibility/pinning/resizing, and page size defaults.
+  - **Record**: Read/edit/create modes, URL-bound record IDs, configurable field layouts.
+  - **Trigger**: Action buttons that call APIs/workflows with confirmation dialogs and feedback.
+  - **Report**: Charting block planned.
+- Start from list/detail templates, autosave edits, and toggle read/edit modes.
+- Blocks register their data with the mention context so AI chat can reference page content.
 
-This template uses the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) to access multiple AI models through a unified interface. The default configuration includes [xAI](https://x.ai) models (`grok-2-vision-1212`, `grok-3-mini`) routed through the gateway.
+### Data tables
+- Create tables from `/app/build/data/create`, then configure columns, labels, and descriptions in the table config routes.
+- Browse database tables in `/app/data/tables`, view configured metadata, and sync definitions from Postgres when schemas change.
 
-### AI Gateway Authentication
+### AI chat with context
+- Plate-based chat input with streaming responses, @mentions for pages/blocks/tables/records, and file/image attachments.
+- Multiple models with personalization and usage tracking; reasoning view available for reasoning-capable models.
 
-**For Vercel deployments**: Authentication is handled automatically via OIDC tokens.
+### Integrations and workspace settings
+- Workspace settings cover profile, members/roles, collaboration and governance guidance, plus a connected apps area.
+- Connected apps manage Postgres connections (written to `.env.local` in local mode, stored per-workspace in hosted mode) and AI provider credentials (OpenAI/xAI via gateway).
+- User preferences and profile pages let individuals tune their experience.
 
-**For non-Vercel deployments**: You need to provide an AI Gateway API key by setting the `AI_GATEWAY_API_KEY` environment variable in your `.env.local` file.
-
-With the [AI SDK](https://ai-sdk.dev/docs/introduction), you can also switch to direct LLM providers like [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Cohere](https://cohere.com/), and [many more](https://ai-sdk.dev/providers/ai-sdk-providers) with just a few lines of code.
-
-## Deploy Your Own
-
-You can deploy your own version of the Next.js AI Chatbot to Vercel with one click:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/templates/next.js/nextjs-ai-chatbot)
+### Modes and data separation
+- `APP_MODE=local`: main DB and resource store are the same database.
+- `APP_MODE=hosted`: system tables live in the main DB; tenant data (tables, pages, chats, documents, messages, etc.) lives in each workspace’s resource store.
 
 ## Running locally
 
-You will need to use the environment variables [defined in `.env.example`](.env.example) to run Next.js AI Chatbot. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables) for this, but a `.env` file is all that is necessary.
+Prerequisites: Node.js 18+, pnpm (see `packageManager` for the expected version).
 
-> Note: You should not commit your `.env` file or it will expose secrets that will allow others to control access to your various AI and authentication provider accounts.
-
-1. Install Vercel CLI: `pnpm dlx vercel@latest --global` (or reuse an existing global install).
-2. Link local instance with Vercel and GitHub accounts (creates `.vercel` directory): `vercel link`
-3. Download your environment variables: `vercel env pull`
-
-```bash
+1) Create `.env.local` with required values:
+```
+APP_MODE=local
+NEXT_PUBLIC_APP_MODE=local
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+POSTGRES_URL=...
+OPENAI_API_KEY=...
+XAI_API_KEY=...          # optional, for xAI models
+AI_GATEWAY_API_KEY=...   # optional, if using AI Gateway outside Vercel
+```
+2) Install dependencies:
+```
 pnpm install
-supabase db up # Setup database or apply latest database changes
+```
+3) Start the dev server (Turbopack):
+```
 pnpm dev
 ```
+4) Open http://localhost:3000 to sign in, create tables, and start building pages.
 
-Dev server: pnpm dev
-Type check: pnpm type-check
-Build: pnpm build
-Lint/format: pnpm lint, pnpm format
-Update checks: pnpm dlx npm-check-updates (or pnpm exec ncu)
+## Common commands
+- `pnpm dev` – run the app locally
+- `pnpm type-check` – TypeScript project check
+- `pnpm lint` / `pnpm format` – linting and formatting (Ultracite/Biome)
+- `pnpm build` – production build
+- `pnpm test` – run tests (Playwright/Jest where configured)
 
-Your app template should now be running on [localhost:3000](http://localhost:3000).
+## Documentation
+- `docs/PAGES_SYSTEM.md` – visual page builder and block types
+- `docs/AI_CHAT_SYSTEM.md` – chat, mentions, and streaming flow
+- `docs/DATABASE_ARCHITECTURE.md` – main DB vs resource store
+- `docs/INTEGRATION_CARDS.md` – integration UI guidelines
+- `docs/ONBOARDING_OTP.md` – authentication and onboarding flow
+- `docs/pages-migration.md` – page migration notes

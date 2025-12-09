@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel } from "@tanstack/react-table";
@@ -9,24 +9,31 @@ import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Settings2Icon, Trash2Icon } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { FieldMetadata } from "@/lib/server/tables";
 import type { ListBlockDraft } from "../types";
 import { useListBlockData, useTableMetadata } from "../hooks";
+import { cn } from "@/lib/utils";
 
 export type ListBlockViewProps = {
   block: ListBlockDraft;
   urlParams: Record<string, string>;
+  editControls?: {
+    onOpenSettings: () => void;
+    onRemove: () => void;
+    onStartDrag: (event: ReactPointerEvent) => void;
+  };
 };
 
 type TableRow = Record<string, unknown>;
+type ResolvedListFilter = ListBlockDraft["filters"][number] & { resolvedValue: string | null };
 
-export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
+export function ListBlockView({ block, urlParams, editControls }: ListBlockViewProps) {
   const { data, isLoading, error } = useListBlockData(block, urlParams);
   const { table: tableMetadata, isLoading: isMetadataLoading, error: metadataError } = useTableMetadata(
     block.tableName || null
@@ -92,7 +99,7 @@ export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
     pageCount: Math.max(1, Math.ceil((rows.length || 1) / pagination.pageSize)),
   });
 
-  const resolvedFilters = useMemo(
+  const resolvedFilters = useMemo<ResolvedListFilter[]>(
     () =>
       block.filters.map((filter) => ({
         ...filter,
@@ -101,95 +108,154 @@ export function ListBlockView({ block, urlParams }: ListBlockViewProps) {
     [block.filters, urlParams]
   );
 
+  const filterSummary = useMemo(() => {
+    if (resolvedFilters.length === 0) {
+      return "No filters";
+    }
+    if (resolvedFilters.length === 1) {
+      const [filter] = resolvedFilters;
+      const valueLabel = filter.resolvedValue ?? filter.value ?? "—";
+      return `${filter.column} ${filter.operator} ${valueLabel}`;
+    }
+    return `${resolvedFilters.length} filters`;
+  }, [resolvedFilters]);
+
   const hasError = error ?? metadataError;
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <DataGrid
-        table={table}
-        recordCount={rows.length}
-        tableClassNames={{
-          edgeCell: "px-5",
-        }}
-        tableLayout={{
-          columnsPinnable: true,
-          columnsResizable: true,
-          columnsMovable: true,
-          columnsVisibility: true,
-        }}
-      >
-        <Card>
-          <CardHeader className="py-3.5">
-            <CardHeading className="space-y-1">
-              <div className="text-sm font-medium text-foreground">
-                {block.tableName || "Select a table"}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {tableMetadata?.name ?? "Loading metadata..."}
-              </div>
-            </CardHeading>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" appearance="outline">
-                {block.display.columns.length > 0 ? `${block.display.columns.length} columns` : "All columns"}
-              </Badge>
-              <Badge variant="secondary" appearance="outline">
-                {block.display.showActions ? "Actions enabled" : "Actions hidden"}
-              </Badge>
+    <div className="flex h-full min-h-0 w-full flex-col gap-4">
+      <TooltipProvider delayDuration={80}>
+        <DataGrid
+          table={table}
+          recordCount={rows.length}
+          tableClassNames={{
+            edgeCell: "px-5",
+          }}
+          tableLayout={{
+            columnsPinnable: true,
+            columnsResizable: true,
+            columnsMovable: true,
+            columnsVisibility: true,
+            headerSticky: true,
+          }}
+        >
+          <Card className="flex h-full min-h-0 flex-col">
+            <CardHeader
+              className={cn(
+                "py-3.5",
+                editControls ? "cursor-grab select-none active:cursor-grabbing" : undefined
+              )}
+              onPointerDown={editControls?.onStartDrag}
+              role={editControls ? "presentation" : undefined}
+            >
+              <CardHeading className="flex w-full flex-wrap items-start gap-3 md:items-center md:gap-4">
+                <div className="min-w-0 flex-1 space-y-1 md:me-6">
+                  <div className="text-sm font-medium text-foreground">
+                    {block.tableName || "Select a table"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {tableMetadata?.name ?? "Loading metadata..."}
+                  </div>
+                </div>
+                <div className="flex flex-1 justify-end">
+                  {editControls ? (
+                    <div className="ms-auto flex items-center gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={editControls.onOpenSettings}
+                            aria-label="Configure block"
+                          >
+                            <Settings2Icon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Configure block</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={editControls.onRemove}
+                            aria-label="Remove block"
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove block</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <FilterSummary summary={filterSummary} filters={resolvedFilters} />
+                  )}
+                </div>
+              </CardHeading>
+            </CardHeader>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {isLoading || isMetadataLoading ? (
+                <div className="px-4 py-6 text-sm text-muted-foreground">Loading table data…</div>
+              ) : hasError ? (
+                <div className="px-4 py-6 text-sm text-destructive">{hasError}</div>
+              ) : rows.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-muted-foreground">No rows found for the current filters.</div>
+              ) : (
+                <>
+                  <CardTable className="min-h-0 flex-1 overflow-hidden">
+                    <ScrollArea className="h-full">
+                      <DataGridTable />
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </CardTable>
+                  <CardFooter>
+                    <DataGridPagination />
+                  </CardFooter>
+                </>
+              )}
             </div>
-          </CardHeader>
-          {isLoading || isMetadataLoading ? (
-            <div className="px-4 py-6 text-sm text-muted-foreground">Loading table data…</div>
-          ) : hasError ? (
-            <div className="px-4 py-6 text-sm text-destructive">{hasError}</div>
-          ) : rows.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-muted-foreground">No rows found for the current filters.</div>
-          ) : (
-            <>
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </CardTable>
-              <CardFooter>
-                <DataGridPagination />
-              </CardFooter>
-            </>
-          )}
-        </Card>
-      </DataGrid>
+          </Card>
+        </DataGrid>
+      </TooltipProvider>
+    </div>
+  );
+}
 
-      <div className="space-y-2 rounded-md border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
-        <div className="flex items-center justify-between">
+function FilterSummary({ summary, filters }: { summary: string; filters: ResolvedListFilter[] }) {
+  return (
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/70 px-3 py-1 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Filters</span>
-          <span className="text-muted-foreground">
-            {resolvedFilters.length === 0 ? "No filters" : `${resolvedFilters.length} applied`}
-          </span>
+          <span className="truncate">{summary}</span>
         </div>
-        <Separator />
-        {resolvedFilters.length === 0 ? (
+      </HoverCardTrigger>
+      <HoverCardContent className="max-w-md space-y-2 text-xs">
+        {filters.length === 0 ? (
           <p className="text-muted-foreground">No filters applied.</p>
         ) : (
           <ul className="space-y-2">
-            {resolvedFilters.map((filter) => (
-              <li
-                key={filter.id}
-                className="flex flex-wrap items-center gap-2 rounded border border-border/50 bg-background px-2 py-1.5"
-              >
-                <span className="font-mono text-foreground">{filter.column}</span>
-                <span>{filter.operator}</span>
-                <span className="font-mono text-foreground">{filter.value || "—"}</span>
+            {filters.map((filter) => (
+              <li key={filter.id} className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-foreground">{filter.column}</span>
+                <span className="text-muted-foreground">{filter.operator}</span>
+                <span className="font-mono text-foreground">{filter.resolvedValue ?? filter.value ?? "—"}</span>
                 {filter.resolvedValue !== filter.value ? (
                   <span className="text-[10px] text-muted-foreground/80">
-                    Resolved: {filter.resolvedValue ?? "—"}
+                    Source: {filter.value || "—"}
                   </span>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </div>
-    </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
