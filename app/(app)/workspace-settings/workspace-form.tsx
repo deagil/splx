@@ -55,6 +55,18 @@ export function WorkspaceProfileForm({ workspace }: { workspace: Workspace }) {
           </FieldDescription>
         </Field>
         <Field>
+          <FieldLabel htmlFor="workspace-description">
+            Business description
+          </FieldLabel>
+          <Textarea
+            id="workspace-description"
+            name="description"
+            rows={4}
+            defaultValue={workspace.description ?? ""}
+            placeholder="Describe the work your organisation does to help teammates and AI features understand the context."
+          />
+        </Field>
+        <Field>
           <FieldLabel htmlFor="workspace-slug">Workspace URL</FieldLabel>
           <Input
             id="workspace-slug"
@@ -81,18 +93,6 @@ export function WorkspaceProfileForm({ workspace }: { workspace: Workspace }) {
           <FieldDescription>
             Logo or icon representing your workspace.
           </FieldDescription>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="workspace-description">
-            Business description
-          </FieldLabel>
-          <Textarea
-            id="workspace-description"
-            name="description"
-            rows={4}
-            defaultValue={workspace.description ?? ""}
-            placeholder="Describe the work your organisation does to help teammates and AI features understand the context."
-          />
         </Field>
       </FieldGroup>
       <div className="flex justify-end">

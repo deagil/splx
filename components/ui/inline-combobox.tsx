@@ -322,14 +322,14 @@ const InlineComboboxItem = ({
 
   if (!visible) return null;
 
-  const handleClick = (event: React.MouseEvent) => {
+  const handleClick = (event: React.MouseEvent<Element>) => {
     if (runOnClickBeforeRemoveInput) {
-      onClick?.(event);
+      onClick?.(event as React.MouseEvent<HTMLDivElement>);
       return;
     }
 
     removeInput(focusEditor);
-    onClick?.(event);
+    onClick?.(event as React.MouseEvent<HTMLDivElement>);
   };
 
   return (

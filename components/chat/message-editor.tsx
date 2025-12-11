@@ -102,7 +102,7 @@ export function MessageEditor({
             setMode("view");
             regenerate();
           }}
-          variant="default"
+          variant="primary"
         >
           {isSubmitting ? "Sending..." : "Send"}
         </Button>

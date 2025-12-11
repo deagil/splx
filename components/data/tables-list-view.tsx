@@ -209,7 +209,7 @@ export function TablesListView() {
         <p className="text-muted-foreground mb-4">
           Create tables in your connected database to see them here.
         </p>
-        <Button variant="default" size="sm" asChild>
+        <Button variant="primary" size="sm" asChild>
           <Link href="/build/data/create-wizard">
             <Plus className="mr-2 h-4 w-4" />
             Create Table
@@ -239,7 +239,7 @@ export function TablesListView() {
             <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
             {isSyncing ? "Syncing..." : "Sync"}
           </Button>
-          <Button variant="default" size="sm" asChild>
+          <Button variant="primary" size="sm" asChild>
             <Link href="/build/data/create-wizard">
               <Plus className="mr-2 h-4 w-4" />
               New Table

@@ -129,18 +129,16 @@ export const PromptInputButton = ({
   size,
   ...props
 }: PromptInputButtonProps) => {
-  const newSize =
-    (size ?? Children.count(props.children) > 1) ? "default" : "icon";
+  const computedSize = size ?? (Children.count(props.children) > 1 ? "md" : "icon");
 
   return (
     <Button
       className={cn(
         "shrink-0 gap-1.5 rounded-lg",
         variant === "ghost" && "text-muted-foreground",
-        newSize === "default" && "px-3",
         className
       )}
-      size={newSize}
+      size={computedSize}
       type="button"
       variant={variant}
       {...props}
@@ -154,7 +152,7 @@ export type PromptInputSubmitProps = ComponentProps<typeof Button> & {
 
 export const PromptInputSubmit = ({
   className,
-  variant = "default",
+  variant = "primary",
   size = "icon",
   status,
   children,

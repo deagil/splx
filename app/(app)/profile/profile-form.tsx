@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useEffect } from "react";
+import { Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -10,9 +13,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { updateProfile, type UpdateProfileState } from "./actions";
-import { useEffect } from "react";
-import { toast } from "sonner";
 import type { User } from "@/lib/db/schema";
 
 function SubmitButton() {
@@ -40,6 +43,7 @@ export function ProfileForm({ user }: { user: User }) {
   return (
     <form className="mt-8 space-y-8" action={formAction}>
       <FieldGroup>
+        <input type="hidden" name="email" value={user.email} />
         <Field>
           <FieldLabel htmlFor="profile-firstname">First name</FieldLabel>
           <Input
@@ -60,7 +64,8 @@ export function ProfileForm({ user }: { user: User }) {
             required
           />
         </Field>
-        <Field>
+        {/*todo email not editable for now */}
+        {/* <Field>
           <FieldLabel htmlFor="profile-email">Email</FieldLabel>
           <Input
             id="profile-email"
@@ -73,15 +78,48 @@ export function ProfileForm({ user }: { user: User }) {
           <FieldDescription id="profile-email-description">
             Changing your email address may require verification.
           </FieldDescription>
-        </Field>
+        </Field> */}
         <Field>
-          <FieldLabel htmlFor="profile-title">Job title</FieldLabel>
+          <FieldLabel htmlFor="profile-title" className="items-center gap-2">
+            Job title
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Sparkles className="size-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Helps AI understand your perspective and expertise.</p>
+              </TooltipContent>
+            </Tooltip>
+          </FieldLabel>
           <Input
             id="profile-title"
             name="job_title"
             type="text"
             defaultValue={user.job_title ?? ""}
           />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="profile-ai-context" className="items-center gap-2">
+            Role & experience
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Sparkles className="size-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Shared with AI to improve responses when personalization is enabled.</p>
+              </TooltipContent>
+            </Tooltip>
+          </FieldLabel>
+          <Textarea
+            id="profile-ai-context"
+            name="ai_context"
+            rows={4}
+            defaultValue={user.ai_context ?? ""}
+            placeholder="Describe your responsibilities, focus areas, and background for better AI context."
+          />
+          <FieldDescription>
+            Keep this updated so AI features understand your perspective.
+          </FieldDescription>
         </Field>
         <Field>
           <FieldLabel htmlFor="profile-avatar">

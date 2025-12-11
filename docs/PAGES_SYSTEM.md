@@ -15,6 +15,19 @@ Short guide to building and developing pages in Splx Studio.
 
 ---
 
+### Roles (workspace RBAC)
+- **Admin**: Full access to all workspace features, including billing and workspace settings.
+- **Builder**: Create pages, data models, and automations; manage most configuration but limited billing/workspace settings.
+- **User**: Use configured pages, buttons, and tools with create/update/delete on allowed data; cannot change underlying systems.
+- **Viewer**: Read-only access with limited navigation; intended for low-friction/free access.
+
+---
+
+### Reports (beta)
+- Reports are saved SQL queries with optional chart hints. Create from `/data/reports/builder`, browse at `/data/reports`, and view details at `/data/reports/[id]`.
+- The builder uses an AI conversation (question → refinement → final) to draft read-only SQL; only `SELECT` is allowed and results are limited to 500 rows when executed.
+- Detail pages render a chart (shadcn chart/Recharts) above the raw result table to validate the dataset.
+
 ## User Guide
 
 ### Read vs Edit

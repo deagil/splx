@@ -16,7 +16,14 @@ const profileSchema = z.object({
   lastname: z.string().min(1, "Last name is required"),
   email: z.string().email("Please provide a valid email"),
   job_title: z.string().trim().max(200).optional(),
+  ai_context: z.string().trim().max(2000).optional(),
   avatar_url: z
+    .string()
+    .trim()
+    .url("Please provide a valid URL")
+    .or(z.literal(""))
+    .optional(),
+  profile_pic_url: z
     .string()
     .trim()
     .url("Please provide a valid URL")
@@ -31,7 +38,7 @@ export type UpdateProfileState = {
 
 export async function updateProfile(
   _: UpdateProfileState,
-  formData: FormData
+  formData: FormData,
 ): Promise<UpdateProfileState> {
   try {
     const authUser = await getAuthenticatedUser();
@@ -45,7 +52,9 @@ export async function updateProfile(
       lastname: formData.get("lastname"),
       email: formData.get("email"),
       job_title: formData.get("job_title"),
+      ai_context: formData.get("ai_context"),
       avatar_url: formData.get("avatar_url"),
+      profile_pic_url: formData.get("profile_pic_url"),
     });
 
     const normalizeNullable = (value?: string | null) => {
@@ -72,7 +81,9 @@ export async function updateProfile(
             lastname: validatedData.lastname,
             email: validatedData.email,
             job_title: normalizeNullable(validatedData.job_title),
-            avatar_url: normalizeNullable(validatedData.avatar_url),
+            avatar_url: normalizeNullable(validatedData.avatar_url) ??
+              normalizeNullable(validatedData.profile_pic_url),
+            ai_context: normalizeNullable(validatedData.ai_context),
           })
           .where(eq(user.id, authUser.id));
       } finally {
@@ -89,7 +100,9 @@ export async function updateProfile(
               lastname: validatedData.lastname,
               email: validatedData.email,
               job_title: normalizeNullable(validatedData.job_title),
-              avatar_url: normalizeNullable(validatedData.avatar_url),
+              avatar_url: normalizeNullable(validatedData.avatar_url) ??
+                normalizeNullable(validatedData.profile_pic_url),
+              ai_context: normalizeNullable(validatedData.ai_context),
             })
             .where(eq(user.id, authUser.id))
         );
@@ -99,6 +112,7 @@ export async function updateProfile(
     }
 
     revalidatePath("/profile");
+    revalidatePath("/preferences");
 
     return {
       status: "success",
@@ -106,9 +120,16 @@ export async function updateProfile(
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const messages = error.issues
+        .map((issue) => {
+          const field = issue.path.join(".") || "field";
+          return `${field}: ${issue.message}`;
+        })
+        .filter(Boolean);
       return {
         status: "invalid_data",
-        message: error.issues[0]?.message ?? "Invalid form data",
+        message: messages.join("; ") ||
+          "Please check the highlighted fields and try again.",
       };
     }
 

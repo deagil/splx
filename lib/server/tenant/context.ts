@@ -3,11 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { and, eq } from "drizzle-orm";
-import {
-  workspace,
-  workspaceUser,
-} from "@/lib/db/schema";
-import { normalizeAppMode, type AppMode } from "@/lib/app-mode";
+import { role, workspace, workspaceUser } from "@/lib/db/schema";
+import { type AppMode, normalizeAppMode } from "@/lib/app-mode";
 import { seedDefaultRoles } from "./default-roles";
 
 export type TenantContext = {
@@ -43,7 +40,7 @@ export function getAppMode(): AppMode {
 }
 
 export async function resolveTenantContext(
-  options: ResolveTenantContextOptions = {}
+  options: ResolveTenantContextOptions = {},
 ): Promise<TenantContext> {
   const mode = getAppMode();
   const supabase = await createClient();
@@ -57,14 +54,19 @@ export async function resolveTenantContext(
   }
 
   const headerBag = options.headers ?? (await headers());
-  const requestedWorkspaceId = options.workspaceId ?? extractWorkspaceId(headerBag);
+  const requestedWorkspaceId = options.workspaceId ??
+    extractWorkspaceId(headerBag);
 
   const sql = postgres(process.env.POSTGRES_URL!);
   const db = drizzle(sql);
 
   try {
     if (mode === "local") {
-      const workspaceId = await ensureLocalWorkspace(db, user.id, requestedWorkspaceId);
+      const workspaceId = await ensureLocalWorkspace(
+        db,
+        user.id,
+        requestedWorkspaceId,
+      );
       const roles = await getRolesForWorkspace(db, user.id, workspaceId);
 
       return {
@@ -76,7 +78,7 @@ export async function resolveTenantContext(
       };
     }
 
-      const memberships = await db
+    const memberships = await db
       .select({
         workspaceId: workspaceUser.workspace_id,
         role: workspaceUser.role_id,
@@ -88,8 +90,7 @@ export async function resolveTenantContext(
       throw new Error("Workspace membership required");
     }
 
-    const selectedWorkspaceId =
-      requestedWorkspaceId ??
+    const selectedWorkspaceId = requestedWorkspaceId ??
       memberships[0]?.workspaceId ??
       (() => {
         throw new Error("Unable to resolve workspace context");
@@ -134,12 +135,21 @@ function extractWorkspaceId(headerBag: Headers | undefined): string | null {
 async function ensureLocalWorkspace(
   db: DbClient,
   userId: string,
-  requestedWorkspaceId: string | null
+  requestedWorkspaceId: string | null,
 ): Promise<string> {
   if (requestedWorkspaceId) {
-    await seedDefaultRoles(db, requestedWorkspaceId);
-    await ensureMembership(db, requestedWorkspaceId, userId);
-    return requestedWorkspaceId;
+    const [requestedWorkspace] = await db
+      .select({ id: workspace.id })
+      .from(workspace)
+      .where(eq(workspace.id, requestedWorkspaceId))
+      .limit(1);
+
+    if (requestedWorkspace) {
+      await seedDefaultRoles(db, requestedWorkspace.id);
+      await ensureMembership(db, requestedWorkspace.id, userId);
+      return requestedWorkspace.id;
+    }
+    // If the requested workspace doesn't exist, fall back to the default flow below
   }
 
   const [existingWorkspace] = await db
@@ -170,13 +180,7 @@ async function ensureLocalWorkspace(
     });
 
   await seedDefaultRoles(db, createdWorkspace.id);
-
-  await db.insert(workspaceUser).values({
-    workspace_id: createdWorkspace.id,
-    user_id: userId,
-    role_id: "admin",
-    metadata: {},
-  });
+  await ensureMembership(db, createdWorkspace.id, userId);
 
   return createdWorkspace.id;
 }
@@ -184,7 +188,7 @@ async function ensureLocalWorkspace(
 async function ensureMembership(
   db: DbClient,
   workspaceId: string,
-  userId: string
+  userId: string,
 ) {
   const [existingMembership] = await db
     .select({ id: workspaceUser.id })
@@ -192,26 +196,47 @@ async function ensureMembership(
     .where(
       and(
         eq(workspaceUser.workspace_id, workspaceId),
-        eq(workspaceUser.user_id, userId)
-      )
+        eq(workspaceUser.user_id, userId),
+      ),
     )
     .limit(1);
 
   if (!existingMembership) {
     await seedDefaultRoles(db, workspaceId);
-    await db.insert(workspaceUser).values({
-      workspace_id: workspaceId,
-      user_id: userId,
-      role_id: "admin",
-      metadata: {},
-    });
+
+    const [adminRole] = await db
+      .select({ id: role.id })
+      .from(role)
+      .where(
+        and(
+          eq(role.workspace_id, workspaceId),
+          eq(role.id, "admin"),
+        ),
+      )
+      .limit(1);
+
+    if (!adminRole) {
+      throw new Error(
+        `Missing admin role for workspace ${workspaceId}; seeding failed`,
+      );
+    }
+
+    await db
+      .insert(workspaceUser)
+      .values({
+        workspace_id: workspaceId,
+        user_id: userId,
+        role_id: "admin",
+        metadata: {},
+      })
+      .onConflictDoNothing();
   }
 }
 
 async function getRolesForWorkspace(
   db: DbClient,
   userId: string,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<string[]> {
   const rows = await db
     .select({ role: workspaceUser.role_id })
@@ -219,8 +244,8 @@ async function getRolesForWorkspace(
     .where(
       and(
         eq(workspaceUser.workspace_id, workspaceId),
-        eq(workspaceUser.user_id, userId)
-      )
+        eq(workspaceUser.user_id, userId),
+      ),
     );
 
   if (rows.length === 0) {
@@ -236,4 +261,3 @@ async function getRolesForWorkspace(
 
   return rows.map((row) => row.role);
 }
-

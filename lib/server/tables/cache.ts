@@ -20,7 +20,7 @@ export function isTableMetadataCacheEnabled() {
 
 export async function getTableConfigCached(
   tenant: TenantContext,
-  tableId: string
+  tableId: string,
 ) {
   if (!isTableMetadataCacheEnabled()) {
     return getTableConfig(tenant, tableId);
@@ -33,7 +33,7 @@ export async function getTableConfigCached(
     {
       tags: [tag],
       revalidate: ONE_DAY_SECONDS,
-    }
+    },
   );
 
   return cached();
@@ -41,14 +41,12 @@ export async function getTableConfigCached(
 
 export async function invalidateTableMetadataCache(
   tenant: TenantContext,
-  tableId: string
+  tableId: string,
 ) {
   if (!isTableMetadataCacheEnabled()) {
     return;
   }
 
   const tag = getMetadataTag(tenant.workspaceId, tableId);
-  revalidateTag(tag);
+  revalidateTag(tag, "manual");
 }
-
-

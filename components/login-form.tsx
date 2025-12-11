@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { GalleryVerticalEnd } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [isPending, startTransition] = useTransition();
   const isSubmittingRef = useRef(false);
   const hasNavigatedRef = useRef(false);
 
@@ -83,10 +84,12 @@ export function LoginForm({
 
     // Submit the form
     const formData = new FormData(e.currentTarget);
-    await formAction(formData);
+    startTransition(() => {
+      void formAction(formData);
+    });
   };
 
-  const isDisabled = state.status === "in_progress" || isSubmittingRef.current || hasNavigatedRef.current;
+  const isDisabled = state.status === "in_progress" || isSubmittingRef.current || hasNavigatedRef.current || isPending;
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

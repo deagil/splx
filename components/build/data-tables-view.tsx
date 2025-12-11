@@ -165,7 +165,7 @@ export function DataTablesView() {
           <p>Create tables in your connected database to see them here.</p>
           {/* <Button variant="default" size="sm" className="mt-4 cursor-pointer" asChild> */}
           <Link href="/build/data/create-wizard">
-            <Button variant="default" size="sm" className="mt-4 cursor-pointer">Create Table</Button>
+            <Button variant="primary" size="sm" className="mt-4 cursor-pointer">Create Table</Button>
           </Link>
         </div>
       </div>

@@ -8,8 +8,8 @@ import { requireCapability } from "@/lib/server/tenant/permissions";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
 import { createClient } from "@/lib/supabase/server";
 import {
-  detectTableRelationships,
   detectReverseRelationships,
+  detectTableRelationships,
 } from "@/lib/server/tables/relationships";
 import type {
   FieldMetadata,
@@ -42,7 +42,7 @@ type TableComment = {
  */
 async function introspectTableColumns(
   db: DbClient,
-  tableName: string
+  tableName: string,
 ): Promise<FieldMetadata[]> {
   const columns = (await db.execute(sql`
     SELECT
@@ -86,7 +86,7 @@ async function introspectTableColumns(
  */
 async function getTableComments(
   db: DbClient,
-  tableNames: string[]
+  tableNames: string[],
 ): Promise<Map<string, string | null>> {
   if (tableNames.length === 0) {
     return new Map();
@@ -115,7 +115,7 @@ async function getTableComments(
  */
 async function detectPrimaryKey(
   db: DbClient,
-  tableName: string
+  tableName: string,
 ): Promise<string | undefined> {
   const result = (await db.execute(sql`
     SELECT kcu.column_name
@@ -140,7 +140,7 @@ async function ensureTablePage(
   tenant: TenantContext,
   tableName: string,
   tableConfig: TableConfig,
-  description: string | null
+  description: string | null,
 ): Promise<void> {
   const pageId = tableName; // Use same ID as table
 
@@ -223,6 +223,7 @@ export async function POST() {
         "workspaces",
         "roles",
         "teams",
+        "reports",
         "workspace_users",
         "workspace_invites",
         "workspace_apps",
@@ -237,10 +238,9 @@ export async function POST() {
         "ai_skills",
       ]);
 
-      const dataTableNames =
-        tenant.mode === "local"
-          ? tableNames.filter((name) => !SYSTEM_TABLES.has(name.toLowerCase()))
-          : tableNames;
+      const dataTableNames = tenant.mode === "local"
+        ? tableNames.filter((name) => !SYSTEM_TABLES.has(name.toLowerCase()))
+        : tableNames;
 
       if (dataTableNames.length === 0) {
         return NextResponse.json({
@@ -256,20 +256,26 @@ export async function POST() {
       });
 
       // Process each table
-      const syncResults: Array<{ name: string; success: boolean; error?: string }> = [];
+      const syncResults: Array<
+        { name: string; success: boolean; error?: string }
+      > = [];
 
       for (const tableName of dataTableNames) {
         try {
           // Introspect table structure
-          const [fieldMetadata, relationships, reverseRelationships, primaryKey] =
-            await store.withSqlClient(async (db) => {
-              return Promise.all([
-                introspectTableColumns(db, tableName),
-                detectTableRelationships(db, tableName),
-                detectReverseRelationships(db, tableName),
-                detectPrimaryKey(db, tableName),
-              ]);
-            });
+          const [
+            fieldMetadata,
+            relationships,
+            reverseRelationships,
+            primaryKey,
+          ] = await store.withSqlClient(async (db) => {
+            return Promise.all([
+              introspectTableColumns(db, tableName),
+              detectTableRelationships(db, tableName),
+              detectReverseRelationships(db, tableName),
+              detectPrimaryKey(db, tableName),
+            ]);
+          });
 
           // Combine forward and reverse relationships
           const allRelationships: RelationshipConfig[] = [
@@ -319,12 +325,12 @@ export async function POST() {
               console.error(
                 `Failed to sync table ${tableName}:`,
                 updateError.message,
-                updateError
+                updateError,
               );
               syncResults.push({
                 name: tableName,
                 success: false,
-                error: updateError.message
+                error: updateError.message,
               });
             } else {
               // Table updated successfully, ensure page exists
@@ -333,7 +339,7 @@ export async function POST() {
                 tenant,
                 tableName,
                 tableConfig,
-                description
+                description,
               );
               await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });
@@ -355,12 +361,12 @@ export async function POST() {
               console.error(
                 `Failed to sync table ${tableName}:`,
                 insertError.message,
-                insertError
+                insertError,
               );
               syncResults.push({
                 name: tableName,
                 success: false,
-                error: insertError.message
+                error: insertError.message,
               });
             } else {
               // Table created successfully, create page
@@ -369,7 +375,7 @@ export async function POST() {
                 tenant,
                 tableName,
                 tableConfig,
-                description
+                description,
               );
               await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });

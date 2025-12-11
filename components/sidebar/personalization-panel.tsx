@@ -563,7 +563,7 @@ export function PersonalizationPanel({
                       </p>
                     </div>
                     <Button
-                      variant={personalizationEnabled ? "default" : "outline"}
+                      variant={personalizationEnabled ? "primary" : "outline"}
                       size="sm"
                       onClick={() => onPersonalizationToggle?.(!personalizationEnabled)}
                     >

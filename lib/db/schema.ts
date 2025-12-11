@@ -1,9 +1,9 @@
 /**
  * Database schema definitions using Drizzle ORM.
- * 
+ *
  * All tables and columns use snake_case naming convention.
  * This schema supports AI SDK 5 message parts format.
- * 
+ *
  * @module lib/db/schema
  */
 
@@ -35,7 +35,9 @@ export const user = pgTable("users", {
   proficiency: text("proficiency"),
   ai_tone: text("ai_tone"),
   ai_guidance: text("ai_guidance"),
-  onboarding_completed: boolean("onboarding_completed").notNull().default(false),
+  onboarding_completed: boolean("onboarding_completed").notNull().default(
+    false,
+  ),
 });
 
 export type User = InferSelectModel<typeof user>;
@@ -78,7 +80,7 @@ export const role = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.workspace_id, table.id] }),
-  })
+  }),
 );
 
 export type Role = InferSelectModel<typeof role>;
@@ -220,6 +222,32 @@ export const table = pgTable("tables", {
 
 export type Table = InferSelectModel<typeof table>;
 
+export type ReportChartConfig = Record<string, unknown>;
+
+export const report = pgTable("reports", {
+  id: text("id").primaryKey().notNull(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  sql: text("sql").notNull(),
+  chart_type: text("chart_type"),
+  chart_config: jsonb("chart_config")
+    .$type<ReportChartConfig>()
+    .notNull()
+    .default({}),
+  created_by: uuid("created_by").references(() => user.id),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Report = InferSelectModel<typeof report>;
+
 export const chat = pgTable("chats", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   created_at: timestamp("created_at").notNull(),
@@ -246,7 +274,9 @@ export const message = pgTable("messages", {
   role: varchar("role").notNull(),
   parts: json("parts").notNull(),
   attachments: json("attachments").notNull(),
-  mentions: jsonb("mentions").$type<Array<{ type: string; label: string; [key: string]: unknown }>>(),
+  mentions: jsonb("mentions").$type<
+    Array<{ type: string; label: string; [key: string]: unknown }>
+  >(),
   created_at: timestamp("created_at").notNull(),
   workspace_id: uuid("workspace_id")
     .notNull()
@@ -273,7 +303,7 @@ export const vote = pgTable(
     return {
       pk: primaryKey({ columns: [table.chat_id, table.message_id] }),
     };
-  }
+  },
 );
 
 export type Vote = InferSelectModel<typeof vote>;
@@ -299,7 +329,7 @@ export const document = pgTable(
     return {
       pk: primaryKey({ columns: [table.id, table.created_at] }),
     };
-  }
+  },
 );
 
 export type Document = InferSelectModel<typeof document>;
@@ -328,7 +358,7 @@ export const suggestion = pgTable(
       columns: [table.document_id, table.document_created_at],
       foreignColumns: [document.id, document.created_at],
     }),
-  })
+  }),
 );
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
@@ -349,7 +379,7 @@ export const stream = pgTable(
       columns: [table.chat_id],
       foreignColumns: [chat.id],
     }),
-  })
+  }),
 );
 
 export type Stream = InferSelectModel<typeof stream>;

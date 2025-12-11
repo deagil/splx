@@ -303,6 +303,8 @@ export function ListBlockForm({
 export function RecordBlockForm({
   block,
   onChange,
+  tableOptions,
+  tablesLoading,
 }: {
   block: RecordBlockDraft;
   onChange: (block: RecordBlockDraft) => void;

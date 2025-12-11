@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
-import { role } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { role, workspace } from "@/lib/db/schema";
 import type { DbClient } from "./context";
 
 type RoleDefinition = {
@@ -17,55 +17,62 @@ export const DEFAULT_ROLE_DEFINITIONS: RoleDefinition[] = [
     level: 100,
   },
   {
-    id: "dev",
-    label: "Developer",
-    description: "Developer access for building automations and integrations",
-    level: 60,
-  },
-  {
-    id: "staff",
-    label: "Staff",
-    description: "Operational access for day-to-day activities",
-    level: 40,
+    id: "builder",
+    label: "Builder",
+    description:
+      "Builder access for creating pages, data models, and automations; limited billing/workspace settings",
+    level: 80,
   },
   {
     id: "user",
     label: "User",
-    description: "Basic access for end users",
-    level: 20,
+    description:
+      "Standard member access for using configured pages, buttons, and tools without changing core systems",
+    level: 50,
+  },
+  {
+    id: "viewer",
+    label: "Viewer",
+    description: "Read-only access to workspace data and pages",
+    level: 10,
   },
 ];
 
 export async function seedDefaultRoles(db: DbClient, workspaceId: string) {
-  for (const definition of DEFAULT_ROLE_DEFINITIONS) {
-    const [existingRole] = await db
-      .select({ id: role.id })
-      .from(role)
-      .where(
-        and(
-          eq(role.workspace_id, workspaceId),
-          eq(role.id, definition.id)
-        )
-      )
-      .limit(1);
+  const [workspaceExists] = await db
+    .select({ id: workspace.id })
+    .from(workspace)
+    .where(eq(workspace.id, workspaceId))
+    .limit(1);
 
-    if (existingRole) {
-      continue;
-    }
+  if (!workspaceExists) {
+    // Workspace was not found; nothing to seed
+    return;
+  }
 
+  try {
     await db
       .insert(role)
-      .values({
-        workspace_id: workspaceId,
-        id: definition.id,
-        label: definition.label,
-        description: definition.description,
-        level: definition.level,
-      })
+      .values(
+        DEFAULT_ROLE_DEFINITIONS.map((definition) => ({
+          workspace_id: workspaceId,
+          id: definition.id,
+          label: definition.label,
+          description: definition.description,
+          level: definition.level,
+        })),
+      )
       .onConflictDoNothing();
+  } catch (error) {
+    // If another request seeded roles concurrently, ignore and continue
+    const [existing] = await db
+      .select({ id: role.id })
+      .from(role)
+      .where(eq(role.workspace_id, workspaceId))
+      .limit(1);
+
+    if (!existing) {
+      throw error;
+    }
   }
 }
-
-
-
-

@@ -205,10 +205,10 @@ export function UsersRolesSection() {
     if (roleLower === "admin" || roleLower === "owner") {
       return "border-l-red-500";
     }
-    if (roleLower === "dev" || roleLower === "developer") {
+    if (roleLower === "builder" || roleLower === "dev" || roleLower === "developer") {
       return "border-l-orange-500";
     }
-    if (roleLower === "staff" || roleLower === "member") {
+    if (roleLower === "user" || roleLower === "staff" || roleLower === "member") {
       return "border-l-blue-500";
     }
     return "border-l-border";

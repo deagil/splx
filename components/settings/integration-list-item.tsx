@@ -82,7 +82,7 @@ export function IntegrationListItem({
             </Button>
           ) : (
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={onConfigure}
               disabled={isLoading || !integration.configurable}

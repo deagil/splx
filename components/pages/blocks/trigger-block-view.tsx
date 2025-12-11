@@ -34,7 +34,7 @@ export function TriggerBlockView({ block }: TriggerBlockViewProps) {
         type="button"
         variant={
           block.display.actionType === "primary"
-            ? "default"
+            ? "primary"
             : block.display.actionType === "destructive"
               ? "destructive"
               : "outline"
