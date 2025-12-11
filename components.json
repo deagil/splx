@@ -20,6 +20,7 @@
   },
   "registries": {
     "@ai-elements": "https://registry.ai-sdk.dev/{name}.json",
-    "@reui": "https://reui.io/r/{name}.json"
+    "@reui": "https://reui.io/r/{name}.json",
+    "@tailark": "https://tailark.com/r/{name}.json"
   }
 }
