@@ -43,7 +43,7 @@ export default function PricingComparator() {
                                         <div className="text-sm text-muted-foreground">{tier.note}</div>
                                         <Button
                                             asChild
-                                            variant={tier.name === 'Plus' ? 'default' : 'outline'}>
+                                            variant={tier.name === 'Plus' ? 'primary' : 'outline'}>
                                             <Link href="#pricing">Choose {tier.name}</Link>
                                         </Button>
                                         {index === 1 ? (

@@ -16,9 +16,7 @@ export default function FeaturesSection() {
                         <h2 className="text-foreground max-w-2xl text-balance text-4xl font-semibold">Built for founders and lean teams who need to move</h2>
                     </div>
                     <div className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        <Card
-                            variant="soft"
-                            className="overflow-hidden p-6">
+                        <Card className="overflow-hidden p-6">
                             <Target className="text-primary size-5" />
                             <h3 className="text-foreground mt-5 text-lg font-semibold">Publish pages without backend thrash</h3>
                             <p className="text-muted-foreground mt-3 text-balance">Model your data once, drag blocks into place, and ship pages that stay connected to live values.</p>
@@ -26,18 +24,14 @@ export default function FeaturesSection() {
                             <MeetingIllustration />
                         </Card>
 
-                        <Card
-                            variant="soft"
-                            className="group overflow-hidden px-6 pt-6">
+                        <Card className="group overflow-hidden px-6 pt-6">
                             <CalendarCheck className="text-primary size-5" />
                             <h3 className="text-foreground mt-5 text-lg font-semibold">AI-guided edits with guardrails</h3>
                             <p className="text-muted-foreground mt-3 text-balance">Ask Suplex to draft copy, tweak layouts, or wire data sources - review before anything goes live.</p>
 
                             <CodeReviewIllustration />
                         </Card>
-                        <Card
-                            variant="soft"
-                            className="group overflow-hidden px-6 pt-6">
+                        <Card className="group overflow-hidden px-6 pt-6">
                             <Sparkles className="text-primary size-5" />
                             <h3 className="text-foreground mt-5 text-lg font-semibold">Collaboration that keeps everyone aligned</h3>
                             <p className="text-muted-foreground mt-3 text-balance">Roles, approvals, and audit trails keep stakeholders synced without slowing down launches.</p>
