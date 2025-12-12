@@ -47,6 +47,7 @@ import {
   saveChat,
   saveMessages,
   updateChatLastContextById,
+  updateChatTitleById,
 } from "@/lib/db/queries";
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
@@ -349,21 +350,40 @@ export async function POST(request: Request) {
       // Use already-resolved tenant context for new chat
       workspaceId = currentWorkspaceId;
 
-      const title = await generateTitleFromUserMessage({
-        message,
-      });
+      // Create chat with placeholder title immediately
+      const placeholderTitle = "New Chat";
 
       await saveChat({
         id,
         userId,
-        title,
+        title: placeholderTitle,
         visibility: selectedVisibilityType,
       });
       logWithTimestamp("✓ New chat created", {
         duration: `${Date.now() - chatLookupStartTime}ms`,
         chatId: id,
-        title: title?.slice(0, 30),
+        title: placeholderTitle,
       });
+
+      // Generate actual title asynchronously in the background
+      after(async () => {
+        try {
+          const generatedTitle = await generateTitleFromUserMessage({
+            message,
+          });
+          await updateChatTitleById({ chatId: id, title: generatedTitle });
+          console.log(
+            `[Chat API] Background title generated for chat ${id}: ${generatedTitle?.slice(0, 30)}`,
+          );
+        } catch (error) {
+          console.error(
+            `[Chat API] Failed to generate title for chat ${id}:`,
+            error,
+          );
+          // Non-critical error - chat already exists with placeholder title
+        }
+      });
+
       // New chat - no need to fetch messages, it's empty
     }
 

@@ -7,9 +7,9 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 
 const menuItems = [
-    { name: 'Features', href: '#link' },
-    { name: 'Pricing', href: '#link' },
-    { name: 'About', href: '#link' },
+    { name: 'Features', href: '#features' },
+    { name: 'Pricing', href: '#pricing' },
+    { name: 'FAQs', href: '#faq' },
 ]
 
 export const HeroHeader = () => {
@@ -86,24 +86,24 @@ export const HeroHeader = () => {
                                     variant="ghost"
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="#">
-                                        <span>Login</span>
+                                    <Link href="/signin">
+                                        <span>Log in</span>
                                     </Link>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="#">
-                                        <span>Sign Up</span>
+                                    <Link href="#pricing">
+                                        <span>Sign up</span>
                                     </Link>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <Link href="#">
-                                        <span>Get Started</span>
+                                    <Link href="#pricing">
+                                        <span>Get started</span>
                                     </Link>
                                 </Button>
                             </div>

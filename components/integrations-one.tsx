@@ -5,7 +5,7 @@ export default function Integrations() {
         <section>
             <div className="mx-auto max-w-5xl px-6 py-8">
                 <div className="flex flex-wrap items-center gap-4">
-                    <p className="text-muted-foreground font-medium">Integrate with : </p>
+                    <p className="text-muted-foreground font-medium">Works with the tools you already use</p>
                     <div className="max-w-2xs flex flex-wrap gap-3 divide-x *:pr-3">
                         <div>
                             <Gemini className="m-auto size-5" />

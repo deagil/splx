@@ -2,20 +2,20 @@ import Image from 'next/image'
 
 export default function ContentSection() {
     return (
-        <section>
+        <section id="overview">
             <div className="py-24">
                 <div className="mx-auto w-full max-w-5xl px-6">
                     <div className="mx-auto max-w-2xl">
                         <div>
-                            <span className="text-3xl">🦊</span>
-                            <h2 className="text-foreground mt-4 text-4xl font-semibold">Create Content with AI Assistance</h2>
-                            <p className="text-muted-foreground mb-12 mt-4 text-xl">Our AI assistant helps you create better content faster. Generate ideas, improve your writing, and design layouts with simple prompts.</p>
+                            <span className="text-3xl">🚀</span>
+                            <h2 className="text-foreground mt-4 text-4xl font-semibold">Launch pages that stay connected to your data</h2>
+                            <p className="text-muted-foreground mb-12 mt-4 text-xl">Suplex pairs an AI-native builder with structured data mentions, so you can design once, keep content accurate, and ship updates without waiting on engineering.</p>
                         </div>
 
                         <div className="relative mt-12 overflow-hidden rounded-3xl bg-black/10 md:mt-16">
                             <img
                                 src="https://images.unsplash.com/photo-1533119408463-b0f487583ff6?q=80&w=2960&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                                alt=""
+                                alt="Founders collaborating over product plans"
                                 className="absolute inset-0 size-full object-cover"
                             />
 

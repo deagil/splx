@@ -5,18 +5,18 @@ import Link from 'next/link'
 
 export default function FeaturesSection() {
     return (
-        <section>
+        <section id="features">
             <div className="bg-muted/50 py-24">
                 <div className="mx-auto w-full max-w-5xl px-6">
                     <div className="grid gap-12 md:grid-cols-5">
                         <div className="md:col-span-2">
-                            <h2 className="text-foreground text-balance text-4xl font-semibold">The AI Coding Assistant that helps you write code faster</h2>
+                            <h2 className="text-foreground text-balance text-4xl font-semibold">An AI-native builder that keeps your launch moving</h2>
                             <Button
                                 className="mt-8 pr-2"
                                 variant="outline"
                                 asChild>
-                                <Link href="#">
-                                    Learn more
+                                <Link href="#pricing">
+                                    View pricing
                                     <ChevronRight className="size-4 opacity-50" />
                                 </Link>
                             </Button>
@@ -26,17 +26,17 @@ export default function FeaturesSection() {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <Target className="size-5" />
-                                    <h3 className="text-foreground text-lg font-semibold">Code Generation</h3>
+                                    <h3 className="text-foreground text-lg font-semibold">AI that drafts the page, you keep control</h3>
                                 </div>
-                                <p className="text-muted-foreground mt-3 text-balance">Just describe the code you want to write and we'll generate it for you. From boilerplate code to complex business logic, we've got you covered.</p>
+                                <p className="text-muted-foreground mt-3 text-balance">Describe the outcome and Suplex sketches the layout with the right data hooks. You decide what ships, with no template lock-in.</p>
                             </div>
 
                             <div>
                                 <div className="flex items-center gap-2">
                                     <CalendarCheck className="size-5" />
-                                    <h3 className="text-foreground text-lg font-semibold">Code Review</h3>
+                                    <h3 className="text-foreground text-lg font-semibold">Data-aware content that stays accurate</h3>
                                 </div>
-                                <p className="text-muted-foreground mt-3 text-balance">Get instant feedback on your code. Our AI will review your code and suggest improvements in terms of best practices and performance.</p>
+                                <p className="text-muted-foreground mt-3 text-balance">Use data mentions to pull live values, roll out updates once, and keep every page in sync without manual edits.</p>
                             </div>
                         </div>
                     </div>
@@ -45,7 +45,7 @@ export default function FeaturesSection() {
                         <div className="bg-background rounded-(--radius) relative mx-auto overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
                             <Image
                                 src="/mist/tailark-2.png"
-                                alt="app screen"
+                                alt="Suplex page builder preview"
                                 width="2880"
                                 height="1842"
                             />

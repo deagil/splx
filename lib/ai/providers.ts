@@ -55,7 +55,7 @@ export const myProvider = isTestEnvironment
       "chat-model-reasoning": openai("gpt-5-mini"),
 
       // Title generation model (optimized for concise output)
-      "title-model": openai("gpt-5-mini"),
+      "title-model": openai("gpt-5-nano"),
 
       // Artifact/document generation model
       "artifact-model": openai("gpt-5-mini"),

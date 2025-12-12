@@ -161,40 +161,6 @@ export function NavigationMenuDemo() {
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>Build</NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid w-[300px] gap-2 p-4">
-              {buildOptions.map((option) => (
-                <ListItem
-                  key={option.title}
-                  title={option.title}
-                  href={option.href}
-                  disabled={option.disabled}
-                >
-                  {option.description}
-                </ListItem>
-              ))}
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>Data</NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid w-[300px] gap-2 p-4">
-              {dataOptions.map((option) => (
-                <ListItem
-                  key={option.title}
-                  title={option.title}
-                  href={option.href}
-                  disabled={option.disabled}
-                >
-                  {option.description}
-                </ListItem>
-              ))}
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
         {isLocalMode && (
           <NavigationMenuItem>
             <NavigationMenuTrigger>Dev</NavigationMenuTrigger>
@@ -214,6 +180,43 @@ export function NavigationMenuDemo() {
             </NavigationMenuContent>
           </NavigationMenuItem>
         )}
+
+        {/* data menu */}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>Data</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[300px] gap-2 p-4">
+              {dataOptions.map((option) => (
+                <ListItem
+                  key={option.title}
+                  title={option.title}
+                  href={option.href}
+                  disabled={option.disabled}
+                >
+                  {option.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        {/* build menu */}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>Build</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[300px] gap-2 p-4">
+              {buildOptions.map((option) => (
+                <ListItem
+                  key={option.title}
+                  title={option.title}
+                  href={option.href}
+                  disabled={option.disabled}
+                >
+                  {option.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
   )

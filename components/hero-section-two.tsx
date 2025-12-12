@@ -15,7 +15,7 @@ export default function HeroSection() {
                         <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
                             <div>
                                 <Link
-                                    href="#"
+                                    href="#pricing"
                                     className="hover:bg-foreground/5 mx-auto flex w-fit items-center justify-center gap-2 rounded-md py-0.5 pl-1 pr-3 transition-colors duration-150">
                                     <div
                                         aria-hidden
@@ -24,25 +24,25 @@ export default function HeroSection() {
                                         <div className="absolute inset-x-1.5 inset-y-0 border-x border-dotted border-white/25"></div>
                                         <Sparkle className="size-3 fill-white stroke-white drop-shadow" />
                                     </div>
-                                    <span className="font-medium">Introducing Mist Agents</span>
+                                    <span className="font-medium">Suplex just launched</span>
                                 </Link>
-                                <h1 className="mx-auto mt-8 max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-5xl">Build 10x Faster with Mist</h1>
-                                <p className="text-muted-foreground mx-auto my-6 max-w-xl text-balance text-xl">Craft. Build. Ship Modern Websites With AI Support.</p>
+                                <h1 className="mx-auto mt-8 max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-5xl">Ship data-connected pages without a heavy buildout</h1>
+                                <p className="text-muted-foreground mx-auto my-6 max-w-xl text-balance text-xl">Suplex is the AI-native builder for founders and small teams - wire up your data, publish polished pages, and stay in control of what ships.</p>
 
                                 <div className="flex items-center justify-center gap-3">
                                     <Button
                                         asChild
                                         size="lg">
-                                        <Link href="#link">
-                                            <span className="text-nowrap">Start Building</span>
+                                        <Link href="#pricing">
+                                            <span className="text-nowrap">Start free</span>
                                         </Link>
                                     </Button>
                                     <Button
                                         asChild
                                         size="lg"
                                         variant="outline">
-                                        <Link href="#link">
-                                            <span className="text-nowrap">Watch Video</span>
+                                        <Link href="#features">
+                                            <span className="text-nowrap">See how it works</span>
                                         </Link>
                                     </Button>
                                 </div>
@@ -52,12 +52,7 @@ export default function HeroSection() {
                             <div className="relative z-10 mx-auto max-w-5xl px-6">
                                 <div className="mt-12 md:mt-16">
                                     <div className="bg-background rounded-(--radius) relative mx-auto overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
-                                        <Image
-                                            src="/mist/tailark-2.png"
-                                            alt="app screen"
-                                            width="2880"
-                                            height="1842"
-                                        />
+                                        <video src="/videos/chat-sidebar.mov" autoPlay muted loop />
                                     </div>
                                 </div>
                             </div>

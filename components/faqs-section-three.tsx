@@ -7,33 +7,35 @@ export default function FAQs() {
     const faqItems = [
         {
             id: 'item-1',
-            question: 'How long does shipping take?',
-            answer: 'Standard shipping takes 3-5 business days, depending on your location. Express shipping options are available at checkout for 1-2 business day delivery.',
+            question: 'How does the free plan work?',
+            answer: 'Free includes the builder, connected tables, and limited AI so you can validate a page. Upgrade when you need more seats, domains, or heavier AI usage.',
         },
         {
             id: 'item-2',
-            question: 'What payment methods do you accept?',
-            answer: 'We accept all major credit cards (Visa, Mastercard, American Express), PayPal, Apple Pay, and Google Pay. For enterprise customers, we also offer invoicing options.',
+            question: 'What does "fair use" of AI mean on Plus?',
+            answer: 'Plus includes generous AI drafting and edits. If usage is consistently high, we will recommend Pro or set sensible limits so costs stay predictable.',
         },
         {
             id: 'item-3',
-            question: 'Can I change or cancel my order?',
-            answer: 'You can modify or cancel your order within 1 hour of placing it. After this window, please contact our customer support team who will assist you with any changes.',
+            question: 'Can I connect my own data?',
+            answer: 'Yes. Model your tables in Suplex and reference them via mentions. We support common data types out of the box and keep them in sync across pages.',
         },
         {
             id: 'item-4',
-            question: 'Do you ship internationally?',
-            answer: "Yes, we ship to over 50 countries worldwide. International shipping typically takes 7-14 business days. Additional customs fees may apply depending on your country's import regulations.",
+            question: 'Do I need engineers to launch pages?',
+            answer: 'Founders and ops teams can ship without writing code. When you need deeper logic, developers can extend Suplex with custom components and data sources.',
         },
         {
             id: 'item-5',
-            question: 'What is your return policy?',
-            answer: 'We offer a 30-day return policy for most items. Products must be in original condition with tags attached. Some specialty items may have different return terms, which will be noted on the product page.',
+            question: 'Can I use a custom domain?',
+            answer: 'Plus and Pro include custom domains. Free projects publish on a Suplex subdomain so you can share quickly.',
         },
     ]
 
     return (
-        <section className="py-16 md:py-24">
+        <section
+            id="faq"
+            className="py-16 md:py-24">
             <div className="mx-auto max-w-2xl px-6">
                 <div className="space-y-12">
                     <h2 className="text-foreground text-center text-4xl font-semibold">Your questions answered</h2>
@@ -62,7 +64,7 @@ export default function FAQs() {
                     <p className="text-muted-foreground text-center">
                         Can't find what you're looking for? Contact our{' '}
                         <Link
-                            href="#"
+                            href="mailto:hello@suplex.app"
                             className="text-primary font-medium hover:underline">
                             customer support team
                         </Link>
