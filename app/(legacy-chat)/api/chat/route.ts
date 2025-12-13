@@ -37,6 +37,9 @@ import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import { queryUserTable } from "@/lib/ai/tools/query-user-table";
+import { searchPages } from "@/lib/ai/tools/search-pages";
+import { navigateToPage } from "@/lib/ai/tools/navigate-to-page";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -505,6 +508,9 @@ export async function POST(request: Request) {
               "updateDocument",
               "requestSuggestions",
               "readUrlContent",
+              "queryUserTable",
+              "searchPages",
+              "navigateToPage",
             ],
           experimental_transform: smoothStream({
             chunking: "word",
@@ -531,6 +537,11 @@ export async function POST(request: Request) {
               dataStream,
             }),
             readUrlContent,
+            queryUserTable,
+            searchPages,
+            navigateToPage: navigateToPage({
+              dataStream,
+            }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

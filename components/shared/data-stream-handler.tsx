@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { initialArtifactData, useArtifact } from "@/hooks/use-artifact";
 import { artifactDefinitions } from "../artifact/artifact";
 import { useDataStream } from "./data-stream-provider";
 
 export function DataStreamHandler() {
-  const { dataStream,setDataStream } = useDataStream();
+  const router = useRouter();
+  const { dataStream, setDataStream } = useDataStream();
 
   const { artifact, setArtifact, setMetadata } = useArtifact();
 
@@ -72,12 +74,19 @@ export function DataStreamHandler() {
               status: "idle",
             };
 
+          case "data-navigate":
+            // Handle navigation event - navigate to the page
+            if (delta.data && typeof delta.data === "object" && "url" in delta.data) {
+              router.push(delta.data.url as string);
+            }
+            return draftArtifact;
+
           default:
             return draftArtifact;
         }
       });
     }
-  }, [dataStream, setArtifact, setMetadata, artifact]);
+  }, [dataStream, setArtifact, setMetadata, artifact, router]);
 
   return null;
 }

@@ -3,7 +3,10 @@ import { z } from "zod";
 import type { ArtifactKind } from "@/components/artifact/artifact";
 import type { createDocument } from "./ai/tools/create-document";
 import type { getWeather } from "./ai/tools/get-weather";
+import type { navigateToPage } from "./ai/tools/navigate-to-page";
+import type { queryUserTable } from "./ai/tools/query-user-table";
 import type { requestSuggestions } from "./ai/tools/request-suggestions";
+import type { searchPages } from "./ai/tools/search-pages";
 import type { updateDocument } from "./ai/tools/update-document";
 import type { Suggestion } from "./db/schema";
 import type { AppUsage } from "./usage";
@@ -23,12 +26,24 @@ type updateDocumentTool = InferUITool<ReturnType<typeof updateDocument>>;
 type requestSuggestionsTool = InferUITool<
   ReturnType<typeof requestSuggestions>
 >;
+type queryUserTableTool = InferUITool<typeof queryUserTable>;
+type searchPagesTool = InferUITool<typeof searchPages>;
+type navigateToPageTool = InferUITool<ReturnType<typeof navigateToPage>>;
 
 export type ChatTools = {
   getWeather: weatherTool;
   createDocument: createDocumentTool;
   updateDocument: updateDocumentTool;
   requestSuggestions: requestSuggestionsTool;
+  queryUserTable: queryUserTableTool;
+  searchPages: searchPagesTool;
+  navigateToPage: navigateToPageTool;
+};
+
+export type NavigationData = {
+  url: string;
+  pageId: string;
+  pageName: string;
 };
 
 export type CustomUIDataTypes = {
@@ -45,6 +60,7 @@ export type CustomUIDataTypes = {
   finish: null;
   usage: AppUsage;
   mention: MentionPart;
+  navigate: NavigationData;
 };
 
 export type ChatMessage = UIMessage<

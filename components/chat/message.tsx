@@ -37,7 +37,14 @@ import {
   ChainOfThoughtSearchResults,
   ChainOfThoughtStep,
 } from "../ai-elements/chain-of-thought";
-import { SearchIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  CheckCircleIcon,
+  DatabaseIcon,
+  FileTextIcon,
+  NavigationIcon,
+  SearchIcon,
+} from "lucide-react";
 
 // ============================================================================
 // Typing Indicator - Shows when waiting for first token in stream
@@ -204,11 +211,25 @@ const PurePreviewMessage = ({
     (part) => (part as any).type === "tool-web_search"
   ) || [];
 
+  // Collect all data tool calls (queryUserTable, searchPages, navigateToPage)
+  // These are the custom tools for querying data and navigating pages
+  const dataToolCalls = message.parts?.filter((part) => {
+    const partType = (part as any).type;
+    return (
+      partType === "tool-queryUserTable" ||
+      partType === "tool-searchPages" ||
+      partType === "tool-navigateToPage"
+    );
+  }) || [];
+
   // Show Chain of Thought component when:
   // 1. There are web search tool calls present (AI performed web searches)
   // 2. The message is from the assistant (not the user)
   // This groups all web search steps together in a collapsible, visual format
   const shouldShowChainOfThought = webSearchToolCalls.length > 0 && message.role === "assistant";
+
+  // Show Data Tools Chain of Thought when data tools are used
+  const shouldShowDataToolsChainOfThought = dataToolCalls.length > 0 && message.role === "assistant";
 
   return (
     <motion.div
@@ -387,6 +408,155 @@ const PurePreviewMessage = ({
             </ChainOfThought>
           )}
 
+          {/* Data Tools Chain of Thought - shows queryUserTable, searchPages, navigateToPage steps */}
+          {shouldShowDataToolsChainOfThought && (
+            <ChainOfThought defaultOpen={true} className="mb-4">
+              <ChainOfThoughtHeader>
+                Processing data request
+              </ChainOfThoughtHeader>
+              <ChainOfThoughtContent>
+                {dataToolCalls.map((part, idx) => {
+                  const partAny = part as any;
+                  const partType = partAny.type as string;
+                  const input = partAny.input as Record<string, unknown> | undefined;
+                  const output = partAny.output as Record<string, unknown> | undefined;
+                  const isError = partAny.state === "output-error";
+
+                  // Determine icon, label, and description based on tool type
+                  let Icon = DatabaseIcon;
+                  let stepLabel = "Processing...";
+                  let stepDescription: string | undefined;
+                  let resultSummary: string | undefined;
+
+                  if (partType === "tool-queryUserTable") {
+                    Icon = DatabaseIcon;
+                    const tableName = input?.tableName as string | undefined;
+                    const filters = input?.filters as Array<{ column: string; value: string }> | undefined;
+
+                    if (isError) {
+                      stepLabel = `Query failed: ${tableName || "table"}`;
+                      stepDescription = output?.message as string || "An error occurred while querying the table.";
+                    } else if (partAny.state === "output-available" && output) {
+                      const rowCount = (output.rows as unknown[])?.length ?? 0;
+                      const totalRows = (output.pagination as { totalRows?: number })?.totalRows ?? rowCount;
+                      stepLabel = `Queried ${tableName}`;
+                      stepDescription = `Found ${totalRows} record${totalRows === 1 ? "" : "s"}`;
+                      if (filters && filters.length > 0) {
+                        stepDescription += ` with ${filters.length} filter${filters.length === 1 ? "" : "s"}`;
+                      }
+                    } else {
+                      stepLabel = tableName ? `Querying ${tableName}...` : "Querying table...";
+                      if (filters && filters.length > 0) {
+                        stepDescription = `Applying ${filters.length} filter${filters.length === 1 ? "" : "s"}`;
+                      }
+                    }
+                  } else if (partType === "tool-searchPages") {
+                    Icon = FileTextIcon;
+                    const query = input?.query as string | undefined;
+
+                    if (isError) {
+                      stepLabel = "Page search failed";
+                      stepDescription = output?.message as string || "An error occurred while searching pages.";
+                    } else if (partAny.state === "output-available" && output) {
+                      const pageCount = (output.pages as unknown[])?.length ?? 0;
+                      stepLabel = query ? `Searched for "${query}"` : "Listed pages";
+                      stepDescription = `Found ${pageCount} page${pageCount === 1 ? "" : "s"}`;
+                    } else {
+                      stepLabel = query ? `Searching for "${query}"...` : "Searching pages...";
+                    }
+                  } else if (partType === "tool-navigateToPage") {
+                    Icon = NavigationIcon;
+                    const pageName = input?.pageName as string | undefined;
+                    const pageId = input?.pageId as string | undefined;
+
+                    if (isError) {
+                      stepLabel = "Navigation failed";
+                      stepDescription = output?.message as string || "Could not navigate to the page.";
+                    } else if (partAny.state === "output-available" && output) {
+                      const found = output.found as boolean;
+                      const outputPageName = output.pageName as string | undefined;
+                      const navigated = output.navigated as boolean;
+
+                      if (found && navigated) {
+                        stepLabel = `Navigated to ${outputPageName || "page"}`;
+                        stepDescription = output.url as string | undefined;
+                      } else if (found && !navigated) {
+                        stepLabel = `Found ${outputPageName || "page"}`;
+                        stepDescription = output.warning as string || "Page found but navigation pending.";
+                      } else {
+                        stepLabel = "Page not found";
+                        stepDescription = output.message as string;
+                      }
+                    } else {
+                      stepLabel = pageName
+                        ? `Navigating to "${pageName}"...`
+                        : pageId
+                        ? `Loading page ${pageId}...`
+                        : "Navigating...";
+                    }
+                  }
+
+                  // Determine the visual status of this step
+                  let status: "complete" | "active" | "pending" = "pending";
+                  if (partAny.state === "output-available") {
+                    status = "complete";
+                  } else if (partAny.state === "output-error") {
+                    status = "complete"; // Show as complete but with error styling
+                  } else if (partAny.state === "input-available") {
+                    status = "active";
+                  }
+
+                  return (
+                    <ChainOfThoughtStep
+                      key={partAny.toolCallId}
+                      icon={isError ? AlertCircleIcon : Icon}
+                      label={stepLabel}
+                      description={stepDescription}
+                      status={status}
+                      className={isError ? "text-destructive" : undefined}
+                    >
+                      {/* Show result details for successful queries */}
+                      {partType === "tool-queryUserTable" &&
+                        !isError &&
+                        partAny.state === "output-available" &&
+                        output && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {((output.rows as unknown[])?.length ?? 0) > 0 && (
+                              <span>
+                                Columns: {((output.columns as string[]) || []).slice(0, 5).join(", ")}
+                                {((output.columns as string[])?.length ?? 0) > 5 && "..."}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                      {/* Show page suggestions if search found pages */}
+                      {partType === "tool-searchPages" &&
+                        !isError &&
+                        partAny.state === "output-available" &&
+                        output && (
+                          <ChainOfThoughtSearchResults className="mt-2">
+                            {((output.pages as Array<{ name: string; id: string }>) || [])
+                              .slice(0, 3)
+                              .map((page) => (
+                                <ChainOfThoughtSearchResult key={page.id}>
+                                  {page.name}
+                                </ChainOfThoughtSearchResult>
+                              ))}
+                            {((output.pages as unknown[])?.length ?? 0) > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{((output.pages as unknown[])?.length ?? 0) - 3} more
+                              </span>
+                            )}
+                          </ChainOfThoughtSearchResults>
+                        )}
+                    </ChainOfThoughtStep>
+                  );
+                })}
+              </ChainOfThoughtContent>
+            </ChainOfThought>
+          )}
+
           {/* Unified reasoning section - combines all reasoning parts into one */}
           {(() => {
             // Collect all reasoning parts and combine their text
@@ -451,6 +621,16 @@ const PurePreviewMessage = ({
 
             // Skip web search tool calls if we're showing them in Chain of Thought
             if ((type as string) === "tool-web_search" && shouldShowChainOfThought) {
+              return null;
+            }
+
+            // Skip data tool calls if we're showing them in Chain of Thought
+            if (
+              ((type as string) === "tool-queryUserTable" ||
+                (type as string) === "tool-searchPages" ||
+                (type as string) === "tool-navigateToPage") &&
+              shouldShowDataToolsChainOfThought
+            ) {
               return null;
             }
 
