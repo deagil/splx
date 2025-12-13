@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
         //https://nextjs.org/docs/messages/next-image-unconfigured-host
         hostname: "*.public.blob.vercel-storage.com",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
   env: {

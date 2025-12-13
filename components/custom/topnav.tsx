@@ -109,55 +109,31 @@ export function NavigationMenuDemo() {
         <NavigationMenuItem>
           <NavigationMenuTrigger>Home</NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[280px] gap-1 p-2">
-              <li>
+            <ul className="grid gap-2 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+              <li className="row-span-3">
                 <NavigationMenuLink asChild>
-                  <Link
-                    href="/workspace-settings"
-                    className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                  <a
+                    className="from-muted/50 to-muted flex h-full w-full flex-col justify-end rounded-md bg-linear-to-b p-4 no-underline outline-hidden transition-all duration-200 select-none focus:shadow-md md:p-6"
+                    href="/whats-new"
                   >
-                    Workspace Settings
-                  </Link>
+                    <div className="mb-2 text-lg font-medium sm:mt-4">
+                      What's New
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-tight">
+                      See the latest updates in version 0.4
+                    </p>
+                  </a>
                 </NavigationMenuLink>
               </li>
-              <li className="my-1 h-px bg-border" />
-              {user ? (
-                <>
-                  <li>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/preferences"
-                        className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        My preferences
-                      </Link>
-                    </NavigationMenuLink>
-                  </li>
-                  <li className="my-1 h-px bg-border" />
-                  <li>
-                    <NavigationMenuLink asChild>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="block w-full select-none rounded-sm px-3 py-2 text-left text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        Sign Out
-                      </button>
-                    </NavigationMenuLink>
-                  </li>
-                </>
-              ) : (
-                <li>
-                  <NavigationMenuLink asChild>
-                    <Link
-                      href="/signin"
-                      className="block select-none rounded-sm px-3 py-2 text-sm leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    >
-                      Sign In
-                    </Link>
-                  </NavigationMenuLink>
-                </li>
-              )}
+              <ListItem href="/workspace-settings" title="Workspace Settings">
+                Manage your workspace settings and preferences
+              </ListItem>
+              <ListItem href="/preferences" title="Preferences">
+                Manage your preferences and settings
+              </ListItem>
+              <ListItem href="/signout" title="Sign Out">
+                Sign out of your account
+              </ListItem>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>

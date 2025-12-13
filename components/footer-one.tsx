@@ -1,5 +1,7 @@
 import { Logo } from '@/components/logo'
 import Link from 'next/link'
+import CopyrightYear from '@/components/marketing/copyright-year'
+import { Suspense } from 'react'
 
 const links = [
     {
@@ -17,6 +19,10 @@ const links = [
     {
         title: 'Pricing',
         href: '#pricing',
+    },
+    {
+        title: "What's New",
+        href: '/whats-new',
     },
     {
         title: 'Help',
@@ -158,7 +164,13 @@ export default function FooterSection() {
                         </svg>
                     </Link>
                 </div>
-                <span className="text-muted-foreground block text-center text-sm"> © {new Date().getFullYear()} Suplex. All rights reserved.</span>
+                <span className="text-muted-foreground block text-center text-sm">
+                  {' © '}
+                  <Suspense fallback={2025}>
+                    <CopyrightYear />
+                  </Suspense>
+                  {' Suplex. All rights reserved.'}
+                </span>
             </div>
         </footer>
     )
