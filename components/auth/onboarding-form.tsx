@@ -137,6 +137,7 @@ export function OnboardingForm({
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionVerified, setConnectionVerified] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     // Reset verification when connection string changes
@@ -473,7 +474,7 @@ export function OnboardingForm({
 
       {/* Scrollable Content Area */}
       <div className="flex flex-1 min-h-0 flex-col lg:flex-row lg:gap-12">
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className={cn(
             "min-h-0 flex-1",
             currentStep === 5 ? "overflow-visible" : "overflow-y-auto"
@@ -988,7 +989,8 @@ export function OnboardingForm({
                         className="w-full mt-8 h-12 text-base"
                         onClick={() => {
                           handleInputChange("selected_plan", "lite");
-                          handleNext();
+                          // Submit the form since this is the final step
+                          setTimeout(() => formRef.current?.requestSubmit(), 0);
                         }}
                         disabled={isBusy}
                       >
@@ -1048,11 +1050,12 @@ export function OnboardingForm({
                         className="w-full mt-8 h-12 text-base font-semibold shadow-lg shadow-primary/20"
                         onClick={() => {
                           handleInputChange("selected_plan", "plus");
-                          handleNext();
+                          // Submit the form since this is the final step
+                          setTimeout(() => formRef.current?.requestSubmit(), 0);
                         }}
                         disabled={isBusy}
                       >
-                        Get Started
+                        Start Free Trial
                       </Button>
                     </div>
                   </div>

@@ -6,10 +6,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { user } from "@/lib/db/schema";
-import {
-  resolveTenantContext,
-  getAppMode,
-} from "@/lib/server/tenant/context";
+import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
 
 export async function proxy(request: NextRequest) {
@@ -19,15 +16,13 @@ export async function proxy(request: NextRequest) {
   const mode = getAppMode();
   const requestHeaders = new Headers(request.headers);
 
-  let workspaceId =
-    requestHeaders.get("x-workspace-id") ??
+  let workspaceId = requestHeaders.get("x-workspace-id") ??
     request.cookies.get("workspace_id")?.value ??
     request.nextUrl.searchParams.get("workspaceId") ??
     null;
 
   if (mode === "local") {
-    workspaceId =
-      workspaceId ??
+    workspaceId = workspaceId ??
       process.env.DEFAULT_WORKSPACE_ID ??
       process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_ID ??
       null;
@@ -54,8 +49,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Handle Supabase auth routes
-  const isSupabaseAuthRoute =
-    pathname.startsWith("/signin") ||
+  const isSupabaseAuthRoute = pathname.startsWith("/signin") ||
     pathname.startsWith("/otp") ||
     pathname.startsWith("/onboarding");
 
@@ -85,7 +79,7 @@ export async function proxy(request: NextRequest) {
           }
         },
       },
-    }
+    },
   );
 
   const {
@@ -102,8 +96,10 @@ export async function proxy(request: NextRequest) {
   if (supabaseUser) {
     // User is authenticated via Supabase
     // Check onboarding status for protected routes
-    // Exclude API routes needed during onboarding (e.g., workspace slug check)
-    const isOnboardingApiRoute = pathname.startsWith("/api/workspace/check-slug");
+    // Exclude API routes needed during onboarding (e.g., workspace slug check, Stripe callback)
+    const isOnboardingApiRoute = pathname.startsWith(
+      "/api/workspace/check-slug",
+    ) || pathname.startsWith("/api/stripe/callback");
     if (
       pathname !== "/signin" &&
       pathname !== "/otp" &&
@@ -112,12 +108,12 @@ export async function proxy(request: NextRequest) {
     ) {
       try {
         const mode = getAppMode();
-        
+
         if (mode === "hosted") {
           // In hosted mode, user is a system table in main database
           const sql = postgres(process.env.POSTGRES_URL!);
           const db = drizzle(sql);
-          
+
           try {
             const [userRecord] = await db
               .select()

@@ -1,6 +1,6 @@
 {
   "name": "suplex-studio",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
@@ -125,6 +125,7 @@
     "shiki": "^3.19.0",
     "sonner": "latest",
     "streamdown": "^1.6.10",
+    "stripe": "^20.0.0",
     "swr": "^2.3.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",

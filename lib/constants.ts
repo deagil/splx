@@ -26,3 +26,8 @@ export function getEnvironmentType(): EnvironmentType {
 export const guestRegex = /^guest-\d+$/;
 
 export const DUMMY_PASSWORD = generateDummyPassword();
+
+// Stripe Price ID - different between test and production environments
+// Set via STRIPE_PLUS_PRICE_ID environment variable
+export const STRIPE_PLUS_PRICE_ID = process.env.STRIPE_PLUS_PRICE_ID ?? "price_1Seg4NHWBB0yEJuLDtRL1IdK";
+

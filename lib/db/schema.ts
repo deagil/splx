@@ -51,6 +51,13 @@ export const workspace = pgTable("workspaces", {
   avatar_url: text("avatar_url"),
   description: text("description"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull(),
+  stripe_customer_id: text("stripe_customer_id").unique(),
+  stripe_subscription_id: text("stripe_subscription_id").unique(),
+  stripe_price_id: text("stripe_price_id"),
+  stripe_current_period_end: timestamp("stripe_current_period_end", {
+    withTimezone: true,
+  }),
+  plan: text("plan").notNull().default("lite"),
   created_at: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

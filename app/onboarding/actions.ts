@@ -9,6 +9,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
+import { stripe } from "@/lib/stripe";
+import { STRIPE_PLUS_PRICE_ID } from "@/lib/constants";
 
 const onboardingSchema = z.object({
   firstname: z.string().min(1, "First name is required"),
@@ -111,7 +113,8 @@ export async function completeOnboarding(
           proficiency: validatedData.technical_proficiency ?? "regular",
           ai_tone: normalizeNullable(validatedData.tone_of_voice),
           ai_guidance: normalizeNullable(validatedData.ai_generation_guidance),
-          onboarding_completed: true,
+          // Only mark onboarding as complete for free plan; Plus plan completes after Stripe callback
+          onboarding_completed: validatedData.selected_plan === "lite",
         };
 
         if (!existingUser) {
@@ -161,7 +164,8 @@ export async function completeOnboarding(
           proficiency: validatedData.technical_proficiency ?? "regular",
           ai_tone: normalizeNullable(validatedData.tone_of_voice),
           ai_guidance: normalizeNullable(validatedData.ai_generation_guidance),
-          onboarding_completed: true,
+          // Only mark onboarding as complete for free plan; Plus plan completes after Stripe callback
+          onboarding_completed: validatedData.selected_plan === "lite",
         };
 
         if (!existingUser) {
@@ -230,6 +234,47 @@ export async function completeOnboarding(
       }
     }
 
+    if (validatedData.selected_plan === "plus") {
+      const mode = getAppMode();
+      let workspaceId = tenant.workspaceId;
+
+      // Ensure we have the correct workspace ID if in local mode (though tenant.workspaceId should be correct)
+      
+      
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+        ? process.env.NEXT_PUBLIC_APP_URL 
+        : process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : "http://localhost:3000";
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price: STRIPE_PLUS_PRICE_ID,
+            quantity: 1,
+          },
+        ],
+        success_url: `${baseUrl}/api/stripe/callback?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/`,
+        customer_email: authUser.email,
+        metadata: {
+          workspaceId,
+        },
+        subscription_data: {
+          trial_period_days: 7,
+          metadata: {
+            workspaceId, // Also store on subscription for webhook lookups
+          },
+        },
+      });
+
+      if (session.url) {
+        redirect(session.url);
+      }
+    }
+
     redirect("/");
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -243,6 +288,9 @@ export async function completeOnboarding(
     if (error && typeof error === "object" && "digest" in error) {
       throw error;
     }
+
+    // Log the actual error for debugging
+    console.error("Onboarding error:", error);
 
     return {
       status: "failed",
