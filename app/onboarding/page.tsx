@@ -136,7 +136,7 @@ import type { ComponentPropsWithoutRef } from "react";
 function OnboardingContainer({ initialValues }: { initialValues: ComponentPropsWithoutRef<typeof OnboardingForm>["initialValues"] }) {
   return (
     <div className="bg-background flex h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="flex h-full w-full [&:has([data-step='5'])]:max-w-5xl max-w-md flex-col transition-all duration-300">
+      <div className="flex h-full w-full max-w-md lg:max-w-[1400px] flex-col transition-all duration-300">
         <OnboardingForm initialValues={initialValues} />
       </div>
     </div>
