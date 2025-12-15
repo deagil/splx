@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { GalleryVerticalEnd, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Sparkles, AlertTriangle, Asterisk, Briefcase, User, Settings } from "lucide-react";
+import { GalleryVerticalEnd, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Sparkles, AlertTriangle, Asterisk, Briefcase, User, Database, CreditCard, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { generateSlug } from "@/lib/utils/slug";
@@ -23,9 +23,9 @@ import {
 import { TextLengthIndicator } from "@/components/ui/text-length-indicator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4 | 5;
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 5;
 
 type OnboardingInitialValues = {
   firstname: string;
@@ -40,6 +40,8 @@ type OnboardingInitialValues = {
   workspace_url: string;
   workspace_profile_pic_url: string;
   business_description: string;
+  database_connection: string;
+  selected_plan: "lite" | "plus" | "pro";
 };
 
 const PROFICIENCY_OPTIONS: Array<{
@@ -250,6 +252,46 @@ export function OnboardingForm({
           checkSlugAvailability(generateSlug(slugValue));
         }
       }, 500);
+    } else if (field === "firstname" || field === "lastname") {
+      // Update workspace name when firstname or lastname changes
+      const updatedData = { ...formData, [field]: value };
+      const newFirstname = field === "firstname" ? (value as string) : formData.firstname;
+      const newLastname = field === "lastname" ? (value as string) : formData.lastname;
+
+      // Only auto-update workspace name if it's still the default or empty
+      const shouldUpdateWorkspaceName =
+        !formData.workspace_name ||
+        formData.workspace_name === "My Workspace" ||
+        formData.workspace_name === `${formData.firstname}'s workspace` ||
+        formData.workspace_name === `${formData.firstname} ${formData.lastname}'s workspace`;
+
+      if (shouldUpdateWorkspaceName && (newFirstname || newLastname)) {
+        const newWorkspaceName = newFirstname && newLastname
+          ? `${newFirstname} ${newLastname}'s workspace`
+          : newFirstname
+            ? `${newFirstname}'s workspace`
+            : "My Workspace";
+
+        updatedData.workspace_name = newWorkspaceName;
+
+        // Auto-generate slug if not manually edited
+        if (!slugManuallyEdited) {
+          const newSlug = generateSlug(newWorkspaceName);
+          updatedData.workspace_url = newSlug;
+
+          // Check availability with debouncing
+          if (slugCheckTimeoutRef.current) {
+            clearTimeout(slugCheckTimeoutRef.current);
+          }
+          slugCheckTimeoutRef.current = setTimeout(() => {
+            if (newSlug) {
+              checkSlugAvailability(newSlug);
+            }
+          }, 500);
+        }
+      }
+
+      setFormData(updatedData);
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
@@ -299,6 +341,8 @@ export function OnboardingForm({
         formData.workspace_profile_pic_url,
       );
       formDataObj.set("business_description", formData.business_description);
+      formDataObj.set("database_connection", formData.database_connection);
+      formDataObj.set("selected_plan", formData.selected_plan);
       formAction(formDataObj);
     });
   };
@@ -311,6 +355,10 @@ export function OnboardingForm({
         return "Workspace Setup";
       case 3:
         return "Assistant Preferences";
+      case 4:
+        return "Connect Data Source";
+      case 5:
+        return "Unlock Full AI Features";
       default:
         return "";
     }
@@ -324,6 +372,10 @@ export function OnboardingForm({
         return "Create a workspace to store your settings and customisations.";
       case 3:
         return "Fine-tune how your personal assistant collaborates with you.";
+      case 4:
+        return "Connect your primary database to power your workspace.";
+      case 5:
+        return "Start your free trial to experience AI-powered insights, documentation, and your personal assistant.";
       default:
         return "";
     }
@@ -337,13 +389,17 @@ export function OnboardingForm({
         return Briefcase;
       case 3:
         return Sparkles;
+      case 4:
+        return Database;
+      case 5:
+        return CreditCard;
       default:
         return GalleryVerticalEnd;
     }
   };
 
   return (
-    <div className={cn("flex h-full flex-col", className)} {...props}>
+    <div className={cn("flex h-full flex-col", className)} data-step={currentStep} {...props}>
       {/* Fixed Header */}
       <div className="flex flex-col gap-6 pb-6">
         <div className="flex items-center justify-center gap-2">
@@ -399,7 +455,10 @@ export function OnboardingForm({
 
       {/* Scrollable Content Area */}
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className={cn(
+          "min-h-0 flex-1",
+          currentStep === 5 ? "overflow-visible" : "overflow-y-auto"
+        )}>
           <FieldGroup className="space-y-8 pb-6">
 
           {currentStep === 1 && (
@@ -790,43 +849,291 @@ export function OnboardingForm({
               </Field>
             </div>
           )}
+
+          {currentStep === 4 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Splx Studio works with your existing Postgres database. Connect your primary data source to start building pages and querying data.
+                </p>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="font-medium">Using Supabase?</span>
+                  <a
+                    href="https://supabase.com/docs/guides/database/connecting-to-postgres"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-700 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                  >
+                    View connection guide
+                  </a>
+                </div>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="database_connection">
+                  Postgres connection string
+                </FieldLabel>
+                <Input
+                  id="database_connection"
+                  name="database_connection"
+                  type="text"
+                  placeholder="postgresql://user:password@host:5432/database"
+                  value={formData.database_connection}
+                  onChange={(event) =>
+                    handleInputChange("database_connection", event.target.value)
+                  }
+                  disabled={isBusy}
+                  spellCheck={false}
+                  className="font-mono text-sm"
+                />
+                <FieldDescription>
+                  Format: postgresql://username:password@host:port/database
+                </FieldDescription>
+              </Field>
+
+              <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  You can skip this for now
+                </p>
+                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                  If you&apos;re not ready to connect a database, you can configure this later in Workspace Settings &gt; Connected Apps.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 5 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="grid gap-4 md:grid-cols-6 md:gap-0">
+                  {/* Lite Plan - De-emphasized, 2 cols */}
+                  <div
+                    className={cn(
+                      "flex flex-col space-y-6 rounded-lg border p-6",
+                      "md:col-span-2 md:my-2 md:rounded-r-none md:border-r-0",
+                      "bg-card"
+                    )}
+                  >
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium">Lite</h3>
+                        <span className="my-3 block text-2xl font-semibold">Free</span>
+                        <p className="text-muted-foreground text-sm">Core features to visualise your data</p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          handleInputChange("selected_plan", "lite");
+                          handleNext();
+                        }}
+                        disabled={isBusy}
+                      >
+                        Skip Trial
+                      </Button>
+
+                      <hr className="border-dashed" />
+
+                      <ul className="list-outside space-y-3 text-sm">
+                        {[
+                          "2 users",
+                          "Block based page builder",
+                          "Generate reports from chat",
+                          "Trial AI features",
+
+                        ].map((item, index) => (
+                          <li
+                            key={index}
+                            className="flex items-center gap-2"
+                          >
+                            <Check className="size-3 flex-shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Plus Plan - Main focus, 3 cols */}
+                  <div
+                    className={cn(
+                      "rounded-tl-lg rounded-bl-lg border p-6",
+                      "md:col-span-3",
+                      "bg-muted/50 shadow-lg dark:[--color-muted:var(--color-zinc-900)]"
+                    )}
+                  >
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <div className="space-y-4">
+                        <div>
+                          {/* <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary mb-2">
+                            <Sparkles className="size-3" />
+                            Recommended
+                          </div> */}
+                          <h3 className="font-medium">Plus</h3>
+                          <div className="my-3">
+                            <span className="text-3xl font-semibold">14 days free</span>
+                            <p className="text-muted-foreground text-sm mt-1">then £8 per user/month</p>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          className="w-full"
+                          onClick={() => {
+                            handleInputChange("selected_plan", "plus");
+                            handleNext();
+                          }}
+                          disabled={isBusy}
+                        >
+                          Start Free Trial
+                        </Button>
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-medium mb-4">Unlock AI features:</div>
+
+                        <ul className="list-outside space-y-3 text-sm">
+                          {[
+                            "Unlimited users",
+                            "Per-user personal assistant",
+                            "ChatGPT-like copilot",
+                            "Inline Insights",
+                            "Included regular AI usage",
+                          ].map((item, index) => (
+                            <li
+                              key={index}
+                              className="flex items-center gap-2"
+                            >
+                              <Check className="size-3 flex-shrink-0" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pro Plan - Thin premium upsell, 1 col */}
+                  <div
+                    className={cn(
+                      "flex flex-col justify-between rounded-lg border p-4",
+                      "md:col-span-1 md:rounded-l-none md:border-l-0",
+                      "bg-gradient-to-br from-primary/5 to-primary/10"
+                    )}
+                  >
+                    <div className="space-y-4">
+                      <div>
+                        <div className="inline-block px-2 py-0.5 text-xs font-semibold bg-primary text-primary-foreground rounded mb-2">
+                          Premium
+                        </div>
+                        <h3 className="font-medium text-sm">Pro</h3>
+                        <div className="my-2">
+                          <span className="text-lg font-semibold">14 days free</span>
+                          <p className="text-muted-foreground text-xs mt-0.5">then £15/user/month</p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          handleInputChange("selected_plan", "pro");
+                          handleNext();
+                        }}
+                        disabled={isBusy}
+                      >
+                        Start Free Trial
+                      </Button>
+
+                      <ul className="list-outside space-y-2 text-xs">
+                        {[
+                          "Auto-documentation",
+                          "Data retention cleanup",
+                          "Heavy AI usage included",
+                          "Priority support",
+                        ].map((item, index) => (
+                          <li
+                            key={index}
+                            className="flex items-start gap-1.5"
+                          >
+                            <Check className="size-2.5 mt-0.5 flex-shrink-0 text-primary" strokeWidth={3} />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  No credit card required for your free trial
+                </p>
+                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                  Experience the full power of AI-enhanced data management. Cancel anytime or continue with Lite after your trial.
+                </p>
+              </div>
+            </div>
+          )}
           </FieldGroup>
         </div>
 
         {/* Fixed Footer */}
-        <div className="flex flex-col gap-4 border-t bg-background pt-4">
-          <div className="flex items-center justify-between gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1 || isBusy}
-              className="flex items-center gap-2"
-            >
-              <ChevronLeft className="size-4" />
-              Back
-            </Button>
+        {currentStep !== 5 && (
+          <div className="flex flex-col gap-4 border-t bg-background pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={currentStep === 1 || isBusy}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="size-4" />
+                Back
+              </Button>
 
-            <div className="text-sm text-muted-foreground">
-              Step {currentStep} of {TOTAL_STEPS}
+              <div className="text-sm text-muted-foreground">
+                Step {currentStep} of {TOTAL_STEPS}
+              </div>
+
+              <Button type="submit" disabled={isBusy} className="flex items-center gap-2">
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
             </div>
 
-            <Button type="submit" disabled={isBusy} className="flex items-center gap-2">
-              {currentStep === TOTAL_STEPS ? (
-                <>{isBusy ? "Saving..." : "Complete Setup"}</>
-              ) : (
-                <>
-                  Next
-                  <ChevronRight className="size-4" />
-                </>
-              )}
-            </Button>
+            <FieldDescription className="text-center text-xs">
+              You can update all of these settings later.
+            </FieldDescription>
           </div>
-          
-          <FieldDescription className="text-center text-xs">
-            You can update all of these settings later.
-          </FieldDescription>
-        </div>
+        )}
+
+        {/* Special footer for pricing step with just back button */}
+        {currentStep === 5 && (
+          <div className="flex flex-col gap-4 border-t bg-background pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={isBusy}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="size-4" />
+                Back
+              </Button>
+
+              <div className="text-sm text-muted-foreground">
+                Step {currentStep} of {TOTAL_STEPS}
+              </div>
+
+              <div className="w-[88px]">{/* Spacer for alignment */}</div>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );

@@ -97,7 +97,7 @@ export function SlashCommandInputElement({
             <>
               <InlineComboboxEmpty>
                 {skills.length === 0
-                  ? "No skills yet. Create one in Settings."
+                  ? "No skills yet. Create one in Personalisation."
                   : "No matching skills"}
               </InlineComboboxEmpty>
 

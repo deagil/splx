@@ -131,9 +131,18 @@ export function NavigationMenuDemo() {
               <ListItem href="/preferences" title="Preferences">
                 Manage your preferences and settings
               </ListItem>
-              <ListItem href="/signout" title="Sign Out">
-                Sign out of your account
-              </ListItem>
+              <li>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="block w-full select-none rounded-sm px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <div className="text-sm leading-none font-medium">Sign Out</div>
+                  <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+                    Sign out of your account
+                  </p>
+                </button>
+              </li>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>

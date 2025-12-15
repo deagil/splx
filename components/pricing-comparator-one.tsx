@@ -1,25 +1,34 @@
 import { Button } from '@/components/ui/button'
-import { Check, Sparkles, Star } from 'lucide-react'
+import { Check, Sparkles, Star, Brain } from 'lucide-react'
 import Link from 'next/link'
+import { fa } from 'zod/v4/locales'
 
 const tiers = [
-    { name: 'Free', price: '£0', note: 'Limited AI, core builder' },
-    { name: 'Plus', price: '£8 / user / month', note: 'All features, fair-use AI' },
-    { name: 'Pro', price: '£20 / user / month', note: 'Everything, higher limits' },
+    { name: 'Lite', price: 'Free', note: 'Put a face on your data' },
+    { name: 'Plus', price: '£8 per user / month', note: 'Empower your team' },
+    { name: 'Pro', price: '£15 / user / month', note: 'Maintain as you scale' },
 ]
 
 const featureRows = [
-    { feature: 'Visual builder + templates', free: true, plus: true, pro: true },
-    { feature: 'Connected tables & data mentions', free: true, plus: true, pro: true },
-    { feature: 'AI drafting & edits', free: 'Limited', plus: 'Fair use', pro: 'Unlimited' },
-    { feature: 'Custom domains', free: false, plus: true, pro: true },
-    { feature: 'Role-based access & approvals', free: false, plus: true, pro: true },
-    { feature: 'Version history', free: false, plus: true, pro: true },
+    { feature: 'Block based page builder', free: true, plus: true, pro: true },
+    { feature: 'Generate reports from chat', free: true, plus: true, pro: true },
+    { feature: 'Monitor workflows, Zaps and Edge Functions ', free: true, plus: true, pro: true },
+    { feature: 'Per-user assistant', free: 'Limited', plus: true, pro: true },
+    { feature: 'Inline Insight', free: false, plus: true, pro: true },
+    { feature: 'Auto-Documentation ', free: false, plus: false, pro: true },
+    { feature: 'Data retention cleanup', free: false, plus: false, pro: true },
+]
+
+const aiRows = [
+ { feature: 'Included usage', free: 'Limited', plus: 'Regular use', pro: 'Heavy use'},
+ { feature: 'AI model selection', free: 'Mini', plus: 'Balanced', pro: 'Custom' },
+ { feature: 'Enable extra usage', free: true, plus: true, pro: true },
+ { feature: 'Usage budget', free: 'Per user', plus: 'Pooled', pro: 'Pooled' },
 ]
 
 const supportRows = [
-    { feature: 'Workspace seats', free: 'Up to 3 users', plus: 'Unlimited', pro: 'Unlimited' },
-    { feature: 'Publishing environments', free: 'Single', plus: 'Two', pro: 'Multiple' },
+    { feature: 'Workspace users', free: '2', plus: 'Unlimited', pro: 'Unlimited' },
+    { feature: 'Read-only viewers', free: 'Unlimited', plus: 'Unlimited', pro: 'Unlimited' },
     { feature: 'Support', free: 'Community', plus: 'Email', pro: 'Priority' },
 ]
 
@@ -46,14 +55,12 @@ export default function PricingComparator() {
                                             variant={tier.name === 'Plus' ? 'primary' : 'outline'}>
                                             <Link href="#pricing">Choose {tier.name}</Link>
                                         </Button>
-                                        {index === 1 ? (
-                                            <div className="text-primary text-xs font-medium">Popular</div>
-                                        ) : null}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
+                            {/* Features */}
                             <tr className="*:py-4">
                                 <td className="flex items-center gap-2 font-medium">
                                     <Star className="size-4" />
@@ -73,6 +80,27 @@ export default function PricingComparator() {
                                     <td>{renderValue(row.pro)}</td>
                                 </tr>
                             ))}
+                            {/* AI */}
+                            <tr className="*:pb-4 *:pt-8">
+                                <td className="flex items-center gap-2 font-medium">
+                                    <Sparkles className="size-4" />
+                                    <span>AI</span>
+                                </td>
+                                <td></td>
+                                <td className="border-none px-4"></td>
+                                <td></td>
+                            </tr>
+                            {aiRows.map((row) => (
+                                <tr
+                                    key={row.feature}
+                                    className="*:border-b *:py-4">
+                                    <td className="text-muted-foreground">{row.feature}</td>
+                                    <td>{renderValue(row.free)}</td>
+                                    <td>{renderValue(row.plus)}</td>
+                                    <td>{renderValue(row.pro)}</td>
+                                </tr>
+                            ))}
+                            {/* Usage & support */}
                             <tr className="*:pb-4 *:pt-8">
                                 <td className="flex items-center gap-2 font-medium">
                                     <Sparkles className="size-4" />

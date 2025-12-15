@@ -105,28 +105,39 @@ async function OnboardingContent() {
     : "My Workspace";
 
   return (
+    <OnboardingContainer
+      initialValues={{
+        firstname: userRecord?.firstname ?? "",
+        lastname: userRecord?.lastname ?? "",
+        job_title: userRecord?.job_title ?? "",
+        profile_pic_url: userRecord?.avatar_url ?? "",
+        role_experience: userRecord?.ai_context ?? "",
+        technical_proficiency: (userRecord?.proficiency as
+          | "less"
+          | "regular"
+          | "more"
+          | undefined) ?? "regular",
+        tone_of_voice: userRecord?.ai_tone ?? "",
+        ai_generation_guidance: userRecord?.ai_guidance ?? "",
+        workspace_name: workspaceRecord?.name ?? defaultWorkspaceName,
+        workspace_url: workspaceRecord?.slug ?? "",
+        workspace_profile_pic_url: workspaceRecord?.avatar_url ?? "",
+        business_description: workspaceRecord?.description ?? "",
+        database_connection: "",
+        selected_plan: "lite",
+      }}
+    />
+  );
+}
+
+// Client wrapper to handle dynamic width based on step
+import type { ComponentPropsWithoutRef } from "react";
+
+function OnboardingContainer({ initialValues }: { initialValues: ComponentPropsWithoutRef<typeof OnboardingForm>["initialValues"] }) {
+  return (
     <div className="bg-background flex h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="flex h-full w-full max-w-md flex-col">
-        <OnboardingForm
-          initialValues={{
-            firstname: userRecord?.firstname ?? "",
-            lastname: userRecord?.lastname ?? "",
-            job_title: userRecord?.job_title ?? "",
-            profile_pic_url: userRecord?.avatar_url ?? "",
-            role_experience: userRecord?.ai_context ?? "",
-            technical_proficiency: (userRecord?.proficiency as
-              | "less"
-              | "regular"
-              | "more"
-              | undefined) ?? "regular",
-            tone_of_voice: userRecord?.ai_tone ?? "",
-            ai_generation_guidance: userRecord?.ai_guidance ?? "",
-            workspace_name: workspaceRecord?.name ?? defaultWorkspaceName,
-            workspace_url: workspaceRecord?.slug ?? "",
-            workspace_profile_pic_url: workspaceRecord?.avatar_url ?? "",
-            business_description: workspaceRecord?.description ?? "",
-          }}
-        />
+      <div className="flex h-full w-full [&:has([data-step='5'])]:max-w-5xl max-w-md flex-col transition-all duration-300">
+        <OnboardingForm initialValues={initialValues} />
       </div>
     </div>
   );

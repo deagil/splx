@@ -36,6 +36,8 @@ const onboardingSchema = z.object({
     .or(z.literal(""))
     .optional(),
   business_description: z.string().trim().max(4000).optional(),
+  database_connection: z.string().trim().optional(),
+  selected_plan: z.enum(["lite", "plus", "pro"]).default("lite"),
 });
 
 export type CompleteOnboardingState = {
@@ -70,6 +72,8 @@ export async function completeOnboarding(
       workspace_url: formData.get("workspace_url"),
       workspace_profile_pic_url: formData.get("workspace_profile_pic_url"),
       business_description: formData.get("business_description"),
+      database_connection: formData.get("database_connection"),
+      selected_plan: formData.get("selected_plan"),
     });
 
     const normalizeNullable = (value?: string | null) => {
@@ -132,6 +136,9 @@ export async function completeOnboarding(
               validatedData.workspace_profile_pic_url,
             ),
             description: normalizeNullable(validatedData.business_description),
+            metadata: {
+              selected_plan: validatedData.selected_plan,
+            },
           })
           .where(eq(workspace.id, tenant.workspaceId));
       } finally {
@@ -184,11 +191,42 @@ export async function completeOnboarding(
                 validatedData.workspace_profile_pic_url,
               ),
               description: normalizeNullable(validatedData.business_description),
+              metadata: {
+                selected_plan: validatedData.selected_plan,
+              },
             })
             .where(eq(workspace.id, tenant.workspaceId)),
         );
       } finally {
         await store.dispose();
+      }
+    }
+
+    // Save database connection if provided
+    if (validatedData.database_connection && validatedData.database_connection.trim().length > 0) {
+      try {
+        const connectionString = validatedData.database_connection.trim();
+        // Parse connection string to extract details
+        const url = new URL(connectionString);
+
+        if (url.protocol.startsWith("postgres")) {
+          const payload = {
+            host: url.hostname,
+            port: url.port ? Number(url.port) : 5432,
+            database: url.pathname.replace(/^\//, ""),
+            username: decodeURIComponent(url.username),
+            password: url.password ? decodeURIComponent(url.password) : undefined,
+            schema: url.searchParams.get("schema") ?? undefined,
+            sslMode: "prefer" as const,
+          };
+
+          // Import the function dynamically to avoid circular dependencies
+          const { savePostgresWorkspaceApp } = await import("@/lib/server/workspace-apps");
+          await savePostgresWorkspaceApp(tenant, payload);
+        }
+      } catch (error) {
+        // Log error but don't fail onboarding if database connection fails
+        console.error("Failed to save database connection during onboarding:", error);
       }
     }
 
