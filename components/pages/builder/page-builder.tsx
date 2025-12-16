@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import type { PageRecord } from "@/lib/server/pages";
+import type { ReportRecord } from "@/lib/server/reports";
 import {
   Button,
   buttonVariants,
@@ -35,6 +36,7 @@ import type {
   ReportBlockDraft,
   TriggerBlockDraft,
 } from "../types";
+import { useReports } from "../hooks";
 import {
   LIST_DISPLAY_FORMATS,
   LIST_FILTER_OPERATORS,
@@ -65,6 +67,8 @@ export function PageBuilder({
   const [selectedTemplateId, setSelectedTemplateId] = useState<
     string | null
   >(null);
+  
+  const { reports } = useReports();
 
   useEffect(() => {
     setDraft(pageRecordToDraft(initialPage));
@@ -417,6 +421,7 @@ export function PageBuilder({
                 block={block}
                 onChange={(updated) => handleUpdateBlock(block.id, updated)}
                 onRemove={() => handleRemoveBlock(block.id)}
+                reports={reports}
               />
             ))
           )}
@@ -518,9 +523,10 @@ type BlockEditorProps = {
   block: PageBlockDraft;
   onChange: (block: PageBlockDraft) => void;
   onRemove: () => void;
+  reports?: any[];
 };
 
-function BlockEditor({ block, onChange, onRemove }: BlockEditorProps) {
+function BlockEditor({ block, onChange, onRemove, reports }: BlockEditorProps) {
   const typeLabel = block.type.charAt(0).toUpperCase() + block.type.slice(1);
 
   return (
@@ -562,7 +568,7 @@ function BlockEditor({ block, onChange, onRemove }: BlockEditorProps) {
           <RecordBlockForm block={block} onChange={onChange} />
         ) : null}
         {block.type === "report" ? (
-          <ReportBlockForm block={block} onChange={onChange} />
+          <ReportBlockForm block={block} onChange={onChange} reports={reports} />
         ) : null}
         {block.type === "trigger" ? (
           <TriggerBlockForm block={block} onChange={onChange} />
@@ -1007,9 +1013,11 @@ function RecordBlockForm({
 function ReportBlockForm({
   block,
   onChange,
+  reports,
 }: {
   block: ReportBlockDraft;
   onChange: (block: ReportBlockDraft) => void;
+  reports?: ReportRecord[];
 }) {
   const update = (updates: Partial<ReportBlockDraft>) => {
     onChange({
@@ -1036,15 +1044,23 @@ function ReportBlockForm({
       </h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
-          <Label htmlFor={`report-id-${block.id}`}>Report ID</Label>
-          <Input
-            id={`report-id-${block.id}`}
+          <Label htmlFor={`report-id-${block.id}`}>Report</Label>
+          <Select
             value={block.reportId}
-            onChange={(event) =>
-              update({ reportId: event.target.value })
-            }
-            placeholder="report-uuid"
-          />
+            onValueChange={(value) => update({ reportId: value })}
+            disabled={!reports?.length}
+          >
+            <SelectTrigger id={`report-id-${block.id}`}>
+              <SelectValue placeholder="Select a report" />
+            </SelectTrigger>
+            <SelectContent>
+              {reports?.map((report) => (
+                <SelectItem key={report.id} value={report.id}>
+                  {report.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field>
           <Label htmlFor={`report-chart-${block.id}`}>Chart type</Label>

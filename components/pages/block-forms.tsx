@@ -21,6 +21,7 @@ import {
   type TriggerBlockDraft,
   TRIGGER_ACTION_TYPES,
 } from "./types";
+import type { ReportRecord } from "@/lib/server/reports";
 import { cn } from "@/lib/utils";
 
 export function ListBlockForm({
@@ -438,9 +439,11 @@ export function RecordBlockForm({
 export function ReportBlockForm({
   block,
   onChange,
+  reports,
 }: {
   block: ReportBlockDraft;
   onChange: (block: ReportBlockDraft) => void;
+  reports?: ReportRecord[];
 }) {
   const update = (updates: Partial<ReportBlockDraft>) => {
     onChange({
@@ -463,13 +466,23 @@ export function ReportBlockForm({
       <h4 className="text-base font-semibold text-foreground">Report configuration</h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
-          <Label htmlFor={`report-id-${block.id}`}>Report ID</Label>
-          <Input
-            id={`report-id-${block.id}`}
+          <Label htmlFor={`report-id-${block.id}`}>Report</Label>
+          <Select
             value={block.reportId}
-            onChange={(event) => update({ reportId: event.target.value })}
-            placeholder="report-uuid"
-          />
+            onValueChange={(value) => update({ reportId: value })}
+            disabled={!reports?.length}
+          >
+            <SelectTrigger id={`report-id-${block.id}`}>
+              <SelectValue placeholder="Select a report" />
+            </SelectTrigger>
+            <SelectContent>
+              {reports?.map((report) => (
+                <SelectItem key={report.id} value={report.id}>
+                  {report.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field>
           <Label htmlFor={`report-chart-${block.id}`}>Chart type</Label>

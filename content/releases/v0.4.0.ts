@@ -46,8 +46,8 @@ export const release: ReleaseNote = {
     },
     {
       type: "media",
-      mediaType: "gif",
-      src: "/releases/v0.4.0/workspace-demo.gif",
+      mediaType: "video",
+      src: "/videos/report-generator.mp4",
       alt: "Creating and managing workspaces",
       caption: "Create workspaces and invite your team members",
       browserFrame: true,
@@ -76,8 +76,8 @@ export const release: ReleaseNote = {
     },
     {
       type: "media",
-      mediaType: "gif",
-      src: "/releases/v0.4.0/tables-demo.gif",
+      mediaType: "video",
+      src: "/videos/table-metadata.mp4",
       alt: "Creating and managing tables",
       caption: "Build custom tables with the fields you need",
       browserFrame: true,
@@ -106,8 +106,8 @@ export const release: ReleaseNote = {
     },
     {
       type: "media",
-      mediaType: "gif",
-      src: "/releases/v0.4.0/page-builder-demo.gif",
+      mediaType: "video",
+      src: "/videos/page-editor.mp4",
       alt: "Visual page builder interface",
       caption: "Drag and drop blocks to build custom pages",
       browserFrame: true,
@@ -141,8 +141,8 @@ export const release: ReleaseNote = {
     },
     {
       type: "media",
-      mediaType: "gif",
-      src: "/releases/v0.4.0/ai-chat-demo.gif",
+      mediaType: "video",
+      src: "/videos/chat-sidebar.mp4",
       alt: "AI chat with mentions",
       caption:
         "Reference your data with @ mentions for contextual AI responses",

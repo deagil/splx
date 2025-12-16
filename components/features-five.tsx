@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button'
 import { CalendarCheck, ChevronRight, Target } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 
 export default function FeaturesSection() {
@@ -42,13 +41,17 @@ export default function FeaturesSection() {
                     </div>
 
                     <div className="relative -mx-12 mt-16 px-12">
-                        <div className="bg-background rounded-(--radius) relative mx-auto overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
-                            <Image
-                                src="/mist/tailark-2.png"
-                                alt="Suplex page builder preview"
-                                width="2880"
-                                height="1842"
-                            />
+                        <div className="bg-background rounded-(--radius) relative mx-auto w-full overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
+                            <div className="relative aspect-video w-full overflow-hidden">
+                                <video
+                                    src="/videos/report-generator.mp4"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    className="size-full object-contain"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

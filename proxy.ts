@@ -12,6 +12,17 @@ import { getResourceStore } from "@/lib/server/tenant/resource-store";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip middleware for static files (videos, images, fonts, etc.)
+  // Next.js serves these from public/ directory automatically
+  if (
+    pathname.startsWith("/videos/") ||
+    pathname.match(
+      /\.(mp4|mov|webm|ogg|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$/i,
+    )
+  ) {
+    return NextResponse.next();
+  }
+
   // Set workspace ID header for tenant context resolution
   const mode = getAppMode();
   const requestHeaders = new Headers(request.headers);
@@ -39,8 +50,6 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith("/ping")) {
     return new Response("pong", { status: 200 });
   }
-
-  
 
   // Handle Supabase auth routes
   const isSupabaseAuthRoute = pathname.startsWith("/signin") ||
@@ -165,14 +174,16 @@ export async function proxy(request: NextRequest) {
   // });
 
   // if (!token) {
-    // If no Supabase user and no NextAuth token, allow root route for marketing page
-    // Otherwise redirect to signin for protected routes
-    if (!isSupabaseAuthRoute && pathname !== "/") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/signin";
-      return NextResponse.redirect(url);
-    }
-    return supabaseResponse;
+  // If no Supabase user and no NextAuth token, allow root route for marketing page
+  // Also allow whats-new routes to be publicly accessible
+  // Otherwise redirect to signin for protected routes
+  const isPublicRoute = pathname === "/" || pathname.startsWith("/whats-new");
+  if (!isSupabaseAuthRoute && !isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/signin";
+    return NextResponse.redirect(url);
+  }
+  return supabaseResponse;
   //}
 
   // const isGuest = guestRegex.test(token?.email ?? "");

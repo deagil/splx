@@ -1,4 +1,3 @@
-import Image from 'next/image'
 
 export default function ContentSection() {
     return (
@@ -20,13 +19,16 @@ export default function ContentSection() {
                             />
 
                             <div className="bg-background rounded-(--radius) relative m-4 overflow-hidden border border-transparent shadow-xl shadow-black/15 ring-1 ring-black/10 sm:m-8 md:m-12">
-                                <Image
-                                    src="/mist/tailark-3.png"
-                                    alt="app screen"
-                                    width="2880"
-                                    height="1842"
-                                    className="object-top-left size-full object-cover"
-                                />
+                                <div className="relative aspect-video w-full overflow-hidden">
+                                    <video
+                                        src="/videos/page-editor.mp4"
+                                        autoPlay
+                                        muted
+                                        loop
+                                        playsInline
+                                        className="size-full object-contain"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

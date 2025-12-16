@@ -99,6 +99,7 @@ function MediaBlockRenderer({
           autoPlay
           loop
           muted
+          playsInline
         />
       </div>
     ) : (

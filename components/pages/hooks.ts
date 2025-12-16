@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ListBlockDraft,
   RecordBlockDraft,
+  ReportBlockDraft,
   TriggerBlockDraft,
 } from "./types";
 import { useMentionableData } from "./mention-context";
 import type { TableRecord } from "@/lib/server/tables";
+import type { ReportRecord } from "@/lib/server/reports";
 
 export type ListBlockData = {
   columns: string[];
@@ -47,7 +49,7 @@ export function useTableMetadata(tableName: string | null) {
       try {
         const response = await fetch(
           `/api/tables/metadata?table=${encodeURIComponent(tableName)}`,
-          { signal }
+          { signal },
         );
 
         if (!response.ok) {
@@ -62,14 +64,14 @@ export function useTableMetadata(tableName: string | null) {
           return;
         }
         setError(
-          caught instanceof Error ? caught.message : "Unknown error"
+          caught instanceof Error ? caught.message : "Unknown error",
         );
         setTable(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [tableName]
+    [tableName],
   );
 
   useEffect(() => {
@@ -92,7 +94,7 @@ export function useTableMetadata(tableName: string | null) {
 
 export function useListBlockData(
   block: ListBlockDraft,
-  urlParams: Record<string, string>
+  urlParams: Record<string, string>,
 ) {
   const [data, setData] = useState<ListBlockData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,7 +117,10 @@ export function useListBlockData(
       }
 
       const resolvedValue = resolveUrlValue(filter.value, urlParams);
-      if (resolvedValue !== null && resolvedValue !== undefined && resolvedValue !== "") {
+      if (
+        resolvedValue !== null && resolvedValue !== undefined &&
+        resolvedValue !== ""
+      ) {
         params.set(`filter_op[${filter.column}]`, filter.operator);
         params.set(`filter[${filter.column}]`, resolvedValue);
       }
@@ -140,13 +145,13 @@ export function useListBlockData(
           `/api/supabase/table?${queryString}`,
           {
             signal,
-          }
+          },
         );
 
         if (!response.ok) {
           const payload = await safeJson(response);
           throw new Error(
-            payload?.error ?? "Failed to load table data"
+            payload?.error ?? "Failed to load table data",
           );
         }
 
@@ -157,14 +162,14 @@ export function useListBlockData(
           return;
         }
         setError(
-          caught instanceof Error ? caught.message : "Unknown error"
+          caught instanceof Error ? caught.message : "Unknown error",
         );
         setData(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [block.tableName, queryString]
+    [block.tableName, queryString],
   );
 
   useEffect(() => {
@@ -205,7 +210,7 @@ export function useListBlockData(
 
 export function useRecordBlockData(
   block: RecordBlockDraft,
-  urlParams: Record<string, string>
+  urlParams: Record<string, string>,
 ) {
   const [data, setData] = useState<RecordBlockData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -242,13 +247,13 @@ export function useRecordBlockData(
       try {
         const response = await fetch(
           `/api/supabase/record?${queryString}`,
-          { signal }
+          { signal },
         );
 
         if (!response.ok) {
           const payload = await safeJson(response);
           throw new Error(
-            payload?.error ?? "Failed to load record data"
+            payload?.error ?? "Failed to load record data",
           );
         }
 
@@ -259,14 +264,14 @@ export function useRecordBlockData(
           return;
         }
         setError(
-          caught instanceof Error ? caught.message : "Unknown error"
+          caught instanceof Error ? caught.message : "Unknown error",
         );
         setData(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [block.recordId, block.tableName, queryString]
+    [block.recordId, block.tableName, queryString],
   );
 
   useEffect(() => {
@@ -305,6 +310,121 @@ export function useRecordBlockData(
   };
 }
 
+export function useReportBlockData(block: ReportBlockDraft) {
+  const [data, setData] = useState<Array<Record<string, unknown>> | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState(0);
+
+  // We need to fetch the report definition to get the SQL
+  const { reports } = useReports();
+  const reportDef = useMemo(
+    () => reports.find((r) => r.id === block.reportId),
+    [reports, block.reportId],
+  );
+
+  const fetchData = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!block.reportId) {
+        setData(null);
+        setError("Report is not configured");
+        return;
+      }
+
+      if (!reportDef) {
+        // Wait for report definition to load or it might be missing
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/reports/execute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sql: reportDef.sql,
+          }),
+          signal,
+        });
+
+        if (!response.ok) {
+          const payload = await safeJson(response);
+          throw new Error(payload?.error ?? "Failed to load report data");
+        }
+
+        const payload = (await response.json()) as {
+          data: Array<Record<string, unknown>>;
+        };
+        setData(payload.data);
+      } catch (caught) {
+        if ((caught as Error)?.name === "AbortError") {
+          return;
+        }
+        setError(caught instanceof Error ? caught.message : "Unknown error");
+        setData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [block.reportId, reportDef],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
+  }, [fetchData, requestId]);
+
+  const reload = useCallback(() => {
+    setRequestId((current) => current + 1);
+  }, []);
+
+  return {
+    data,
+    isLoading,
+    error,
+    reload,
+  };
+}
+
+export function useReports() {
+  const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchReports = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/reports", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("Failed to load reports");
+        }
+        const payload = await response.json();
+        setReports(payload.reports ?? []);
+      } catch (caught) {
+        if ((caught as Error)?.name !== "AbortError") {
+          setError("Failed to load reports");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+    return () => controller.abort();
+  }, []);
+
+  return { reports, isLoading, error };
+}
+
 export function useTriggerBlockAction(_block: TriggerBlockDraft) {
   const [status, setStatus] = useState<
     "idle" | "pending" | "success" | "error"
@@ -321,7 +441,7 @@ export function useTriggerBlockAction(_block: TriggerBlockDraft) {
     } catch (caught) {
       setStatus("error");
       setError(
-        caught instanceof Error ? caught.message : "Trigger failed"
+        caught instanceof Error ? caught.message : "Trigger failed",
       );
     }
   }, []);
@@ -335,7 +455,7 @@ export function useTriggerBlockAction(_block: TriggerBlockDraft) {
 
 function resolveUrlValue(
   value: string,
-  urlParams: Record<string, string>
+  urlParams: Record<string, string>,
 ): string | null {
   if (!value) {
     return value;
@@ -354,4 +474,3 @@ async function safeJson(response: Response) {
     return null;
   }
 }
-

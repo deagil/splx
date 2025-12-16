@@ -33,7 +33,7 @@ export default function HeroSection() {
                                     <Button
                                         asChild
                                         size="lg">
-                                        <Link href="#pricing">
+                                        <Link href="/signin">
                                             <span className="text-nowrap">Start free</span>
                                         </Link>
                                     </Button>
@@ -51,8 +51,17 @@ export default function HeroSection() {
                         <div className="relative">
                             <div className="relative z-10 mx-auto max-w-5xl px-6">
                                 <div className="mt-12 md:mt-16">
-                                    <div className="bg-background rounded-(--radius) relative mx-auto overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
-                                        <video src="/videos/chat-sidebar.mov" autoPlay muted loop />
+                                    <div className="bg-background rounded-(--radius) relative mx-auto w-full overflow-hidden border border-transparent shadow-lg shadow-black/10 ring-1 ring-black/10">
+                                        <div className="relative aspect-video w-full overflow-hidden">
+                                            <video
+                                                src="/videos/chat-sidebar.mp4"
+                                                autoPlay
+                                                muted
+                                                loop
+                                                playsInline
+                                                className="size-full object-contain"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

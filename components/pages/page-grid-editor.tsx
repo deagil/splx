@@ -29,7 +29,7 @@ import {
   ReportBlockForm,
   TriggerBlockForm,
 } from "./block-forms";
-import { useTableMetadata } from "./hooks";
+import { useTableMetadata, useReports } from "./hooks";
 import { reorderBlocks } from "./layout-engine";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -49,6 +49,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
   const [activeSettingsId, setActiveSettingsId] = useState<string | null>(null);
   const [dataTables, setDataTables] = useState<string[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
+  const { reports, isLoading: reportsLoading } = useReports();
   
   // DRAG STATE (Lifted from EditableBlock)
   const dragState = useRef<{
@@ -289,6 +290,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
                   urlParams={urlParams}
                   dataTables={dataTables}
                   tablesLoading={tablesLoading}
+                  reports={reports}
                   onToggleSettings={() =>
                     setActiveSettingsId((current) => (current === block.id ? null : block.id))
                   }
@@ -368,6 +370,7 @@ function EditableBlock({
   urlParams,
   dataTables,
   tablesLoading,
+  reports,
   onToggleSettings,
   onRemove,
   onBlockChange,
@@ -381,6 +384,7 @@ function EditableBlock({
   urlParams: Record<string, string>;
   dataTables: string[];
   tablesLoading: boolean;
+  reports?: any[];
   onToggleSettings: () => void;
   onRemove: () => void;
   onBlockChange: (block: PageBlockDraft) => void;
@@ -411,7 +415,7 @@ function EditableBlock({
           />
         );
       case "report":
-        return <ReportBlockForm block={block as ReportBlockDraft} onChange={(next) => onBlockChange(next)} />;
+        return <ReportBlockForm block={block as ReportBlockDraft} onChange={(next) => onBlockChange(next)} reports={reports} />;
       case "trigger":
         return <TriggerBlockForm block={block as TriggerBlockDraft} onChange={(next) => onBlockChange(next)} />;
       default:
@@ -508,13 +512,23 @@ function EditableBlock({
         return (
           <div className="space-y-4">
             <Field>
-              <Label htmlFor={`quick-report-id-${reportBlock.id}`}>Report ID</Label>
-              <Input
-                id={`quick-report-id-${reportBlock.id}`}
+              <Label htmlFor={`quick-report-id-${reportBlock.id}`}>Report</Label>
+              <Select
                 value={reportBlock.reportId}
-                onChange={(event) => update({ reportId: event.target.value })}
-                placeholder="report-uuid"
-              />
+                onValueChange={(value) => update({ reportId: value })}
+                disabled={!reports?.length}
+              >
+                <SelectTrigger id={`quick-report-id-${reportBlock.id}`}>
+                  <SelectValue placeholder="Select a report" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reports?.map((report) => (
+                    <SelectItem key={report.id} value={report.id}>
+                      {report.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
               <Label htmlFor={`quick-report-title-${reportBlock.id}`}>Title</Label>
