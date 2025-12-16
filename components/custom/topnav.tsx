@@ -30,6 +30,11 @@ const devOptions: MenuOption[] = [
     href: "/build/config",
     description: "View and manage workspace configuration tables",
   },
+  {
+    title: "Roles & Permissions",
+    href: "/build/roles",
+    description: "Manage roles, permissions, and detect RLS policy gaps",
+  },
 ]
 
 const buildOptions: MenuOption[] = [
