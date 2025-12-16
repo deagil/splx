@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { ZodError, z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { z, ZodError } from "zod";
+import { sql } from "drizzle-orm";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
-import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+import { getResourceStore } from "@/lib/server/tenant/resource-store";
 
 const COLUMN_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 const TABLE_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
@@ -34,7 +34,7 @@ const querySchema = z.object({
           "is_not_null",
         ]),
         value: z.string().nullable(),
-      })
+      }),
     )
     .default([]),
 });
@@ -46,46 +46,95 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const parsedQuery = parseQuery(url.searchParams);
     const validated = querySchema.parse(parsedQuery);
-    const supabase = await createClient();
 
-    let query = supabase
-      .from(validated.table)
-      .select("*", { count: "exact" });
+    const store = await getResourceStore(tenant);
 
-    validated.filters.forEach((filter) => {
-      query = applyFilter(query, filter.column, filter.operator, filter.value);
-    });
+    try {
+      const start = (validated.page - 1) * validated.limit;
 
-    const start = (validated.page - 1) * validated.limit;
-    const end = start + validated.limit - 1;
+      const { rows, count } = await store.withSqlClient(async (db) => {
+        // Build WHERE clause from filters
+        const whereConditions: string[] = [];
 
-    const { data, error, count } = await query.range(start, end);
+        for (const filter of validated.filters) {
+          const column = escapeIdentifier(filter.column);
+          const operator = filter.operator;
+          const value = filter.value;
 
-    if (error) {
-      throw new Error(error.message);
-    }
+          if (operator === "is_null") {
+            whereConditions.push(`${column} IS NULL`);
+          } else if (operator === "is_not_null") {
+            whereConditions.push(`${column} IS NOT NULL`);
+          } else if (value !== null && value !== undefined) {
+            const escapedValue = escapeString(value);
+            if (operator === "equals") {
+              whereConditions.push(`${column} = ${escapedValue}`);
+            } else if (operator === "not_equals") {
+              whereConditions.push(`${column} != ${escapedValue}`);
+            } else if (operator === "contains") {
+              whereConditions.push(
+                `${column} ILIKE ${escapeString(`%${value}%`)}`,
+              );
+            } else if (operator === "greater_than") {
+              whereConditions.push(`${column} > ${escapedValue}`);
+            } else if (operator === "less_than") {
+              whereConditions.push(`${column} < ${escapedValue}`);
+            } else if (operator === "greater_than_or_equal") {
+              whereConditions.push(`${column} >= ${escapedValue}`);
+            } else if (operator === "less_than_or_equal") {
+              whereConditions.push(`${column} <= ${escapedValue}`);
+            }
+          }
+        }
 
-    const rows = data ?? [];
-    const columns =
-      rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
+        const whereClause = whereConditions.length > 0
+          ? `WHERE ${whereConditions.join(" AND ")}`
+          : "";
 
-    return NextResponse.json({
-      tableName: validated.table,
-      columns,
-      rows,
-      pagination: {
-        page: validated.page,
-        limit: validated.limit,
-        totalRows: count ?? rows.length,
-        totalPages:
-          validated.limit === 0
+        const tableName = escapeIdentifier(validated.table);
+
+        // Get total count
+        const countQuery = sql.raw(
+          `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`,
+        );
+        const countResult = await db.execute(countQuery);
+        const totalCount = Number.parseInt(
+          (countResult[0] as { count: string | number }).count.toString(),
+          10,
+        ) || 0;
+
+        // Get paginated rows
+        const dataQuery = sql.raw(
+          `SELECT * FROM ${tableName} ${whereClause} LIMIT ${validated.limit} OFFSET ${start}`,
+        );
+        const dataResult = await db.execute(dataQuery);
+
+        return {
+          rows: dataResult as Array<Record<string, unknown>>,
+          count: totalCount,
+        };
+      });
+
+      const columns = rows.length > 0
+        ? Object.keys(rows[0] as Record<string, unknown>)
+        : [];
+
+      return NextResponse.json({
+        tableName: validated.table,
+        columns,
+        rows,
+        pagination: {
+          page: validated.page,
+          limit: validated.limit,
+          totalRows: count ?? rows.length,
+          totalPages: validated.limit === 0
             ? 0
-            : Math.max(
-                1,
-                Math.ceil((count ?? rows.length) / validated.limit)
-              ),
-      },
-    });
+            : Math.max(1, Math.ceil((count ?? rows.length) / validated.limit)),
+        },
+      });
+    } finally {
+      await store.dispose();
+    }
   } catch (error) {
     return handleError(error);
   }
@@ -137,34 +186,12 @@ function parseQuery(searchParams: URLSearchParams) {
   };
 }
 
-function applyFilter(
-  query: PostgrestFilterBuilder<any, any, any, any>,
-  column: string,
-  operator: string,
-  value: string | null
-) {
-  switch (operator) {
-    case "equals":
-      return query.eq(column, value);
-    case "not_equals":
-      return query.neq(column, value);
-    case "contains":
-      return query.ilike(column, value ? `%${value}%` : "%");
-    case "greater_than":
-      return query.gt(column, value);
-    case "less_than":
-      return query.lt(column, value);
-    case "greater_than_or_equal":
-      return query.gte(column, value);
-    case "less_than_or_equal":
-      return query.lte(column, value);
-    case "is_null":
-      return query.is(column, null);
-    case "is_not_null":
-      return query.not(column, "is", null);
-    default:
-      return query;
-  }
+function escapeIdentifier(identifier: string): string {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+function escapeString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function handleError(error: unknown) {
@@ -177,7 +204,7 @@ function handleError(error: unknown) {
           message: issue.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -185,18 +212,17 @@ function handleError(error: unknown) {
     if (error.message === "Forbidden") {
       return NextResponse.json(
         { error: "Forbidden" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     return NextResponse.json(
       { error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   return NextResponse.json(
     { error: "Unknown error" },
-    { status: 500 }
+    { status: 500 },
   );
 }
-

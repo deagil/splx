@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { ZodError, z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { z, ZodError } from "zod";
+import { sql } from "drizzle-orm";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
+import { getResourceStore } from "@/lib/server/tenant/resource-store";
 
 const COLUMN_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
@@ -30,41 +31,56 @@ export async function GET(request: Request) {
       id: url.searchParams.get("id"),
     });
 
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from(parsed.table)
-      .select("*")
-      .eq(parsed.idColumn, parsed.id)
-      .maybeSingle();
+    const store = await getResourceStore(tenant);
 
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const record = await store.withSqlClient(async (db) => {
+        const tableName = escapeIdentifier(parsed.table);
+        const idColumn = escapeIdentifier(parsed.idColumn);
+        const idValue = escapeString(parsed.id);
+
+        const query = sql.raw(
+          `SELECT * FROM ${tableName} WHERE ${idColumn} = ${idValue} LIMIT 1`,
+        );
+        const result = await db.execute(query);
+
+        return (result[0] as Record<string, unknown>) ?? null;
+      });
+
+      const columns = record
+        ? Object.keys(record as Record<string, unknown>)
+        : [];
+
+      if (!record) {
+        return NextResponse.json(
+          {
+            tableName: parsed.table,
+            record: null,
+            columns,
+          },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json({
+        tableName: parsed.table,
+        record,
+        columns,
+      });
+    } finally {
+      await store.dispose();
     }
-
-    const record = data ?? null;
-    const columns = record
-      ? Object.keys(record as Record<string, unknown>)
-      : [];
-
-    if (!record) {
-      return NextResponse.json(
-        {
-          tableName: parsed.table,
-          record: null,
-          columns,
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      tableName: parsed.table,
-      record,
-      columns,
-    });
   } catch (error) {
     return handleError(error);
   }
+}
+
+function escapeIdentifier(identifier: string): string {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+function escapeString(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 function handleError(error: unknown) {
@@ -77,7 +93,7 @@ function handleError(error: unknown) {
           message: issue.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -85,18 +101,17 @@ function handleError(error: unknown) {
     if (error.message === "Forbidden") {
       return NextResponse.json(
         { error: "Forbidden" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     return NextResponse.json(
       { error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   return NextResponse.json(
     { error: "Unknown error" },
-    { status: 500 }
+    { status: 500 },
   );
 }
-
