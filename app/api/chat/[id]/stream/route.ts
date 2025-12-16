@@ -1,6 +1,6 @@
 import { createUIMessageStream, JsonToSseTransformStream } from "ai";
 import { differenceInSeconds } from "date-fns";
-import { auth } from "@/app/(legacy-auth)/auth";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import {
   getChatById,
   getMessagesByChatId,
@@ -28,9 +28,9 @@ export async function GET(
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
-  const session = await auth();
+  const session = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!session) {
     return new ChatSDKError("unauthorized:chat").toResponse();
   }
 
@@ -46,7 +46,7 @@ export async function GET(
     return new ChatSDKError("not_found:chat").toResponse();
   }
 
-  if (chat.visibility === "private" && chat.user_id !== session.user.id) {
+  if (chat.visibility === "private" && chat.user_id !== session.id) {
     return new ChatSDKError("forbidden:chat").toResponse();
   }
 

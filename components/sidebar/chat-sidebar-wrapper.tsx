@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { User } from "next-auth";
+import type { User } from "@/lib/types";
 import { ChatSidebar } from "@/components/sidebar/chat-sidebar";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { generateUUID } from "@/lib/utils";

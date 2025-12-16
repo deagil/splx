@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { User } from "next-auth";
+import type { User } from "@/lib/types";
 
 async function SidebarWrapper({
   children,

@@ -3,8 +3,8 @@
 import { ChevronUp } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { User } from "next-auth";
-import { signOut, useSession } from "next-auth/react";
+import type { User } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
 import { useTheme } from "next-themes";
 import {
   DropdownMenu,
@@ -24,46 +24,42 @@ import { toast } from "../shared/toast";
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
-  const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
 
-  const isGuest = guestRegex.test(data?.user?.email ?? "");
+  const isGuest = guestRegex.test(user?.email ?? "");
+
+  const handleSignOut = async () => {
+    if (isGuest) {
+      router.push("/login");
+      return;
+    }
+
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.refresh();
+  };
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            {status === "loading" ? (
-              <SidebarMenuButton className="h-10 justify-between bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                <div className="flex flex-row gap-2">
-                  <div className="size-6 animate-pulse rounded-full bg-zinc-500/30" />
-                  <span className="animate-pulse rounded-md bg-zinc-500/30 text-transparent">
-                    Loading auth status
-                  </span>
-                </div>
-                <div className="animate-spin text-zinc-500">
-                  <LoaderIcon />
-                </div>
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton
-                className="h-10 bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                data-testid="user-nav-button"
-              >
-                <Image
-                  alt={user.email ?? "User Avatar"}
-                  className="rounded-full"
-                  height={24}
-                  src={`https://avatar.vercel.sh/${user.email}`}
-                  width={24}
-                />
-                <span className="truncate" data-testid="user-email">
-                  {isGuest ? "Guest" : user?.email}
-                </span>
-                <ChevronUp className="ml-auto" />
-              </SidebarMenuButton>
-            )}
+            <SidebarMenuButton
+              className="h-10 bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              data-testid="user-nav-button"
+            >
+              <Image
+                alt={user.email ?? "User Avatar"}
+                className="rounded-full"
+                height={24}
+                src={`https://avatar.vercel.sh/${user.email}`}
+                width={24}
+              />
+              <span className="truncate" data-testid="user-email">
+                {isGuest ? "Guest" : user?.email}
+              </span>
+              <ChevronUp className="ml-auto" />
+            </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-popper-anchor-width)"
@@ -83,25 +79,7 @@ export function SidebarUserNav({ user }: { user: User }) {
             <DropdownMenuItem asChild data-testid="user-nav-item-auth">
               <button
                 className="w-full cursor-pointer"
-                onClick={() => {
-                  if (status === "loading") {
-                    toast({
-                      type: "error",
-                      description:
-                        "Checking authentication status, please try again!",
-                    });
-
-                    return;
-                  }
-
-                  if (isGuest) {
-                    router.push("/login");
-                  } else {
-                    signOut({
-                      redirectTo: "/",
-                    });
-                  }
-                }}
+                onClick={handleSignOut}
                 type="button"
               >
                 {isGuest ? "Login to your account" : "Sign out"}

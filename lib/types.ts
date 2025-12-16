@@ -74,3 +74,12 @@ export type Attachment = {
   url: string;
   contentType: string;
 };
+
+export type UserType = "guest" | "regular";
+
+export interface User {
+  id: string;
+  email: string | null;
+  name: string | null;
+  type: UserType;
+}

@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
+
 
 const sitename = process.env.NODE_ENV === "production" ? "Suplex Studio" : "[DEV] Suplex Studio";
 
@@ -109,11 +109,9 @@ export default function RootLayout({
           enableSystem
         >
           <Toaster position="top-center" richColors/>
-          <SessionProvider>
-            {children}
+          {children}
             {/* <div className="pb-7"></div> */}
             {/* <DevBar /> */}
-          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

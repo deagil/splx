@@ -1,5 +1,5 @@
 import { tool, type UIMessageStreamWriter } from "ai";
-import type { Session } from "next-auth";
+import type { Session } from "@/lib/artifacts/server";
 import { z } from "zod";
 import {
   artifactKinds,

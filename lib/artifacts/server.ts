@@ -1,5 +1,9 @@
 import type { UIMessageStreamWriter } from "ai";
-import type { Session } from "next-auth";
+export type Session = {
+  user?: {
+    id?: string | null;
+  } | null;
+};
 import { codeDocumentHandler } from "@/artifacts/code/server";
 import { sheetDocumentHandler } from "@/artifacts/sheet/server";
 import { textDocumentHandler } from "@/artifacts/text/server";

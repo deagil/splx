@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import type { User } from "next-auth";
+import type { User } from "@/lib/types";
 import { useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { ChatSidebarContent } from "@/components/sidebar/chat-sidebar-content";

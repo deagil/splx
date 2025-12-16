@@ -17,7 +17,7 @@ import type { ModelCatalog } from "tokenlens/core";
 import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
-import type { UserType } from "@/app/(legacy-auth)/auth";
+import type { UserType } from "@/lib/types";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
@@ -58,7 +58,7 @@ import { resolveTenantContext } from "@/lib/server/tenant/context";
 import type { ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
-import { generateTitleFromUserMessage } from "../../actions";
+import { generateTitleFromUserMessage } from "@/lib/chat/actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 

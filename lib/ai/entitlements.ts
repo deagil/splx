@@ -1,4 +1,4 @@
-import type { UserType } from "@/app/(legacy-auth)/auth";
+import type { UserType } from "@/lib/types";
 import type { ChatModel } from "./models";
 
 type Entitlements = {

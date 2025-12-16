@@ -1,4 +1,5 @@
-import { auth } from "@/app/(legacy-auth)/auth";
+
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { getSuggestionsByDocumentId } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
 
@@ -13,9 +14,9 @@ export async function GET(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const session = await getAuthenticatedUser();
 
-  if (!session?.user) {
+  if (!session) {
     return new ChatSDKError("unauthorized:suggestions").toResponse();
   }
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     return Response.json([], { status: 200 });
   }
 
-  if (suggestion.user_id !== session.user.id) {
+  if (suggestion.user_id !== session.id) {
     return new ChatSDKError("forbidden:api").toResponse();
   }
 

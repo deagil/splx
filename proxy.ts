@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+
 import { guestRegex, isDevelopmentEnvironment } from "./lib/constants";
 import { createServerClient } from "@supabase/ssr";
 import { eq } from "drizzle-orm";
@@ -40,13 +40,7 @@ export async function proxy(request: NextRequest) {
     return new Response("pong", { status: 200 });
   }
 
-  if (pathname.startsWith("/api/auth")) {
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-  }
+  
 
   // Handle Supabase auth routes
   const isSupabaseAuthRoute = pathname.startsWith("/signin") ||
@@ -164,13 +158,13 @@ export async function proxy(request: NextRequest) {
   }
 
   // Fall back to NextAuth for existing routes
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-    secureCookie: !isDevelopmentEnvironment,
-  });
+  // const token = await getToken({
+  //   req: request,
+  //   secret: process.env.AUTH_SECRET,
+  //   secureCookie: !isDevelopmentEnvironment,
+  // });
 
-  if (!token) {
+  // if (!token) {
     // If no Supabase user and no NextAuth token, allow root route for marketing page
     // Otherwise redirect to signin for protected routes
     if (!isSupabaseAuthRoute && pathname !== "/") {
@@ -179,19 +173,19 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     return supabaseResponse;
-  }
+  //}
 
-  const isGuest = guestRegex.test(token?.email ?? "");
+  // const isGuest = guestRegex.test(token?.email ?? "");
 
-  if (token && !isGuest && ["/login", "/register"].includes(pathname)) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // if (token && !isGuest && ["/login", "/register"].includes(pathname)) {
+  //   return NextResponse.redirect(new URL("/", request.url));
+  // }
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  // return NextResponse.next({
+  //   request: {
+  //     headers: requestHeaders,
+  //   },
+  // });
 }
 
 export const config = {
