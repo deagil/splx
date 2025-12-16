@@ -3,12 +3,15 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { GridPosition } from "./types";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export type ViewBlockProps = {
   id: string;
   type: string;
   position: GridPosition;
   children: ReactNode;
+  isDragging?: boolean;
+  dragDelta?: { x: number; y: number };
 };
 
 export function ViewBlock({
@@ -16,6 +19,8 @@ export function ViewBlock({
   type,
   position,
   children,
+  isDragging,
+  dragDelta
 }: ViewBlockProps) {
   const columnStart = clamp(position.x + 1, 1, 12);
   const maxWidth = 12 - columnStart + 1;
@@ -26,16 +31,24 @@ export function ViewBlock({
   const style: CSSProperties = {
     gridColumn: `${columnStart} / span ${width}`,
     gridRow: `${rowStart} / span ${height}`,
+    zIndex: isDragging ? 50 : 1,
   };
 
   return (
-    <section
+    <motion.section
+      layout={!isDragging}
+      initial={false}
       aria-label={`${type} block ${id}`}
       className={cn("flex h-full min-h-0 flex-col min-w-0")}
       style={style}
+      transition={{
+        type: "spring",
+        stiffness: 400,
+        damping: 30
+      }}
     >
       <div className="flex flex-1 min-h-0 flex-col">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 

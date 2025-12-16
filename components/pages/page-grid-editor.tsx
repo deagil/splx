@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import type { PageBlockDraft, PageDraft, RecordBlockDraft } from "./types";
+import type { PageBlockDraft, PageDraft, RecordBlockDraft, ListBlockDraft, ReportBlockDraft, TriggerBlockDraft } from "./types";
 import { LIST_DISPLAY_FORMATS, RECORD_DISPLAY_MODES, REPORT_CHART_TYPES } from "./types";
 import { ViewBlock } from "./view-block";
 import { ListBlockView, RecordBlockView, ReportBlockView, TriggerBlockView } from "./blocks";
@@ -30,6 +30,8 @@ import {
   TriggerBlockForm,
 } from "./block-forms";
 import { useTableMetadata } from "./hooks";
+import { reorderBlocks } from "./layout-engine";
+import { motion, AnimatePresence } from "framer-motion";
 
 const GRID_COLUMNS = 12;
 const GRID_ROW_HEIGHT = 110;
@@ -47,6 +49,30 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
   const [activeSettingsId, setActiveSettingsId] = useState<string | null>(null);
   const [dataTables, setDataTables] = useState<string[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
+  
+  // DRAG STATE (Lifted from EditableBlock)
+  const dragState = useRef<{
+    type: "drag" | "resize";
+    blockId: string;
+    startX: number;
+    startY: number;
+    startPos: PageBlockDraft["position"];
+    startRect?: DOMRect;
+    // Store latest calculations here for synchronous access in event listeners
+    latestLayout?: PageBlockDraft[];
+    latestValid?: boolean;
+  } | null>(null);
+
+  const [dragPreview, setDragPreview] = useState<{
+    blockId: string;
+    deltaX: number;
+    deltaY: number;
+    // The "live" layout including pushed blocks
+    layoutBlocks: PageBlockDraft[];
+    isValid: boolean;
+    error: string | null;
+  } | null>(null);
+
   const gridBackgroundStyle = useMemo(
     () => ({
       backgroundImage:
@@ -114,90 +140,22 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
     }
   };
 
-  return (
-    <>
-      <TooltipProvider delayDuration={80}>
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-2 rounded-2xl border border-border/70 bg-muted/40"
-            style={gridBackgroundStyle}
-          />
-          <div
-            ref={gridRef}
-            className="relative z-10 grid grid-cols-12 gap-4 p-2 md:p-3"
-            style={{ gridAutoRows: `minmax(${GRID_ROW_HEIGHT}px, auto)` }}
-          >
-            {draft.blocks.map((block) => (
-              <EditableBlock
-                key={block.id}
-                block={block}
-                gridRef={gridRef}
-                urlParams={urlParams}
-                dataTables={dataTables}
-                tablesLoading={tablesLoading}
-                onPositionChange={(position) => handlePositionChange(block.id, position)}
-                onToggleSettings={() =>
-                  setActiveSettingsId((current) => (current === block.id ? null : block.id))
-                }
-                isSettingsOpen={activeSettingsId === block.id}
-                onRemove={() => {
-                  handleRemoveBlock(block.id);
-                  setActiveSettingsId((current) => (current === block.id ? null : current));
-                }}
-                onBlockChange={(next) => handleBlockChange(block.id, next)}
-              >
-                {renderBlock(block, urlParams)}
-              </EditableBlock>
-            ))}
-          </div>
-        </div>
-      </TooltipProvider>
-    </>
-  );
-}
-
-function EditableBlock({
-  block,
-  gridRef,
-  urlParams,
-  dataTables,
-  tablesLoading,
-  onPositionChange,
-  onToggleSettings,
-  onRemove,
-  onBlockChange,
-  isSettingsOpen,
-  children,
-}: {
-  block: PageBlockDraft;
-  gridRef: React.RefObject<HTMLDivElement | null>;
-  urlParams: Record<string, string>;
-  dataTables: string[];
-  tablesLoading: boolean;
-  onPositionChange: (position: PageBlockDraft["position"]) => void;
-  onToggleSettings: () => void;
-  onRemove: () => void;
-  onBlockChange: (block: PageBlockDraft) => void;
-  isSettingsOpen: boolean;
-  children: React.ReactNode;
-}) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const dragState = useRef<{
-    type: "drag" | "resize";
-    startX: number;
-    startY: number;
-    startPos: PageBlockDraft["position"];
-  } | null>(null);
-
-  useEffect(() => {
-    if (!isSettingsOpen) {
-      setShowAdvanced(false);
-    }
-  }, [isSettingsOpen]);
+  // ----- GLOBAL DRAG HANDLERS -----
 
   const handlePointerUp = () => {
+    const current = dragState.current;
+    if (current?.type === "drag") {
+      // Check validation and commit if valid
+      if (current.latestValid && current.latestLayout) {
+         onDraftChange({
+            ...draft,
+            blocks: current.latestLayout,
+         });
+      }
+    }
+    
     dragState.current = null;
+    setDragPreview(null);
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
   };
@@ -211,61 +169,251 @@ function EditableBlock({
     event.preventDefault();
     const rect = gridRef.current.getBoundingClientRect();
     const colWidth = rect.width / GRID_COLUMNS;
-    const deltaX = event.clientX - current.startX;
-    const deltaY = event.clientY - current.startY;
-    const colDelta = Math.round(deltaX / colWidth);
-    const rowDelta = Math.round(deltaY / GRID_ROW_HEIGHT);
+    
+    // Pixel deltas
+    const rawDeltaX = event.clientX - current.startX;
+    const rawDeltaY = event.clientY - current.startY;
+
+    // Grid deltas
+    const colDelta = Math.round(rawDeltaX / colWidth);
+    const rowDelta = Math.round(rawDeltaY / GRID_ROW_HEIGHT);
 
     if (current.type === "drag") {
       const nextX = clamp(current.startPos.x + colDelta, 0, GRID_COLUMNS - current.startPos.width);
       const nextY = Math.max(0, current.startPos.y + rowDelta);
-      onPositionChange({
+      
+      const targetPos = {
         ...current.startPos,
         x: nextX,
         y: nextY,
+      };
+
+      // Run collision engine to get new layout
+      // Note: We pass original 'draft.blocks' as base, but we should probably start from current state?
+      // reorderBlocks is pure.
+      const newLayout = reorderBlocks(draft.blocks, current.blockId, targetPos);
+
+      // VALIDATION: Check for out-of-bounds
+      const colRaw = Math.round((current.startPos.x * colWidth + rawDeltaX) / colWidth);
+      const isOutOfBounds = colRaw < 0 || colRaw + current.startPos.width > GRID_COLUMNS;
+      
+      const isValid = !isOutOfBounds;
+      const error = isOutOfBounds ? "Cannot place here: Out of bounds" : null;
+
+      // console.log(`[Drag] Delta: (${rawDeltaX}, ${rawDeltaY}) | Grid: (${colDelta}, ${rowDelta}) | Valid: ${isValid}`);
+      
+      // Update Ref for synchronous access in pointerUp
+      current.latestLayout = newLayout;
+      current.latestValid = isValid;
+
+      setDragPreview({
+        blockId: current.blockId,
+        deltaX: rawDeltaX,
+        deltaY: rawDeltaY,
+        layoutBlocks: newLayout,
+        isValid,
+        error
       });
       return;
     }
 
+    // RESIZE (Direct update - stays simple/snappy for now as discussed)
     const maxWidth = GRID_COLUMNS - current.startPos.x;
     const nextWidth = clamp(current.startPos.width + colDelta, MIN_WIDTH, maxWidth);
     const nextHeight = Math.max(MIN_HEIGHT, current.startPos.height + rowDelta);
-    onPositionChange({
+    handlePositionChange(current.blockId, {
       ...current.startPos,
       width: nextWidth,
       height: nextHeight,
     });
   };
 
-  const startInteraction = (event: ReactPointerEvent, type: "drag" | "resize") => {
+  const startDrag = (event: ReactPointerEvent, blockId: string, position: PageBlockDraft["position"], type: "drag" | "resize") => {
     event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    // Attempt to find the main block element. ViewBlock renders a section.
+    const blockElement = target.closest('section') || target.parentElement?.parentElement; 
+    const startRect = blockElement?.getBoundingClientRect();
+
     dragState.current = {
       type,
+      blockId,
       startX: event.clientX,
       startY: event.clientY,
-      startPos: block.position,
+      startPos: position,
+      startRect: startRect || undefined,
     };
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    
+    // Initial preview state if dragging
+    if (type === "drag") {
+       setDragPreview({
+          blockId,
+          deltaX: 0,
+          deltaY: 0,
+          layoutBlocks: draft.blocks,
+          isValid: true,
+          error: null,
+       });
+    }
   };
+
+  // Determine which blocks to render: the preview layout (during drag) or the real draft
+  const blocksToRender = dragPreview ? dragPreview.layoutBlocks : draft.blocks;
+
+  return (
+    <>
+      <TooltipProvider delayDuration={80}>
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-2 rounded-2xl border border-border/70 bg-muted/40"
+            style={gridBackgroundStyle}
+          />
+          <div
+            ref={gridRef}
+            className="relative z-10 grid grid-cols-12 gap-4 p-2 md:p-3"
+            style={{ gridAutoRows: `${GRID_ROW_HEIGHT}px` }}
+          >
+            {/* Instead of complex positioning, let's use the layoutBlocks loop for the 'Hole' and specific render for Ghost. */}
+            <AnimatePresence>
+            {blocksToRender.map((block) => {
+              const isDragging = dragPreview?.blockId === block.id;
+              
+              return (
+                <EditableBlock
+                  key={block.id}
+                  block={block}
+                  gridRef={gridRef}
+                  urlParams={urlParams}
+                  dataTables={dataTables}
+                  tablesLoading={tablesLoading}
+                  onToggleSettings={() =>
+                    setActiveSettingsId((current) => (current === block.id ? null : block.id))
+                  }
+                  isSettingsOpen={activeSettingsId === block.id}
+                  onRemove={() => {
+                    handleRemoveBlock(block.id);
+                    setActiveSettingsId((current) => (current === block.id ? null : current));
+                  }}
+                  onBlockChange={(next) => handleBlockChange(block.id, next)}
+                  onStartDrag={(e, type) => startDrag(e, block.id, block.position, type)}
+                  isDragging={isDragging}
+                >
+                  {renderBlock(block, urlParams)}
+                </EditableBlock>
+            )})}
+            </AnimatePresence>
+            
+            {/* FLOATING GHOST - Rendered OUTSIDE the grid flow */}
+            {dragPreview && (
+                <FloatingGhost 
+                    // We need the original block data
+                    block={draft.blocks.find(b => b.id === dragPreview.blockId)!}
+                    urlParams={urlParams}
+                    startX={dragState.current?.startX || 0}
+                    startY={dragState.current?.startY || 0}
+                    deltaX={dragPreview.deltaX}
+                    deltaY={dragPreview.deltaY}
+                    initialRect={dragState.current?.startRect} 
+                    isValid={dragPreview.isValid}
+                    error={dragPreview.error}
+                />
+            )}
+          </div>
+        </div>
+      </TooltipProvider>
+    </>
+  );
+}
+
+// Helper component for the floating ghost
+function FloatingGhost({ block, urlParams, startX, startY, deltaX, deltaY, initialRect, isValid = true, error }: any) {
+    if (!initialRect) return null;
+    return (
+        <div 
+            className="fixed z-50 pointer-events-none shadow-2xl transition-colors duration-200"
+            style={{
+                left: initialRect.left,
+                top: initialRect.top,
+                width: initialRect.width,
+                height: initialRect.height,
+                transform: `translate(${deltaX}px, ${deltaY}px)`,
+            }}
+        >
+             {/* Error Label */}
+             {!isValid && error && (
+                <div className="absolute -top-8 left-0 flex items-center bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded shadow-sm animate-in fade-in zoom-in slide-in-from-bottom-2">
+                   {error}
+                </div>
+             )}
+
+             <div className={cn(
+                "h-full w-full rounded-lg border overflow-hidden",
+                isValid 
+                  ? "bg-background border-primary/50 opacity-90" 
+                  : "bg-red-500/10 border-red-500 border-2 opacity-100"
+             )}>
+                 {/* We re-render content or just an image? Re-rendering is fine. */}
+                 {renderBlock(block, urlParams)}
+             </div>
+        </div>
+    );
+}
+
+function EditableBlock({
+  block,
+  gridRef,
+  urlParams,
+  dataTables,
+  tablesLoading,
+  onToggleSettings,
+  onRemove,
+  onBlockChange,
+  onStartDrag,
+  isSettingsOpen,
+  isDragging,
+  children,
+}: {
+  block: PageBlockDraft;
+  gridRef: React.RefObject<HTMLDivElement | null>;
+  urlParams: Record<string, string>;
+  dataTables: string[];
+  tablesLoading: boolean;
+  onToggleSettings: () => void;
+  onRemove: () => void;
+  onBlockChange: (block: PageBlockDraft) => void;
+  onStartDrag: (event: React.PointerEvent, type: "drag" | "resize") => void;
+  isSettingsOpen: boolean;
+  isDragging: boolean;
+  children: React.ReactNode;
+}) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      setShowAdvanced(false);
+    }
+  }, [isSettingsOpen]);
 
   const renderAdvancedSettings = () => {
     switch (block.type) {
       case "list":
-        return <ListBlockForm block={block} onChange={(next) => onBlockChange(next)} />;
+        return <ListBlockForm block={block as ListBlockDraft} onChange={(next) => onBlockChange(next)} />;
       case "record":
         return (
           <RecordBlockForm
-            block={block}
+            block={block as RecordBlockDraft}
             onChange={(next) => onBlockChange(next)}
             tableOptions={dataTables}
             tablesLoading={tablesLoading}
           />
         );
       case "report":
-        return <ReportBlockForm block={block} onChange={(next) => onBlockChange(next)} />;
+        return <ReportBlockForm block={block as ReportBlockDraft} onChange={(next) => onBlockChange(next)} />;
       case "trigger":
-        return <TriggerBlockForm block={block} onChange={(next) => onBlockChange(next)} />;
+        return <TriggerBlockForm block={block as TriggerBlockDraft} onChange={(next) => onBlockChange(next)} />;
       default:
         return null;
     }
@@ -274,7 +422,7 @@ function EditableBlock({
   const renderSimpleSettings = () => {
     switch (block.type) {
       case "list": {
-        const listBlock = block;
+        const listBlock = block as ListBlockDraft;
         const update = (updates: Partial<typeof listBlock>) =>
           onBlockChange({
             ...listBlock,
@@ -336,7 +484,7 @@ function EditableBlock({
       case "record": {
         return (
           <RecordSimpleSettings
-            block={block}
+            block={block as RecordBlockDraft}
             onChange={(next) => onBlockChange(next)}
             tableOptions={dataTables}
             tablesLoading={tablesLoading}
@@ -344,7 +492,7 @@ function EditableBlock({
         );
       }
       case "report": {
-        const reportBlock = block;
+        const reportBlock = block as ReportBlockDraft;
         const update = (updates: Partial<typeof reportBlock>) =>
           onBlockChange({
             ...reportBlock,
@@ -401,7 +549,7 @@ function EditableBlock({
         );
       }
       case "trigger": {
-        const triggerBlock = block;
+        const triggerBlock = block as TriggerBlockDraft;
         const updateDisplay = (updates: Partial<typeof triggerBlock.display>) =>
           onBlockChange({
             ...triggerBlock,
@@ -508,10 +656,10 @@ function EditableBlock({
   );
 
   const renderWithChrome = () => (
-  <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
       <div
-        className="absolute inset-x-0 top-0 flex min-h-[44px] items-center gap-3 bg-background/90 px-3 py-2 shadow-sm"
-        onPointerDown={(event) => startInteraction(event, "drag")}
+        className="absolute inset-x-0 top-0 flex min-h-[44px] items-center gap-3 bg-background/90 px-3 py-2 shadow-sm touch-none cursor-grab active:cursor-grabbing"
+        onPointerDown={(event) => onStartDrag(event, "drag")}
         role="presentation"
       >
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -550,15 +698,15 @@ function EditableBlock({
         </div>
       </div>
 
-    <div className="flex h-full min-h-0 w-full flex-col pt-12">
-      <div className="flex-1 min-h-0">{children}</div>
+      <div className="flex h-full min-h-0 w-full flex-col pt-12">
+        <div className="flex-1 min-h-0">{children}</div>
       </div>
 
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            onPointerDown={(event) => startInteraction(event, "resize")}
+            onPointerDown={(event) => onStartDrag(event, "resize")}
             className={cn(
               buttonVariants({ variant: "secondary", size: "icon" }),
               "absolute bottom-2 right-2 z-30 h-8 w-8 cursor-se-resize touch-none"
@@ -575,46 +723,56 @@ function EditableBlock({
     </div>
   );
 
-  if (block.type === "list" || block.type === "record") {
-    return (
-      <ViewBlock id={block.id} type={block.type} position={block.position}>
-        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
-          <div className="flex h-full min-h-0 w-full flex-col">
-            <div className="flex-1 min-h-0">
-              {renderBlock(block, urlParams, {
-                onOpenSettings: onToggleSettings,
-                onRemove,
-                onStartDrag: (event) => startInteraction(event, "drag"),
-              })}
-            </div>
+  const blockContent = (
+      <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
+        <div className="flex h-full min-h-0 w-full flex-col">
+          <div className="flex-1 min-h-0">
+            {renderBlock(block, urlParams, {
+              onOpenSettings: onToggleSettings,
+              onRemove,
+              onStartDrag: (event) => onStartDrag(event, "drag"),
+            })}
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onPointerDown={(event) => startInteraction(event, "resize")}
-                className={cn(
-                  buttonVariants({ variant: "secondary", size: "icon" }),
-                  "absolute bottom-2 right-2 z-30 h-8 w-8 cursor-se-resize touch-none"
-                )}
-                aria-label="Resize block"
-              >
-                <ExpandIcon className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Resize block</TooltipContent>
-          </Tooltip>
-          {vignette}
-          {isSettingsOpen ? settingsOverlay : null}
         </div>
-      </ViewBlock>
-    );
-  }
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onPointerDown={(event) => onStartDrag(event, "resize")}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "icon" }),
+                "absolute bottom-2 right-2 z-30 h-8 w-8 cursor-se-resize touch-none"
+              )}
+              aria-label="Resize block"
+            >
+              <ExpandIcon className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Resize block</TooltipContent>
+        </Tooltip>
+        {vignette}
+        {isSettingsOpen ? settingsOverlay : null}
+      </div>
+  );
+
+  const isChromeWrapped = !(block.type === "list" || block.type === "record");
 
   return (
-    <ViewBlock id={block.id} type={block.type} position={block.position}>
-      {renderWithChrome()}
-    </ViewBlock>
+    <>
+      <ViewBlock
+        id={block.id}
+        type={block.type}
+        position={block.position}
+        // Framer Motion props passed to ViewBlock
+        isDragging={isDragging}
+      >
+        {isDragging ? (
+           <div className="h-full w-full rounded-lg border-2 border-dashed border-primary/50 bg-primary/5" />
+        ) : (
+           isChromeWrapped ? renderWithChrome() : blockContent
+        )}
+      </ViewBlock>
+    </>
   );
 }
 

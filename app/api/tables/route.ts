@@ -71,12 +71,12 @@ export async function GET(request: Request) {
                     }));
                 });
 
-                console.log("[DEBUG] Total tables found:", tables.length);
-                console.log(
-                    "[DEBUG] Table names:",
-                    tables.map((t) => t.name).join(", "),
-                );
-                console.log("[DEBUG] Filtering for type:", type);
+                // console.log("[DEBUG] Total tables found:", tables.length);
+                // console.log(
+                //     "[DEBUG] Table names:",
+                //     tables.map((t) => t.name).join(", "),
+                // );
+                // console.log("[DEBUG] Filtering for type:", type);
 
                 const filtered = tables.filter((table) => {
                     const isSystemTable = SYSTEM_TABLES.has(
@@ -85,17 +85,17 @@ export async function GET(request: Request) {
                     const shouldInclude = type === "data"
                         ? !isSystemTable
                         : isSystemTable;
-                    console.log(
-                        `[DEBUG] Table "${table.name}": isSystemTable=${isSystemTable}, shouldInclude=${shouldInclude}`,
-                    );
+                    // console.log(
+                    //     `[DEBUG] Table "${table.name}": isSystemTable=${isSystemTable}, shouldInclude=${shouldInclude}`,
+                    // );
                     return shouldInclude;
                 });
 
-                console.log("[DEBUG] Filtered tables count:", filtered.length);
-                console.log(
-                    "[DEBUG] Filtered table names:",
-                    filtered.map((t) => t.name).join(", "),
-                );
+                // console.log("[DEBUG] Filtered tables count:", filtered.length);
+                // console.log(
+                //     "[DEBUG] Filtered table names:",
+                //     filtered.map((t) => t.name).join(", "),
+                // );
 
                 return NextResponse.json({ tables: filtered });
             } finally {
