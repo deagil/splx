@@ -389,3 +389,9 @@ Your current implementation is **fully compatible** with AI SDK v6. You can:
 
 The migration is **low risk** but consider waiting for stable release if you're in production.
 
+
+
+
+
+
+
