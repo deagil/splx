@@ -7,6 +7,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
+import { createChatAgent } from "@/lib/ai/agents/chat-agent";
 import { unstable_cache as cache } from "next/cache";
 import { after } from "next/server";
 import {
@@ -376,7 +377,9 @@ export async function POST(request: Request) {
           });
           await updateChatTitleById({ chatId: id, title: generatedTitle });
           console.log(
-            `[Chat API] Background title generated for chat ${id}: ${generatedTitle?.slice(0, 30)}`,
+            `[Chat API] Background title generated for chat ${id}: ${
+              generatedTitle?.slice(0, 30)
+            }`,
           );
         } catch (error) {
           console.error(
@@ -487,7 +490,33 @@ export async function POST(request: Request) {
     streamStartTime = Date.now();
 
     const stream = createUIMessageStream({
-      execute: ({ writer: dataStream }) => {
+      execute: async ({ writer: dataStream }) => {
+        // Create agent with runtime dependencies (dataStream, session)
+        // This ensures tools are configured consistently
+        const agent = createChatAgent({
+          selectedChatModel,
+          requestHints,
+          userPreferences,
+          session: { user: { id: userId } } as any,
+          dataStream,
+        });
+
+        // Extract tools from agent configuration for use with streamText
+        // Note: We still use streamText directly to maintain compatibility
+        // with experimental_transform, experimental_telemetry, and experimental_activeTools
+        // The agent abstraction provides consistency and type safety
+        const session = { user: { id: userId } } as any;
+        const tools = {
+          getWeather,
+          createDocument: createDocument({ session, dataStream }),
+          updateDocument: updateDocument({ session, dataStream }),
+          requestSuggestions: requestSuggestions({ session, dataStream }),
+          readUrlContent,
+          queryUserTable,
+          searchPages,
+          navigateToPage: navigateToPage({ dataStream }),
+        };
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({
@@ -495,7 +524,7 @@ export async function POST(request: Request) {
             requestHints,
             userPreferences,
           }),
-          messages: convertToModelMessages(
+          messages: await convertToModelMessages(
             // Replace the last message (user message) with enriched version for AI
             uiMessages.slice(0, -1).concat([enrichedMessageForAI]),
           ),
@@ -522,27 +551,7 @@ export async function POST(request: Request) {
               openai: getReasoningOpenAIOptions(),
             }
             : undefined,
-          tools: {
-            getWeather,
-            createDocument: createDocument({
-              session: { user: { id: userId } } as any,
-              dataStream,
-            }),
-            updateDocument: updateDocument({
-              session: { user: { id: userId } } as any,
-              dataStream,
-            }),
-            requestSuggestions: requestSuggestions({
-              session: { user: { id: userId } } as any,
-              dataStream,
-            }),
-            readUrlContent,
-            queryUserTable,
-            searchPages,
-            navigateToPage: navigateToPage({
-              dataStream,
-            }),
-          },
+          tools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",

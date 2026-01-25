@@ -15,6 +15,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { ChatAddToolApproveResponseFunction } from "ai";
+import type { UseChatHelpers } from "@ai-sdk/react";
 import type { ChatMessage, Attachment } from "@/lib/types";
 import { generateUUID, cn } from "@/lib/utils";
 import { PlusIcon, ClockRewind, CrossIcon } from "@/components/shared/icons";
@@ -29,7 +31,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useArtifactSelector, useArtifact, initialArtifactData } from "@/hooks/use-artifact";
 import { Artifact } from "@/components/artifact/artifact";
-import type { UseChatHelpers } from "@ai-sdk/react";
 import type { Vote } from "@/lib/db/schema";
 
 export function ChatSidebar({
@@ -114,6 +115,7 @@ export function ChatSidebar({
   const chatId = chatIdFromUrl || initialChatId;
   const [hasMessages, setHasMessages] = useState(initialMessages.length > 0);
   const [artifactProps, setArtifactProps] = useState<{
+    addToolApprovalResponse: ChatAddToolApproveResponseFunction;
     attachments: Attachment[];
     chatId: string;
     input: string;

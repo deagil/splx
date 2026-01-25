@@ -1,4 +1,5 @@
 "use client";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,6 +30,7 @@ import { Loader } from "../elements/loader";
 import { Shimmer } from "../ai-elements/shimmer";
 import type { MentionMetadata } from "@/lib/types/mentions";
 import { MessageContext } from "./message-context";
+import { ToolApproval } from "./tool-approval";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -170,6 +172,7 @@ function renderTextWithMentions(
 }
 
 const PurePreviewMessage = ({
+  addToolApprovalResponse,
   chatId,
   message,
   vote,
@@ -179,6 +182,7 @@ const PurePreviewMessage = ({
   isReadonly,
   requiresScrollPadding,
 }: {
+  addToolApprovalResponse: ChatAddToolApproveResponseFunction;
   chatId: string;
   message: ChatMessage;
   vote: Vote | undefined;
@@ -734,6 +738,17 @@ const PurePreviewMessage = ({
 
             if (type === "tool-updateDocument") {
               const { toolCallId } = part;
+
+              // Show approval UI if approval is requested
+              if (part.state === "approval-requested") {
+                return (
+                  <ToolApproval
+                    key={toolCallId}
+                    invocation={part as any}
+                    addToolApprovalResponse={addToolApprovalResponse}
+                  />
+                );
+              }
 
               if (part.output && "error" in part.output) {
                 return (

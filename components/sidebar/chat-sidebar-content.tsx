@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import { DefaultChatTransport } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -55,6 +56,7 @@ export function ChatSidebarContent({
   autoResume: boolean;
   onMessagesChange?: (messages: ChatMessage[]) => void;
   onArtifactPropsReady?: (props: {
+    addToolApprovalResponse: ChatAddToolApproveResponseFunction;
     attachments: Attachment[];
     chatId: string;
     input: string;
@@ -187,6 +189,7 @@ export function ChatSidebarContent({
     stop,
     regenerate,
     resumeStream,
+    addToolApprovalResponse,
   } = useChat<ChatMessage>({
     id: chatId,
     messages: messagesToUse,
@@ -321,6 +324,7 @@ export function ChatSidebarContent({
   useEffect(() => {
     if (onArtifactPropsReady && isArtifactVisible) {
       onArtifactPropsReady({
+        addToolApprovalResponse,
         attachments,
         chatId,
         input,
@@ -345,6 +349,7 @@ export function ChatSidebarContent({
     isArtifactVisible,
     isReadonly,
     messages,
+    addToolApprovalResponse,
     onArtifactPropsReady,
     regenerate,
     currentModelId,
@@ -419,6 +424,7 @@ export function ChatSidebarContent({
               className="flex h-full flex-1 flex-col overflow-hidden"
             >
               <Messages
+                addToolApprovalResponse={addToolApprovalResponse}
                 chatId={chatId}
                 isArtifactVisible={isArtifactVisible}
                 isReadonly={isReadonly}

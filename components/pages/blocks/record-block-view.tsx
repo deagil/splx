@@ -318,20 +318,14 @@ function formatFullDate(date: Date) {
     hour12: true,
   });
   return `${month} ${day}${ordinal}, ${time.toLowerCase()}`;
-}
-
-function formatRelativeTime(date: Date) {
+}function formatRelativeTime(date: Date) {
   const diffMs = date.getTime() - Date.now();
   const absMs = Math.abs(diffMs);
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-
-  const minute = 60 * 1000;
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });  const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
   const month = 30 * day;
-  const year = 365 * day;
-
-  if (absMs < minute) {
+  const year = 365 * day;  if (absMs < minute) {
     return rtf.format(Math.round(diffMs / 1000), "second");
   }
   if (absMs < hour) {
@@ -348,4 +342,3 @@ function formatRelativeTime(date: Date) {
   }
   return rtf.format(Math.round(diffMs / year), "year");
 }
-

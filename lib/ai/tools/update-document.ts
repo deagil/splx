@@ -19,6 +19,9 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
         .string()
         .describe("The description of changes that need to be made"),
     }),
+    // Require user approval before executing document updates
+    // This provides a safety layer for operations that modify user data
+    needsApproval: true,
     execute: async ({ id, description }) => {
       const document = await getDocumentById({ id });
 
@@ -36,7 +39,7 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === document.kind
+          documentHandlerByArtifactKind.kind === document.kind,
       );
 
       if (!documentHandler) {
