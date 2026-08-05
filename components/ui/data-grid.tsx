@@ -2,11 +2,13 @@
 
 import { createContext, ReactNode, useContext } from 'react';
 import { cn } from '@/lib/utils';
-import { ColumnFiltersState, RowData, SortingState, Table } from '@tanstack/react-table';
+import { ColumnFiltersState, ReactTable, RowData, SortingState, TableFeatures } from '@tanstack/react-table';
+import type { DataGridFeatures } from '@/components/ui/data-grid-features';
 
 declare module '@tanstack/react-table' {
+  // v9 puts TFeatures first on the global meta interfaces.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ColumnMeta<TData extends RowData, TValue> {
+  interface ColumnMeta<TFeatures extends TableFeatures, TData extends RowData, TValue> {
     headerTitle?: string;
     headerClassName?: string;
     cellClassName?: string;
@@ -34,7 +36,7 @@ export type DataGridApiResponse<T> = {
 
 export interface DataGridContextProps<TData extends object> {
   props: DataGridProps<TData>;
-  table: Table<TData>;
+  table: ReactTable<DataGridFeatures, TData>;
   recordCount: number;
   isLoading: boolean;
 }
@@ -48,7 +50,7 @@ export type DataGridRequestParams = {
 
 export interface DataGridProps<TData extends object> {
   className?: string;
-  table?: Table<TData>;
+  table?: ReactTable<DataGridFeatures, TData>;
   recordCount: number;
   children?: ReactNode;
   onRowClick?: (row: TData) => void;
@@ -102,12 +104,17 @@ function DataGridProvider<TData extends object>({
   children,
   table,
   ...props
-}: DataGridProps<TData> & { table: Table<TData> }) {
+}: DataGridProps<TData> & { table: ReactTable<DataGridFeatures, TData> }) {
   return (
     <DataGridContext.Provider
       value={{
         props,
-        table,
+        // v9's table generics are invariant in TData, so a concrete
+        // ReactTable<_, TData> is not assignable to the context's
+        // ReactTable<_, any>. The erasure is deliberate: consumers read the
+        // table through useDataGrid() without knowing the row type.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        table: table as unknown as ReactTable<DataGridFeatures, any>,
         recordCount: props.recordCount,
         isLoading: props.isLoading || false,
       }}

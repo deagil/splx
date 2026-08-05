@@ -3,12 +3,11 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import {
-  useLegacyTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getPaginationRowModel,
-} from "@tanstack/react-table/legacy";
+  dataGridFeatures,
+  type DataGridFeatures,
+} from "@/components/ui/data-grid-features";
 import { Card, CardHeader, CardHeading, CardTable, CardFooter } from "@/components/ui/card";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -71,7 +70,7 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
 
   const rows = data?.rows ?? [];
 
-  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
+  const columns = useMemo<ColumnDef<DataGridFeatures, TableRow>[]>(() => {
     return resolvedColumns.map((columnName) => {
       const meta = fieldMetaMap.get(columnName);
       const headerLabel = meta?.display_name ?? columnName;
@@ -84,11 +83,13 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
         enableHiding: true,
         enableResizing: true,
         size: 180,
-      } satisfies ColumnDef<TableRow>;
+      } satisfies ColumnDef<DataGridFeatures, TableRow>;
     });
   }, [copy, fieldMetaMap, resolvedColumns]);
 
-  const table = useLegacyTable({
+  // v9: features are registered explicitly; the core row model is automatic.
+  const table = useTable({
+    features: dataGridFeatures,
     data: rows,
     columns,
     state: {
@@ -97,9 +98,6 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
     },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     columnResizeMode: "onChange",
     pageCount: Math.max(1, Math.ceil((rows.length || 1) / pagination.pageSize)),
   });
