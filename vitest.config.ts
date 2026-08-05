@@ -12,6 +12,10 @@ export default defineConfig({
   test: {
     include: ["server/**/*.test.ts"],
     environment: "node",
+    // The `*.integration.test.ts` files share one database and truncate the
+    // tables they assert on, so running files in parallel makes them clobber
+    // each other. The whole suite runs in ~2s, so serialising it costs nothing.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

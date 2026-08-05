@@ -148,6 +148,8 @@ server/
     data.integration.test.ts ✅ the same against a real Postgres (opt-in)
     workspace-users.ts   ✅ membership: role changes, removal, owner/last-admin
     workspace-invites.ts ✅ invites: create, list, revoke
+    activity.ts          ✅ reads audit_logs / event_outbox, keyset-paginated
+    activity.integration.test.ts ✅
     index.ts             ⬜ unified `repo` export
     pages.ts             ⬜ routes call lib/server/pages directly
     tables.ts            ⬜
@@ -186,6 +188,20 @@ app/api/v1/
   workspace/roles/route.ts           ✅
   workspace/invites/route.ts         ✅
   workspace-apps/[type]/route.ts     ✅
+  audit-logs/route.ts                ✅
+  audit-logs/[id]/route.ts           ✅
+  events/route.ts                    ✅
+  events/[id]/route.ts               ✅
+
+app/(app)/build/
+  dev-access.tsx         ✅ shared server-side gate for Dev menu pages
+  audit-log/page.tsx     ✅
+  events/page.tsx        ✅
+
+components/build/
+  activity-log-view.tsx  ✅ shared list + detail sheet
+  audit-log-view.tsx     ✅ column/detail config for audit_logs
+  events-view.tsx        ✅ column/detail config for event_outbox
 
 vitest.config.ts                     ✅ scoped to server/**/*.test.ts
 ```
@@ -361,6 +377,21 @@ Also fixed in this phase:
 
 Both tables are mirrored in `lib/db/schema.ts`. RLS is on with select-only policies
 for workspace members; writes go through the privileged connection only.
+
+**Viewing them.** The Dev menu (local mode only) has **Audit Log**
+(`/build/audit-log`) and **Events** (`/build/events`): reverse-chronological
+tables backed by `/api/v1/audit-logs` and `/api/v1/events`, with a detail sheet
+per row showing the full `changes` / `payload` JSON. The selected row is held in
+`?id=` rather than component state, so a detail view can be linked to.
+
+Both are gated on `workspace.view` (admin and builder), deliberately stricter
+than the tables' RLS policy, which allows any workspace member to read — audit
+entries name who did what, and event payloads embed record data.
+
+Reads are keyset-paginated on `created_at` (`?before=`, `?limit=`) rather than
+offset-paginated: these tables only grow, so an offset query drifts as rows are
+appended underneath it. The list UI currently fetches one page; the API returns
+`meta.nextCursor` for when a "load more" is wanted.
 
 ### Phase 3 — Data API v1 ✅ done
 

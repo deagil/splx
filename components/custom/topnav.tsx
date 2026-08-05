@@ -35,6 +35,16 @@ const devOptions: MenuOption[] = [
     href: "/build/roles",
     description: "Manage roles, permissions, and detect RLS policy gaps",
   },
+  {
+    title: "Audit Log",
+    href: "/build/audit-log",
+    description: "Every mutation made through the API control plane",
+  },
+  {
+    title: "Events",
+    href: "/build/events",
+    description: "The event outbox awaiting an automation runner",
+  },
 ]
 
 const buildOptions: MenuOption[] = [

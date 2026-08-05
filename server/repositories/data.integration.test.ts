@@ -75,10 +75,15 @@ describeIfDb("dataRepository (integration)", () => {
   beforeEach(async () => {
     const db = getControlPlaneDb();
     const { sql } = await import("drizzle-orm");
+    // Scoped to this file's workspaces so a shared dev database is not wiped.
     await db.execute(sql`DELETE FROM public.contacts`);
     await db.execute(sql`DELETE FROM public.widgets`);
-    await db.execute(sql`DELETE FROM public.audit_logs`);
-    await db.execute(sql`DELETE FROM public.event_outbox`);
+    await db.execute(
+      sql`DELETE FROM public.audit_logs WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
+    );
+    await db.execute(
+      sql`DELETE FROM public.event_outbox WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
+    );
   });
 
   afterAll(async () => {
