@@ -138,11 +138,11 @@ export const Context = ({ className, usage, ...props }: ContextProps) => {
             <Progress className="h-2 bg-muted" value={usedPercent} />
           </div>
           <div className="mt-1 space-y-1">
-            {usage?.cachedInputTokens && usage.cachedInputTokens > 0 && (
+            {usage?.inputTokenDetails?.cacheReadTokens && usage.inputTokenDetails.cacheReadTokens > 0 && (
               <InfoRow
                 costText={usage?.costUSD?.cacheReadUSD?.toString()}
                 label="Cache Hits"
-                tokens={usage?.cachedInputTokens}
+                tokens={usage?.inputTokenDetails?.cacheReadTokens}
               />
             )}
             <InfoRow
@@ -159,8 +159,8 @@ export const Context = ({ className, usage, ...props }: ContextProps) => {
               costText={usage?.costUSD?.reasoningUSD?.toString()}
               label="Reasoning"
               tokens={
-                usage?.reasoningTokens && usage.reasoningTokens > 0
-                  ? usage.reasoningTokens
+                usage?.outputTokenDetails?.reasoningTokens && usage.outputTokenDetails.reasoningTokens > 0
+                  ? usage.outputTokenDetails.reasoningTokens
                   : undefined
               }
             />

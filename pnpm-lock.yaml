@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  prosemirror-model: 1.25.11
+
 importers:
 
   .:
@@ -261,7 +264,7 @@ importers:
         specifier: ^1.13.5
         version: 1.13.5
       prosemirror-model:
-        specifier: ^1.25.11
+        specifier: 1.25.11
         version: 1.25.11
       prosemirror-schema-basic:
         specifier: ^1.2.4
@@ -4900,9 +4903,6 @@ packages:
 
   prosemirror-model@1.25.11:
     resolution: {integrity: sha512-QWg9RhnpLlogAmp3p96uEFrE5txQpFynd4vhBAELkwgOCWQs/X0yCzB3/hrHqiPwf91RG5KyWq6553zs9JqIOQ==}
-
-  prosemirror-model@1.25.4:
-    resolution: {integrity: sha512-PIM7E43PBxKce8OQeezAs9j4TP+5yDpZVbuurd1h5phUxEKIu+G2a+EUZzIC5nS1mJktDJWzbqS23n1tsAf5QA==}
 
   prosemirror-schema-basic@1.2.4:
     resolution: {integrity: sha512-ELxP4TlX3yr2v5rM7Sb70SqStq5NvI15c0j9j/gjsrO5vaw+fnnpovCLEGIcpeGfifkuqJwl4fon6b+KdrODYQ==}
@@ -9992,7 +9992,7 @@ snapshots:
     dependencies:
       '@types/markdown-it': 14.1.2
       markdown-it: 14.1.0
-      prosemirror-model: 1.25.4
+      prosemirror-model: 1.25.11
 
   prosemirror-menu@1.2.5:
     dependencies:
@@ -10002,10 +10002,6 @@ snapshots:
       prosemirror-state: 1.4.4
 
   prosemirror-model@1.25.11:
-    dependencies:
-      orderedmap: 2.1.1
-
-  prosemirror-model@1.25.4:
     dependencies:
       orderedmap: 2.1.1
 

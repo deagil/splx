@@ -529,7 +529,7 @@ export async function POST(request: Request) {
             uiMessages.slice(0, -1).concat([enrichedMessageForAI]),
           ),
           stopWhen: stepCountIs(5),
-          experimental_activeTools: selectedChatModel === "chat-model-reasoning"
+          activeTools: selectedChatModel === "chat-model-reasoning"
             ? []
             : [
               "getWeather",

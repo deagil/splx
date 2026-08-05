@@ -64,7 +64,7 @@ export const myProvider = isTestEnvironment
         // Enable DevTools in development for debugging LLM calls
         middleware: !isProductionEnvironment && devToolsMiddlewareFn
           ? devToolsMiddlewareFn()
-          : undefined,
+          : [],
       }),
 
       // Reasoning model - uses OpenAI's native reasoning support
@@ -74,7 +74,7 @@ export const myProvider = isTestEnvironment
         model: openai("gpt-5-mini"),
         middleware: !isProductionEnvironment && devToolsMiddlewareFn
           ? devToolsMiddlewareFn()
-          : undefined,
+          : [],
       }),
 
       // Title generation model (optimized for concise output)
@@ -82,7 +82,7 @@ export const myProvider = isTestEnvironment
         model: openai("gpt-5-nano"),
         middleware: !isProductionEnvironment && devToolsMiddlewareFn
           ? devToolsMiddlewareFn()
-          : undefined,
+          : [],
       }),
 
       // Artifact/document generation model
@@ -90,7 +90,7 @@ export const myProvider = isTestEnvironment
         model: openai("gpt-5-mini"),
         middleware: !isProductionEnvironment && devToolsMiddlewareFn
           ? devToolsMiddlewareFn()
-          : undefined,
+          : [],
       }),
     },
   });

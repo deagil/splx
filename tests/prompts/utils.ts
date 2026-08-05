@@ -1,4 +1,4 @@
-import type { LanguageModelV2StreamPart } from "@ai-sdk/provider";
+import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
 import { generateId, type ModelMessage } from "ai";
 import { TEST_PROMPTS } from "./basic";
 
@@ -48,7 +48,7 @@ export function compareMessages(
   return true;
 }
 
-const textToDeltas = (text: string): LanguageModelV2StreamPart[] => {
+const textToDeltas = (text: string): LanguageModelV3StreamPart[] => {
   const id = generateId();
 
   const deltas = text.split(" ").map((char) => ({
@@ -60,7 +60,7 @@ const textToDeltas = (text: string): LanguageModelV2StreamPart[] => {
   return [{ id, type: "text-start" }, ...deltas, { id, type: "text-end" }];
 };
 
-const reasoningToDeltas = (text: string): LanguageModelV2StreamPart[] => {
+const reasoningToDeltas = (text: string): LanguageModelV3StreamPart[] => {
   const id = generateId();
 
   const deltas = text.split(" ").map((char) => ({
@@ -79,7 +79,7 @@ const reasoningToDeltas = (text: string): LanguageModelV2StreamPart[] => {
 export const getResponseChunksByPrompt = (
   prompt: ModelMessage[],
   isReasoningEnabled = false
-): LanguageModelV2StreamPart[] => {
+): LanguageModelV3StreamPart[] => {
   const recentMessage = prompt.at(-1);
 
   if (!recentMessage) {
@@ -93,8 +93,11 @@ export const getResponseChunksByPrompt = (
         ...textToDeltas("It's just blue duh!"),
         {
           type: "finish",
-          finishReason: "stop",
-          usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+          finishReason: { unified: "stop" as const, raw: undefined },
+          usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
         },
       ];
     }
@@ -107,8 +110,11 @@ export const getResponseChunksByPrompt = (
         ...textToDeltas("It's just green duh!"),
         {
           type: "finish",
-          finishReason: "stop",
-          usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+          finishReason: { unified: "stop" as const, raw: undefined },
+          usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
         },
       ];
     }
@@ -119,8 +125,11 @@ export const getResponseChunksByPrompt = (
       ...textToDeltas("You're welcome!"),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -130,8 +139,11 @@ export const getResponseChunksByPrompt = (
       ...textToDeltas("It's just green duh!"),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -141,8 +153,11 @@ export const getResponseChunksByPrompt = (
       ...textToDeltas("It's just blue duh!"),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -153,8 +168,11 @@ export const getResponseChunksByPrompt = (
 
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -164,8 +182,11 @@ export const getResponseChunksByPrompt = (
       ...textToDeltas("This painting is by Monet!"),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -203,8 +224,11 @@ export const getResponseChunksByPrompt = (
       },
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -232,8 +256,11 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
 `),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -245,8 +272,11 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
       ...textToDeltas("A document was created and is now visible to the user."),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -261,8 +291,11 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
       },
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }
@@ -272,8 +305,11 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
       ...textToDeltas("The current temperature in San Francisco is 17°C."),
       {
         type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        finishReason: { unified: "stop" as const, raw: undefined },
+        usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 10, text: 10, reasoning: 0 },
+          },
       },
     ];
   }

@@ -1,5 +1,10 @@
 allowBuilds:
   esbuild: true
+overrides:
+  # prosemirror-markdown pulls 1.25.4 while everything else resolves 1.25.11.
+  # Two copies means two structurally-incompatible Node/NodeSpec types, which
+  # breaks lib/editor/functions.tsx and components/editor/sheet-editor.tsx.
+  prosemirror-model: 1.25.11
 minimumReleaseAgeExclude:
   - '@ai-sdk/gateway@4.0.41'
   - '@ai-sdk/mcp@2.0.25'
