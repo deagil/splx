@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
+import { useActionState, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,15 +13,19 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { updateProfile, type UpdateProfileState } from "./actions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { User } from "@/lib/db/schema";
+import { type UpdateProfileState, updateProfile } from "./actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button disabled={pending} type="submit">
       {pending ? "Saving..." : "Save profile"}
     </Button>
   );
@@ -41,27 +44,27 @@ export function ProfileForm({ user }: { user: User }) {
   }, [state]);
 
   return (
-    <form className="mt-8 space-y-8" action={formAction}>
+    <form action={formAction} className="mt-8 space-y-8">
       <FieldGroup>
-        <input type="hidden" name="email" value={user.email} />
+        <input name="email" type="hidden" value={user.email} />
         <Field>
           <FieldLabel htmlFor="profile-firstname">First name</FieldLabel>
           <Input
+            defaultValue={user.firstname ?? ""}
             id="profile-firstname"
             name="firstname"
-            type="text"
-            defaultValue={user.firstname ?? ""}
             required
+            type="text"
           />
         </Field>
         <Field>
           <FieldLabel htmlFor="profile-lastname">Last name</FieldLabel>
           <Input
+            defaultValue={user.lastname ?? ""}
             id="profile-lastname"
             name="lastname"
-            type="text"
-            defaultValue={user.lastname ?? ""}
             required
+            type="text"
           />
         </Field>
         {/*todo email not editable for now */}
@@ -80,11 +83,11 @@ export function ProfileForm({ user }: { user: User }) {
           </FieldDescription>
         </Field> */}
         <Field>
-          <FieldLabel htmlFor="profile-title" className="items-center gap-2">
+          <FieldLabel className="items-center gap-2" htmlFor="profile-title">
             Job title
             <Tooltip>
               <TooltipTrigger asChild>
-                <Sparkles className="size-4 text-muted-foreground cursor-help" />
+                <Sparkles className="size-4 cursor-help text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>Helps AI understand your perspective and expertise.</p>
@@ -92,45 +95,49 @@ export function ProfileForm({ user }: { user: User }) {
             </Tooltip>
           </FieldLabel>
           <Input
+            defaultValue={user.job_title ?? ""}
             id="profile-title"
             name="job_title"
             type="text"
-            defaultValue={user.job_title ?? ""}
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="profile-ai-context" className="items-center gap-2">
+          <FieldLabel
+            className="items-center gap-2"
+            htmlFor="profile-ai-context"
+          >
             Role & experience
             <Tooltip>
               <TooltipTrigger asChild>
-                <Sparkles className="size-4 text-muted-foreground cursor-help" />
+                <Sparkles className="size-4 cursor-help text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Shared with AI to improve responses when personalization is enabled.</p>
+                <p>
+                  Shared with AI to improve responses when personalization is
+                  enabled.
+                </p>
               </TooltipContent>
             </Tooltip>
           </FieldLabel>
           <Textarea
+            defaultValue={user.ai_context ?? ""}
             id="profile-ai-context"
             name="ai_context"
-            rows={4}
-            defaultValue={user.ai_context ?? ""}
             placeholder="Describe your responsibilities, focus areas, and background for better AI context."
+            rows={4}
           />
           <FieldDescription>
             Keep this updated so AI features understand your perspective.
           </FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor="profile-avatar">
-            Profile picture URL
-          </FieldLabel>
+          <FieldLabel htmlFor="profile-avatar">Profile picture URL</FieldLabel>
           <Input
+            defaultValue={user.avatar_url ?? ""}
             id="profile-avatar"
             name="avatar_url"
-            type="url"
-            defaultValue={user.avatar_url ?? ""}
             placeholder="https://example.com/avatar.png"
+            type="url"
           />
           <FieldDescription>
             Images should be square and at least 128 × 128 pixels.

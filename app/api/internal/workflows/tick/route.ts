@@ -11,8 +11,7 @@ import { processDueSchedules } from "@/server/workflows/worker";
  * Vercel Cron invokes with GET; Coolify/curl can use POST.
  */
 async function handleTick(req: Request): Promise<Response> {
-  const secret =
-    process.env.WORKFLOW_RUNNER_SECRET ?? process.env.CRON_SECRET;
+  const secret = process.env.WORKFLOW_RUNNER_SECRET ?? process.env.CRON_SECRET;
   if (!secret) {
     return new Response(null, { status: 404 });
   }
@@ -22,10 +21,7 @@ async function handleTick(req: Request): Promise<Response> {
   const provided = Buffer.from(header);
   const target = Buffer.from(expected);
 
-  if (
-    provided.length !== target.length ||
-    !timingSafeEqual(provided, target)
-  ) {
+  if (provided.length !== target.length || !timingSafeEqual(provided, target)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

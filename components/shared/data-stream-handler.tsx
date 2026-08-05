@@ -28,9 +28,9 @@ export function DataStreamHandler() {
 
       if (artifactDefinition?.onStreamPart) {
         artifactDefinition.onStreamPart({
-          streamPart: delta,
           setArtifact,
           setMetadata,
+          streamPart: delta,
         });
       }
 
@@ -50,8 +50,8 @@ export function DataStreamHandler() {
           case "data-title":
             return {
               ...draftArtifact,
-              title: delta.data,
               status: "streaming",
+              title: delta.data,
             };
 
           case "data-kind":
@@ -76,7 +76,11 @@ export function DataStreamHandler() {
 
           case "data-navigate":
             // Handle navigation event - navigate to the page
-            if (delta.data && typeof delta.data === "object" && "url" in delta.data) {
+            if (
+              delta.data &&
+              typeof delta.data === "object" &&
+              "url" in delta.data
+            ) {
               router.push(delta.data.url as string);
             }
             return draftArtifact;
@@ -86,7 +90,7 @@ export function DataStreamHandler() {
         }
       });
     }
-  }, [dataStream, setArtifact, setMetadata, artifact, router]);
+  }, [dataStream, setArtifact, setMetadata, artifact, router, setDataStream]);
 
   return null;
 }

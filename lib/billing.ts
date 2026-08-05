@@ -8,7 +8,7 @@ export function canAccessAI(workspace: Workspace) {
   return isProPlan(workspace);
 }
 
-export function canAccessCharts(workspace: Workspace) {
+export function canAccessCharts(_workspace: Workspace) {
   // Available on all plans
   return true;
 }

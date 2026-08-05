@@ -1,16 +1,22 @@
 "use client";
 
+import {
+  Download,
+  LayoutGrid,
+  ShieldAlert,
+  TableProperties,
+  Undo,
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import useSWR from "swr";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RolesOverview } from "./roles-overview";
-import { PermissionsMatrix } from "./permissions-matrix";
-import { GapDetectionPanel } from "./gap-detection-panel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExportMigrationDialog } from "./export-migration-dialog";
-import { Download, LayoutGrid, ShieldAlert, TableProperties, Undo } from "lucide-react";
-import { toast } from "sonner";
+import { GapDetectionPanel } from "./gap-detection-panel";
+import { PermissionsMatrix } from "./permissions-matrix";
+import { RolesOverview } from "./roles-overview";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -21,10 +27,11 @@ export function RolesPermissionsView() {
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Fetch Roles & Permissions
-  const { data: rolesData, error: rolesError, isLoading: rolesLoading } = useSWR(
-    "/api/dev/roles",
-    fetcher
-  );
+  const {
+    data: rolesData,
+    error: rolesError,
+    isLoading: rolesLoading,
+  } = useSWR("/api/dev/roles", fetcher);
 
   // Fetch Gap Analysis
   const { data: gapsData, isLoading: gapsLoading } = useSWR(
@@ -34,7 +41,7 @@ export function RolesPermissionsView() {
 
   if (rolesError) {
     return (
-      <div className="p-4 rounded-md bg-destructive/10 text-destructive">
+      <div className="rounded-md bg-destructive/10 p-4 text-destructive">
         Error loading roles: {rolesError.message}
       </div>
     );
@@ -59,13 +66,13 @@ export function RolesPermissionsView() {
       }
 
       // Determine action based on initial state
-      // Note: We need to know if the permission existed initially to know if "checked=true" means "add" 
+      // Note: We need to know if the permission existed initially to know if "checked=true" means "add"
       // or if "checked=false" means "remove".
       // Simplified: If checked, we want to ADD. If unchecked, we want to REMOVE.
       // But we block duplicates in the DB unique constraint, and DELETE only if exists.
-      
+
       const action = checked ? "add" : "remove";
-      return [...prev, { role_id: roleId, permission, action }];
+      return [...prev, { action, permission, role_id: roleId }];
     });
   };
 
@@ -76,47 +83,47 @@ export function RolesPermissionsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Tabs defaultValue="overview" className="w-full">
-          <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center justify-between">
+        <Tabs className="w-full" defaultValue="overview">
+          <div className="mb-4 flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="overview">
-                <LayoutGrid className="h-4 w-4 mr-2" />
+                <LayoutGrid className="mr-2 h-4 w-4" />
                 Overview
               </TabsTrigger>
               <TabsTrigger value="permissions">
-                <TableProperties className="h-4 w-4 mr-2" />
+                <TableProperties className="mr-2 h-4 w-4" />
                 Permissions
               </TabsTrigger>
               <TabsTrigger value="gaps">
-                <ShieldAlert className="h-4 w-4 mr-2" />
+                <ShieldAlert className="mr-2 h-4 w-4" />
                 Gap Detection
               </TabsTrigger>
             </TabsList>
 
             <div className="flex gap-2">
               {pendingChanges.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={handleReset}>
-                  <Undo className="h-4 w-4 mr-2" />
+                <Button onClick={handleReset} size="sm" variant="ghost">
+                  <Undo className="mr-2 h-4 w-4" />
                   Reset ({pendingChanges.length})
                 </Button>
               )}
-              <Button 
-                variant={pendingChanges.length > 0 ? "primary" : "outline"}
-                size="sm"
+              <Button
                 onClick={() => setIsExportOpen(true)}
+                size="sm"
+                variant={pendingChanges.length > 0 ? "primary" : "outline"}
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="mr-2 h-4 w-4" />
                 Export Migration
               </Button>
             </div>
           </div>
 
-          <TabsContent value="overview" className="space-y-4">
-            <RolesOverview 
-              roles={rolesData?.roles} 
-              permissions={rolesData?.permissions} 
-              isLoading={rolesLoading} 
+          <TabsContent className="space-y-4" value="overview">
+            <RolesOverview
+              isLoading={rolesLoading}
+              permissions={rolesData?.permissions}
+              roles={rolesData?.roles}
             />
           </TabsContent>
 
@@ -124,10 +131,10 @@ export function RolesPermissionsView() {
             <Card>
               <CardContent className="p-0">
                 <PermissionsMatrix
-                  roles={rolesData?.roles || []}
-                  permissions={rolesData?.permissions || []}
                   onChange={handlePermissionChange}
                   pendingChanges={pendingChanges}
+                  permissions={rolesData?.permissions || []}
+                  roles={rolesData?.roles || []}
                 />
               </CardContent>
             </Card>
@@ -136,7 +143,7 @@ export function RolesPermissionsView() {
           <TabsContent value="gaps">
             <Card>
               <CardContent className="pt-6">
-                 <GapDetectionPanel data={gapsData} isLoading={gapsLoading} />
+                <GapDetectionPanel data={gapsData} isLoading={gapsLoading} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -144,9 +151,9 @@ export function RolesPermissionsView() {
       </div>
 
       <ExportMigrationDialog
+        changes={pendingChanges}
         isOpen={isExportOpen}
         onOpenChange={setIsExportOpen}
-        changes={pendingChanges}
       />
     </div>
   );

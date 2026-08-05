@@ -1,8 +1,8 @@
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import type { Attachment } from "@/lib/types";
 import { Loader } from "../elements/loader";
 import { CrossSmallIcon } from "../shared/icons";
-import { Button } from "@/components/ui/button";
 
 export const PreviewAttachment = ({
   attachment,
@@ -34,11 +34,11 @@ export const PreviewAttachment = ({
         </div>
       )}
 
-      {isUploading && (
+      {!!isUploading && (
         <div
-	  className="absolute inset-0 flex items-center justify-center bg-black/50"
-	  data-testid="input-attachment-loader"
-	>
+          className="absolute inset-0 flex items-center justify-center bg-black/50"
+          data-testid="input-attachment-loader"
+        >
           <Loader size={16} />
         </div>
       )}

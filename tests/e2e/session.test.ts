@@ -15,7 +15,8 @@ test.describe
         throw new Error("Failed to load page");
       }
 
-      let request: ReturnType<typeof response.request> | null = response.request();
+      let request: ReturnType<typeof response.request> | null =
+        response.request();
 
       const chain: string[] = [];
 
@@ -57,7 +58,8 @@ test.describe
         throw new Error("Failed to load page");
       }
 
-      let request: ReturnType<typeof response.request> | null = response.request();
+      let request: ReturnType<typeof response.request> | null =
+        response.request();
 
       const chain: string[] = [];
 
@@ -193,10 +195,10 @@ test.describe("Entitlements", () => {
   });
 
   test("Guest user cannot send more than 20 messages/day", async () => {
-    test.fixme();
+    test();
     await chatPage.createNewChat();
 
-    for (let i = 0; i <= 20; i++) {
+    for (let i = 0; i <= 20; i += 1) {
       await chatPage.sendUserMessage("Why is the sky blue?");
       await chatPage.isGenerationComplete();
     }

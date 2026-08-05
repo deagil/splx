@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  LayoutTemplateIcon,
+  Loader2Icon,
+  PenLineIcon,
+  PlusIcon,
+} from "lucide-react";
 import { nanoid } from "nanoid";
-import { EyeIcon, EyeOffIcon, LayoutTemplateIcon, Loader2Icon, PenLineIcon, CheckIcon, PlusIcon } from "lucide-react";
-import type { PageRecord } from "@/lib/server/pages";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,26 +24,32 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { PageRecord } from "@/lib/server/pages";
+import { cn } from "@/lib/utils";
+import { MentionContextProvider } from "./mention-context";
 import { PageGridEditor } from "./page-grid-editor";
 import { PageViewer } from "./page-viewer";
+import { type PageTemplate, pageTemplates } from "./templates";
 import { draftToSavePayload, pageRecordToDraft } from "./transformers";
 import type { PageBlockDraft, PageDraft, PageSavePayload } from "./types";
-import { pageTemplates, type PageTemplate } from "./templates";
-import { MentionContextProvider } from "./mention-context";
-import { cn } from "@/lib/utils";
 
 export type PageViewMode = "read" | "edit";
 
-export type PageScreenProps = {
-  page: PageRecord;
-  viewMode: PageViewMode;
-  urlParams: Record<string, string>;
+export interface PageScreenProps {
   canEdit: boolean;
-};
+  page: PageRecord;
+  urlParams: Record<string, string>;
+  viewMode: PageViewMode;
+}
 
 const AUTOSAVE_DELAY_MS = 800;
 
-export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenProps) {
+export function PageScreen({
+  page,
+  viewMode,
+  urlParams,
+  canEdit,
+}: PageScreenProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -75,14 +87,16 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
 
     const queryString = params.toString();
     startTransition(() => {
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+        scroll: false,
+      });
     });
   };
 
   const handleApplyTemplate = (template: PageTemplate) => {
     if (draft.blocks.length > 0 && typeof window !== "undefined") {
       const confirmed = window.confirm(
-        "Applying a template will replace the current blocks. Continue?",
+        "Applying a template will replace the current blocks. Continue?"
       );
       if (!confirmed) {
         return;
@@ -114,11 +128,11 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
     setError(null);
     try {
       const response = await fetch(`/api/pages/${currentPage.id}/save`, {
-        method: "PUT",
+        body: JSON.stringify(payload),
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        method: "PUT",
       });
 
       if (!response.ok) {
@@ -148,7 +162,9 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
       }
       setLastSavedAt(new Date().toISOString());
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unexpected error occurred");
+      setError(
+        caught instanceof Error ? caught.message : "Unexpected error occurred"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +182,7 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
       void saveDraft(draftToSavePayload(draft));
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timeout);
-  }, [draft, isEditing, canEdit]);
+  }, [draft, isEditing, canEdit, saveDraft]);
 
   const statusLabel = isSaving
     ? "Saving…"
@@ -177,8 +193,12 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
         : "Idle";
 
   const templateOptions = useMemo(
-    () => pageTemplates.filter((template) => template.id === "list-view" || template.id === "detail-view"),
-    [],
+    () =>
+      pageTemplates.filter(
+        (template) =>
+          template.id === "list-view" || template.id === "detail-view"
+      ),
+    []
   );
 
   const showHeader = isEditView || !draft.settings.hideHeader;
@@ -188,76 +208,79 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
     switch (type) {
       case "record":
         return {
+          display: { columns: [], format: "form", mode: "read" },
           id: nanoid(8),
-          type: "record",
-          position: { x: 0, y: 0, width: 6, height: 5 },
-          tableName: "records",
+          position: { height: 5, width: 6, x: 0, y: 0 },
           recordId: "url.id",
-          display: { mode: "read", format: "form", columns: [] },
+          tableName: "records",
+          type: "record",
         };
       case "report":
         return {
-          id: nanoid(8),
-          type: "report",
-          position: { x: 0, y: 0, width: 6, height: 4 },
-          reportId: "report-id",
           display: { chartType: "bar", title: "Report" },
+          id: nanoid(8),
+          position: { height: 4, width: 6, x: 0, y: 0 },
+          reportId: "report-id",
+          type: "report",
         };
       case "trigger":
         return {
-          id: nanoid(8),
-          type: "trigger",
-          position: { x: 0, y: 0, width: 4, height: 2 },
           display: {
-            buttonText: "Run action",
             actionType: "primary",
-            requireConfirmation: false,
+            buttonText: "Run action",
             confirmationText: "",
             hookName: "custom_hook",
+            requireConfirmation: false,
           },
+          id: nanoid(8),
+          position: { height: 2, width: 4, x: 0, y: 0 },
+          type: "trigger",
         };
-      case "list":
       default:
         return {
-          id: nanoid(8),
-          type: "list",
-          position: { x: 0, y: 0, width: 6, height: 4 },
-          tableName: "records",
-          filters: [],
           display: {
+            columns: [],
+            editable: false,
             format: "table",
             showActions: true,
-            editable: false,
-            columns: [],
           },
+          filters: [],
+          id: nanoid(8),
+          position: { height: 4, width: 6, x: 0, y: 0 },
+          tableName: "records",
+          type: "list",
         };
     }
   };
 
-  const blocksOverlap = (a: PageBlockDraft, b: PageBlockDraft) => {
-    return !(
+  const blocksOverlap = (a: PageBlockDraft, b: PageBlockDraft) =>
+    !(
       a.position.x + a.position.width <= b.position.x ||
       b.position.x + b.position.width <= a.position.x ||
       a.position.y + a.position.height <= b.position.y ||
       b.position.y + b.position.height <= a.position.y
     );
-  };
 
-  const findPlacement = (blocks: PageBlockDraft[], candidate: PageBlockDraft) => {
-    const width = candidate.position.width;
-    const height = candidate.position.height;
+  const findPlacement = (
+    blocks: PageBlockDraft[],
+    candidate: PageBlockDraft
+  ) => {
+    const { width, height } = candidate.position;
     const GRID_COLS = 12;
 
     const collides = (pos: { x: number; y: number }) => {
-      const placed = { ...candidate, position: { ...pos, width, height } };
+      const placed = { ...candidate, position: { ...pos, height, width } };
       return blocks.some((block) => blocksOverlap(placed, block));
     };
 
-    const anchor = blocks[blocks.length - 1];
+    const anchor = blocks.at(-1);
     if (anchor) {
       const rightX = anchor.position.x + anchor.position.width;
       const spaceRight = GRID_COLS - rightX;
-      if (spaceRight >= width && !collides({ x: rightX, y: anchor.position.y })) {
+      if (
+        spaceRight >= width &&
+        !collides({ x: rightX, y: anchor.position.y })
+      ) {
         return { x: rightX, y: anchor.position.y };
       }
       const belowY = anchor.position.y + anchor.position.height;
@@ -266,7 +289,10 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
       }
     }
 
-    const maxY = blocks.reduce((max, block) => Math.max(max, block.position.y + block.position.height), 0);
+    const maxY = blocks.reduce(
+      (max, block) => Math.max(max, block.position.y + block.position.height),
+      0
+    );
     for (let y = 0; y <= maxY + 1; y += 1) {
       for (let x = 0; x <= GRID_COLS - width; x += 1) {
         if (!collides({ x, y })) {
@@ -282,7 +308,10 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
     setDraft((current) => {
       const candidate = blockDefaults(type);
       const position = findPlacement(current.blocks, candidate);
-      const placed = { ...candidate, position: { ...candidate.position, ...position } };
+      const placed = {
+        ...candidate,
+        position: { ...candidate.position, ...position },
+      };
       return {
         ...current,
         blocks: [...current.blocks, placed],
@@ -296,25 +325,32 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
       <TooltipProvider delayDuration={80}>
         {showHeader ? (
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
-            <div className={cn("space-y-2", headerMuted ? "opacity-60" : undefined)}>
+            <div
+              className={cn(
+                "space-y-2",
+                headerMuted ? "opacity-60" : undefined
+              )}
+            >
               {isEditing ? (
                 <Input
-                  value={draft.name}
+                  aria-label="Page name"
+                  className="font-semibold text-2xl"
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
                       name: event.target.value,
                     }))
                   }
-                  className="text-2xl font-semibold"
-                  aria-label="Page name"
+                  value={draft.name}
                 />
               ) : (
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground">{currentPage.name}</h1>
+                <h1 className="font-semibold text-3xl text-foreground tracking-tight">
+                  {currentPage.name}
+                </h1>
               )}
               {isEditing ? (
                 <Input
-                  value={draft.description ?? ""}
+                  aria-label="Page description"
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
@@ -322,17 +358,21 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
                     }))
                   }
                   placeholder="Optional summary shown in headers"
-                  aria-label="Page description"
+                  value={draft.description ?? ""}
                 />
               ) : currentPage.description ? (
-                <p className="text-sm text-muted-foreground">{currentPage.description}</p>
+                <p className="text-muted-foreground text-sm">
+                  {currentPage.description}
+                </p>
               ) : null}
             </div>
 
             {isEditing ? (
               <div className="flex flex-1 justify-center">
-                <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground">
-                  {isSaving ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" /> : null}
+                <div className="flex items-center gap-2 rounded-md border border-border px-3 py-1 text-muted-foreground text-xs">
+                  {isSaving ? (
+                    <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
                   <span>{statusLabel}</span>
                 </div>
               </div>
@@ -341,15 +381,15 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
             <div className="flex flex-wrap items-center gap-2 md:ms-auto">
               {isEditing ? (
                 <>
-                  <Popover open={newBlockOpen} onOpenChange={setNewBlockOpen}>
+                  <Popover onOpenChange={setNewBlockOpen} open={newBlockOpen}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <PopoverTrigger asChild>
                           <Button
+                            aria-label="Add block"
+                            size="icon"
                             type="button"
                             variant="outline"
-                            size="icon"
-                            aria-label="Add block"
                           >
                             <PlusIcon className="h-4 w-4" />
                           </Button>
@@ -357,38 +397,64 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
                       </TooltipTrigger>
                       <TooltipContent>Add block</TooltipContent>
                     </Tooltip>
-                    <PopoverContent className="w-[280px] space-y-3" align="end">
-                      <p className="text-sm font-semibold text-foreground">Add block</p>
+                    <PopoverContent align="end" className="w-[280px] space-y-3">
+                      <p className="font-semibold text-foreground text-sm">
+                        Add block
+                      </p>
                       <div className="grid gap-2">
                         {[
-                          { type: "list", label: "List", description: "Table view with pagination" },
-                          { type: "record", label: "Record", description: "Single record form/view" },
-                          { type: "report", label: "Report", description: "Chart from saved report" },
-                          { type: "trigger", label: "Trigger", description: "Action button with hook" },
+                          {
+                            description: "Table view with pagination",
+                            label: "List",
+                            type: "list",
+                          },
+                          {
+                            description: "Single record form/view",
+                            label: "Record",
+                            type: "record",
+                          },
+                          {
+                            description: "Chart from saved report",
+                            label: "Report",
+                            type: "report",
+                          },
+                          {
+                            description: "Action button with hook",
+                            label: "Trigger",
+                            type: "trigger",
+                          },
                         ].map((option) => (
                           <button
-                            key={option.type}
-                            type="button"
-                            onClick={() => handleAddBlock(option.type as PageBlockDraft["type"])}
                             className="flex flex-col gap-1 rounded-md border border-border/70 p-3 text-left transition hover:border-primary hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            key={option.type}
+                            onClick={() =>
+                              handleAddBlock(
+                                option.type as PageBlockDraft["type"]
+                              )
+                            }
+                            type="button"
                           >
-                            <span className="text-sm font-semibold text-foreground">{option.label}</span>
-                            <span className="text-xs text-muted-foreground">{option.description}</span>
+                            <span className="font-semibold text-foreground text-sm">
+                              {option.label}
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {option.description}
+                            </span>
                           </button>
                         ))}
                       </div>
                     </PopoverContent>
                   </Popover>
 
-                  <Popover open={templateOpen} onOpenChange={setTemplateOpen}>
+                  <Popover onOpenChange={setTemplateOpen} open={templateOpen}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <PopoverTrigger asChild>
                           <Button
+                            aria-label="Open templates"
+                            size="icon"
                             type="button"
                             variant="outline"
-                            size="icon"
-                            aria-label="Open templates"
                           >
                             <LayoutTemplateIcon className="h-4 w-4" />
                           </Button>
@@ -396,20 +462,26 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
                       </TooltipTrigger>
                       <TooltipContent>Templates</TooltipContent>
                     </Tooltip>
-                    <PopoverContent className="w-[360px] space-y-3" align="end">
-                      <p className="text-sm font-semibold text-foreground">Templates</p>
+                    <PopoverContent align="end" className="w-[360px] space-y-3">
+                      <p className="font-semibold text-foreground text-sm">
+                        Templates
+                      </p>
                       <div className="grid gap-3">
                         {templateOptions.map((template) => (
                           <button
-                            key={template.id}
-                            type="button"
-                            onClick={() => handleApplyTemplate(template)}
                             className="flex flex-col gap-2 rounded-lg border border-border/70 p-3 text-left transition hover:border-primary hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            key={template.id}
+                            onClick={() => handleApplyTemplate(template)}
+                            type="button"
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm font-semibold text-foreground">{template.name}</p>
-                                <p className="text-xs text-muted-foreground">{template.description}</p>
+                                <p className="font-semibold text-foreground text-sm">
+                                  {template.name}
+                                </p>
+                                <p className="text-muted-foreground text-xs">
+                                  {template.description}
+                                </p>
                               </div>
                             </div>
                             <TemplatePreview rows={template.preview} />
@@ -422,9 +494,11 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        type="button"
-                        variant={draft.settings.hideHeader ? "secondary" : "outline"}
-                        size="icon"
+                        aria-label={
+                          draft.settings.hideHeader
+                            ? "Show header"
+                            : "Hide header"
+                        }
                         onClick={() =>
                           setDraft((current) => ({
                             ...current,
@@ -434,23 +508,35 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
                             },
                           }))
                         }
-                        aria-label={draft.settings.hideHeader ? "Show header" : "Hide header"}
+                        size="icon"
+                        type="button"
+                        variant={
+                          draft.settings.hideHeader ? "secondary" : "outline"
+                        }
                       >
-                        {draft.settings.hideHeader ? <EyeIcon className="h-4 w-4" /> : <EyeOffIcon className="h-4 w-4" />}
+                        {draft.settings.hideHeader ? (
+                          <EyeIcon className="h-4 w-4" />
+                        ) : (
+                          <EyeOffIcon className="h-4 w-4" />
+                        )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{draft.settings.hideHeader ? "Show header" : "Hide header"}</TooltipContent>
+                    <TooltipContent>
+                      {draft.settings.hideHeader
+                        ? "Show header"
+                        : "Hide header"}
+                    </TooltipContent>
                   </Tooltip>
                 </>
               ) : null}
 
               {canEdit ? (
                 <Button
+                  className="gap-2"
+                  disabled={isPending}
+                  onClick={handleToggleMode}
                   type="button"
                   variant={isEditing ? "primary" : "outline"}
-                  onClick={handleToggleMode}
-                  disabled={isPending}
-                  className="gap-2"
                 >
                   {isEditing ? null : <PenLineIcon className="h-4 w-4" />}
                   {isEditing ? "Done" : "Edit Page"}
@@ -462,17 +548,22 @@ export function PageScreen({ page, viewMode, urlParams, canEdit }: PageScreenPro
       </TooltipProvider>
 
       {error ? (
-        <div className="rounded-md border border-red-400 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-md border border-red-400 bg-red-50 px-4 py-3 text-red-700 text-sm">
+          {error}
+        </div>
       ) : null}
 
       {isEditing ? (
         <MentionContextProvider page={currentPage}>
-          <PageGridEditor draft={draft} onDraftChange={setDraft} urlParams={urlParamMemo} />
+          <PageGridEditor
+            draft={draft}
+            onDraftChange={setDraft}
+            urlParams={urlParamMemo}
+          />
         </MentionContextProvider>
       ) : (
         <PageViewer page={currentPage} urlParams={urlParamMemo} />
       )}
-
     </div>
   );
 }
@@ -482,14 +573,14 @@ function TemplatePreview({ rows }: { rows: PageTemplate["preview"] }) {
     <div className="rounded-md border border-border/60 bg-muted/60 p-2">
       <div className="space-y-2 rounded-sm border border-border/60 bg-background px-3 py-3 shadow-inner">
         {rows.map((row, rowIndex) => (
-          <div key={`row-${rowIndex}`} className="flex gap-2">
+          <div className="flex gap-2" key={`row-${rowIndex}`}>
             {row.columns.map((column, columnIndex) => (
               <div
+                className="rounded-sm px-2 py-2 text-center font-semibold text-[10px] text-background uppercase tracking-wide"
                 key={`col-${columnIndex}`}
-                className="rounded-sm px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-background"
                 style={{
-                  flex: column.span,
                   backgroundColor: previewColor(column.variant),
+                  flex: column.span,
                 }}
               >
                 {column.label ?? column.variant ?? "Block"}
@@ -516,4 +607,3 @@ function previewColor(variant?: "record" | "list" | "trigger" | "report") {
       return "rgba(107, 114, 128, 0.6)";
   }
 }
-

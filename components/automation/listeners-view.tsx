@@ -18,22 +18,22 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-type EventType = {
-  id: string;
-  name: string;
+interface EventType {
   description: string | null;
-};
-
-type Workflow = {
   id: string;
   name: string;
+}
+
+interface Workflow {
   description: string | null;
   enabled: boolean;
-  triggerType: string;
   eventName: string | null;
+  id: string;
+  name: string;
   steps: unknown[];
+  triggerType: string;
   updatedAt: string;
-};
+}
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -86,20 +86,20 @@ export function ListenersView() {
       let steps: unknown[];
       try {
         steps = JSON.parse(stepsJson);
-      } catch {
-        throw new Error("Steps must be valid JSON");
+      } catch (parseError) {
+        throw new Error("Steps must be valid JSON", { cause: parseError });
       }
 
       const response = await fetch("/api/v1/workflows", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          name,
-          triggerType: "event",
-          eventName,
-          steps,
           enabled: true,
+          eventName,
+          name,
+          steps,
+          triggerType: "event",
         }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
       const body = await response.json();
       if (!response.ok) {
@@ -118,9 +118,9 @@ export function ListenersView() {
 
   const toggleEnabled = async (listener: Workflow) => {
     const response = await fetch(`/api/v1/workflows/${listener.id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ enabled: !listener.enabled }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
     });
     if (!response.ok) {
       const body = await response.json();
@@ -132,9 +132,9 @@ export function ListenersView() {
 
   const runNow = async (listener: Workflow) => {
     const response = await fetch(`/api/v1/workflows/${listener.id}/run`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     if (!response.ok) {
       const body = await response.json();

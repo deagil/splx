@@ -1,14 +1,14 @@
 import cn from "classnames";
 import { LoaderIcon } from "../shared/icons";
 
-type ImageEditorProps = {
-  title: string;
+interface ImageEditorProps {
   content: string;
-  isCurrentVersion: boolean;
   currentVersionIndex: number;
-  status: string;
+  isCurrentVersion: boolean;
   isInline: boolean;
-};
+  status: string;
+  title: string;
+}
 
 export function ImageEditor({
   title,
@@ -19,8 +19,8 @@ export function ImageEditor({
   return (
     <div
       className={cn("flex w-full flex-row items-center justify-center", {
-        "h-[calc(100dvh-60px)]": !isInline,
         "h-[200px]": isInline,
+        "h-[calc(100dvh-60px)]": !isInline,
       })}
     >
       {status === "streaming" ? (

@@ -10,30 +10,28 @@ import { fetcher } from "@/lib/utils";
  * Used for non-page routes where we want to show table mentions
  */
 export function useMentionableTables(): MentionableItem[] {
-  const { data: tablesData } = useSWR<{ tables: Array<{ name: string; schema: string }> }>(
-    "/api/tables?type=data",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  );
+  const { data: tablesData } = useSWR<{
+    tables: Array<{ name: string; schema: string }>;
+  }>("/api/tables?type=data", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   return useMemo(() => {
-    if (!tablesData?.tables) return [];
+    if (!tablesData?.tables) {
+      return [];
+    }
 
     return tablesData.tables.map((table) => ({
-      key: `table-${table.schema}-${table.name}`,
-      text: `@table:${table.name}`,
       description: `Data from ${table.name} table`,
+      key: `table-${table.schema}-${table.name}`,
       mention: {
-        type: "table" as const,
-        tableName: table.name,
-        label: `Table: ${table.name}`,
         description: `Query data from ${table.name} table`,
+        label: `Table: ${table.name}`,
+        tableName: table.name,
+        type: "table" as const,
       },
+      text: `@table:${table.name}`,
     }));
   }, [tablesData]);
 }
-
-

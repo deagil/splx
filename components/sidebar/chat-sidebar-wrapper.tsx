@@ -1,17 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { User } from "@/lib/types";
 import { ChatSidebar } from "@/components/sidebar/chat-sidebar";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
-import { generateUUID } from "@/lib/utils";
 import { getChatsByUserId } from "@/lib/db/queries";
+import type { User } from "@/lib/types";
+import { generateUUID } from "@/lib/utils";
 import type { ChatHistory } from "./sidebar-history";
 
-export async function ChatSidebarWrapper({
-  user,
-}: {
-  user: User | undefined;
-}) {
+export async function ChatSidebarWrapper({ user }: { user: User | undefined }) {
   if (!user) {
     redirect("/signin");
   }
@@ -26,10 +22,10 @@ export async function ChatSidebarWrapper({
   let initialHistory: ChatHistory | null = null;
   try {
     initialHistory = await getChatsByUserId({
+      endingBefore: null,
       id: user.id ?? "",
       limit: 20,
       startingAfter: null,
-      endingBefore: null,
     });
   } catch {
     // If history fetch fails, use empty history
@@ -40,12 +36,11 @@ export async function ChatSidebarWrapper({
     <ChatSidebar
       chatId={chatId}
       initialChatModel={initialChatModel}
+      initialHistory={initialHistory}
       initialMessages={[]}
       initialVisibilityType="private"
       isReadonly={false}
       user={user}
-      initialHistory={initialHistory}
     />
   );
 }
-

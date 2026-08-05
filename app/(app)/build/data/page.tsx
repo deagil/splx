@@ -9,5 +9,3 @@ export default async function DataPage() {
   // Redirect to the new tables route
   redirect("/data/tables");
 }
-
-

@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
 import { streamText, tool } from "ai";
+import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
-import { requireCapability } from "@/lib/server/tenant/permissions";
-import { listTableConfigs } from "@/lib/server/tables";
 import { myProvider } from "@/lib/ai/providers";
 import { type ReportUI, reportUISchema } from "@/lib/ai/reports-ui-schema";
+import { listTableConfigs } from "@/lib/server/tables";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
+import { requireCapability } from "@/lib/server/tenant/permissions";
 
-const REPORT_SYSTEM_PROMPT =
-  `You are a reporting assistant that converts a user's analytics intent into a safe, read-only SQL query and chart configuration.
+const REPORT_SYSTEM_PROMPT = `You are a reporting assistant that converts a user's analytics intent into a safe, read-only SQL query and chart configuration.
 
 Capabilities:
 - Ask clarifying questions when the intent is ambiguous.
@@ -36,7 +35,7 @@ Workspace context is provided below as JSON for available tables/columns. Use it
 // Critical: always return UI via the ui tool on every turn (question, variants, clarification, or final-report). Do not respond without calling the ui tool.`;
 
 function buildTableContext(
-  tables: Array<{ id: string; name: string; columns?: string[] }>,
+  tables: Array<{ id: string; name: string; columns?: string[] }>
 ) {
   if (!tables.length) {
     return "No table metadata available.";
@@ -45,16 +44,19 @@ function buildTableContext(
   const trimmed = tables.slice(0, 20);
   return JSON.stringify(
     trimmed.map((table) => ({
+      columns: table.columns ?? [],
       id: table.id,
       name: table.name,
-      columns: table.columns ?? [],
     })),
     null,
-    2,
+    2
   );
 }
 
-type ConversationMessage = { role: "user" | "assistant"; content: string };
+interface ConversationMessage {
+  content: string;
+  role: "user" | "assistant";
+}
 
 export async function POST(request: Request) {
   try {
@@ -77,59 +79,62 @@ export async function POST(request: Request) {
     };
 
     if (
-      !description || typeof description !== "string" ||
+      !description ||
+      typeof description !== "string" ||
       description.trim().length === 0
     ) {
-      return NextResponse.json({ error: "Description is required" }, {
-        status: 400,
-      });
+      return NextResponse.json(
+        { error: "Description is required" },
+        {
+          status: 400,
+        }
+      );
     }
 
     if (description.length > 2000) {
       return NextResponse.json(
         { error: "Description must be 2000 characters or less" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const tableConfigs = await listTableConfigs(tenant);
     const tableContext = buildTableContext(
       tableConfigs.map((t) => ({
+        columns: t.config?.field_metadata?.map((f) => f.field_name) ?? [],
         id: t.id,
         name: t.name,
-        columns: t.config?.field_metadata?.map((f) => f.field_name) ?? [],
-      })),
+      }))
     );
 
     const messages: ConversationMessage[] = [
       ...conversation_history,
       {
+        content:
+          mode === "refine" && previous_report
+            ? `Refine this report definition.\nPrevious report: ${JSON.stringify(
+                previous_report
+              )}\nUser intent: "${description.trim()}"`
+            : `Create a report for intent: "${description.trim()}".`,
         role: "user",
-        content: mode === "refine" && previous_report
-          ? `Refine this report definition.\nPrevious report: ${
-            JSON.stringify(
-              previous_report,
-            )
-          }\nUser intent: "${description.trim()}"`
-          : `Create a report for intent: "${description.trim()}".`,
       },
     ];
 
     const uiTool = tool({
       description:
         "Emit UI state for the report creation workflow (question, variants, clarification, final-report).",
-      inputSchema: reportUISchema,
       execute: async (params) => params,
+      inputSchema: reportUISchema,
     });
 
     const result = streamText({
+      messages,
       model: myProvider.languageModel("chat-model"),
       system: `${REPORT_SYSTEM_PROMPT}\nTable context:\n${tableContext}`,
-      messages,
+      toolChoice: { toolName: "ui", type: "tool" },
       tools: {
         ui: uiTool,
       },
-      toolChoice: { type: "tool", toolName: "ui" },
     });
 
     const stream = new ReadableStream({
@@ -139,21 +144,23 @@ export async function POST(request: Request) {
         try {
           for await (const chunk of result.fullStream) {
             if (
-              chunk.type === "tool-call" && "toolName" in chunk &&
+              chunk.type === "tool-call" &&
+              "toolName" in chunk &&
               chunk.toolName === "ui"
             ) {
               let uiState: ReportUI | undefined;
               if (
-                "input" in chunk && typeof chunk.input === "object" &&
+                "input" in chunk &&
+                typeof chunk.input === "object" &&
                 chunk.input !== null
               ) {
                 uiState = chunk.input as ReportUI;
               }
 
-              if (uiState && uiState.type) {
+              if (uiState?.type) {
                 const data = JSON.stringify({
-                  type: "report-ui",
                   data: uiState,
+                  type: "report-ui",
                 });
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
@@ -162,16 +169,17 @@ export async function POST(request: Request) {
             if (chunk.type === "tool-result" && "toolCallId" in chunk) {
               let uiState: ReportUI | undefined;
               if (
-                "output" in chunk && typeof chunk.output === "object" &&
+                "output" in chunk &&
+                typeof chunk.output === "object" &&
                 chunk.output !== null
               ) {
                 uiState = chunk.output as ReportUI;
               }
 
-              if (uiState && uiState.type) {
+              if (uiState?.type) {
                 const data = JSON.stringify({
-                  type: "report-ui",
                   data: uiState,
+                  type: "report-ui",
                 });
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
@@ -181,10 +189,11 @@ export async function POST(request: Request) {
           controller.close();
         } catch (error) {
           const errorData = JSON.stringify({
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to process report generation",
             type: "error",
-            error: error instanceof Error
-              ? error.message
-              : "Failed to process report generation",
           });
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
           controller.close();
@@ -194,9 +203,9 @@ export async function POST(request: Request) {
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        "Content-Type": "text/event-stream",
       },
     });
   } catch (error) {
@@ -205,11 +214,11 @@ export async function POST(request: Request) {
         {
           error: "Validation failed",
           issues: error.issues.map((issue) => ({
-            path: issue.path.join("."),
             message: issue.message,
+            path: issue.path.join("."),
           })),
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -223,8 +232,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }
-
-
-
-
-

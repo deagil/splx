@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo } from "react";
 import { useWindowSize } from "usehooks-ts";
-import { SidebarToggle } from "../sidebar/sidebar-toggle";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, VercelIcon } from "../shared/icons";
 import { useSidebar } from "@/components/ui/sidebar";
-import { VisibilitySelector, type VisibilityType } from "../shared/visibility-selector";
+import { PlusIcon, VercelIcon } from "../shared/icons";
+import {
+  VisibilitySelector,
+  type VisibilityType,
+} from "../shared/visibility-selector";
+import { SidebarToggle } from "../sidebar/sidebar-toggle";
 
 function PureChatHeader({
   chatId,
@@ -67,10 +70,10 @@ function PureChatHeader({
   );
 }
 
-export const ChatHeader = memo(PureChatHeader, (prevProps, nextProps) => {
-  return (
+export const ChatHeader = memo(
+  PureChatHeader,
+  (prevProps, nextProps) =>
     prevProps.chatId === nextProps.chatId &&
     prevProps.selectedVisibilityType === nextProps.selectedVisibilityType &&
     prevProps.isReadonly === nextProps.isReadonly
-  );
-});
+);

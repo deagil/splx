@@ -23,10 +23,7 @@ export async function POST(request: Request) {
   const inviteCode = searchParams.get("code");
 
   if (!inviteCode) {
-    return NextResponse.json(
-      { error: "Missing invite code" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing invite code" }, { status: 400 });
   }
 
   // Fetch the invite
@@ -37,10 +34,7 @@ export async function POST(request: Request) {
     .single();
 
   if (inviteError || !invite) {
-    return NextResponse.json(
-      { error: "Invalid invite code" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
   }
 
   // Check if already accepted
@@ -52,7 +46,10 @@ export async function POST(request: Request) {
   }
 
   // Optionally verify email matches (if invite was sent to specific email)
-  if (invite.email && invite.email.toLowerCase() !== user.email?.toLowerCase()) {
+  if (
+    invite.email &&
+    invite.email.toLowerCase() !== user.email?.toLowerCase()
+  ) {
     return NextResponse.json(
       { error: "This invite was sent to a different email address" },
       { status: 403 }
@@ -78,8 +75,8 @@ export async function POST(request: Request) {
   const { data: acceptedInvite, error: acceptError } = await supabase
     .from("workspace_invites")
     .update({
-      user_id: user.id,
       accepted_at: new Date().toISOString(),
+      user_id: user.id,
     })
     .eq("id", inviteCode)
     .select("id, workspace_id, roles")
@@ -101,8 +98,8 @@ export async function POST(request: Request) {
     .single();
 
   return NextResponse.json({
+    roles: acceptedInvite.roles,
     success: true,
     workspace,
-    roles: acceptedInvite.roles,
   });
 }

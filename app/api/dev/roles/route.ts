@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { NextResponse } from "next/server";
 import postgres from "postgres";
 import { getSeededPermissions } from "@/lib/server/roles/introspect-policies";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
 
 export async function GET() {
   try {
@@ -20,17 +20,17 @@ export async function GET() {
 
     try {
       const seededPermissions = await getSeededPermissions(db);
-      
+
       // Transform into a structure easier for the UI
       // { roles: ['admin', 'builder', ...], permissions: [{ role_id, permission, ... }] }
       // The role definitions are currently static in ROLE_CAPABILITIES (lib/server/tenant/permissions.ts)
       // but we display them dynamically based on what's in the DB + known defaults.
-      
+
       const roles = ["admin", "builder", "user", "viewer"];
-      
+
       return NextResponse.json({
+        permissions: seededPermissions,
         roles,
-        permissions: seededPermissions
       });
     } finally {
       await sql.end({ timeout: 5 });

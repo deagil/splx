@@ -23,20 +23,19 @@ import {
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
+import { chatModels } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
-import { Artifact } from "../artifact/artifact";
-import { useDataStream } from "../shared/data-stream-provider";
 import { Messages, type OptimisticMessage } from "../chat/messages";
 import { MultimodalInput } from "../input/multimodal-input";
-import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
+import { useDataStream } from "../shared/data-stream-provider";
 import { toast } from "../shared/toast";
 import type { VisibilityType } from "../shared/visibility-selector";
+import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
 import { ChatStatusBar } from "./chat-status-bar";
-import { chatModels } from "@/lib/ai/models";
 
 export function ChatSidebarContent({
   chatId,
@@ -105,19 +104,38 @@ export function ChatSidebarContent({
     console.log("[ChatSidebar] Keyboard shortcut listener mounted");
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("[ChatSidebar] Key pressed:", event.key, "ctrlKey:", event.ctrlKey, "metaKey:", event.metaKey);
+      console.log(
+        "[ChatSidebar] Key pressed:",
+        event.key,
+        "ctrlKey:",
+        event.ctrlKey,
+        "metaKey:",
+        event.metaKey
+      );
 
       // Ctrl + M to cycle through models (Control key on both Mac and Windows)
-      if (event.key === "m" && event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      if (
+        event.key === "m" &&
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey
+      ) {
         console.log("[ChatSidebar] Ctrl+M detected! Cycling models...");
         event.preventDefault();
 
         // Find current model index and cycle to next
-        const currentIndex = chatModels.findIndex((m) => m.id === currentModelId);
+        const currentIndex = chatModels.findIndex(
+          (m) => m.id === currentModelId
+        );
         const nextIndex = (currentIndex + 1) % chatModels.length;
         const nextModel = chatModels[nextIndex];
 
-        console.log("[ChatSidebar] Current model:", currentModelId, "Next model:", nextModel?.id);
+        console.log(
+          "[ChatSidebar] Current model:",
+          currentModelId,
+          "Next model:",
+          nextModel?.id
+        );
 
         if (nextModel) {
           setCurrentModelId(nextModel.id);
@@ -126,8 +144,8 @@ export function ChatSidebarContent({
 
           // Show toast notification
           toast({
-            type: "success",
             description: `Switched to ${nextModel.name}`,
+            type: "success",
           });
         }
       }
@@ -143,7 +161,8 @@ export function ChatSidebarContent({
   // Listen for changes to personalization in localStorage
   useEffect(() => {
     const handleStorageChange = () => {
-      const enabled = localStorage.getItem("personalization-enabled") === "true";
+      const enabled =
+        localStorage.getItem("personalization-enabled") === "true";
       setPersonalizationEnabled(enabled);
     };
 
@@ -153,20 +172,25 @@ export function ChatSidebarContent({
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("personalization-changed", handleStorageChange);
+      window.removeEventListener(
+        "personalization-changed",
+        handleStorageChange
+      );
     };
   }, []);
 
   // Load messages when chatId changes (for existing chats from URL)
   // Fetch messages if autoResume is true (meaning chatId came from URL)
-  const { data: fetchedMessages, isLoading: isLoadingMessages } = useSWR<ChatMessage[]>(
+  const { data: fetchedMessages, isLoading: isLoadingMessages } = useSWR<
+    ChatMessage[]
+  >(
     autoResume ? `/api/chat/${chatId}/messages` : null,
     async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         return [];
       }
-      const data = await response.json() as { messages?: ChatMessage[] };
+      const data = (await response.json()) as { messages?: ChatMessage[] };
       return data.messages || [];
     },
     {
@@ -174,12 +198,14 @@ export function ChatSidebarContent({
       revalidateOnReconnect: false,
     }
   );
-  
+
   // Determine if we're in a loading state for an existing chat
-  const isLoadingExistingChat = autoResume && isLoadingMessages && !fetchedMessages;
+  const isLoadingExistingChat =
+    autoResume && isLoadingMessages && !fetchedMessages;
 
   // Use fetched messages if available, otherwise use initialMessages
-  const messagesToUse = autoResume && fetchedMessages ? fetchedMessages : initialMessages;
+  const messagesToUse =
+    autoResume && fetchedMessages ? fetchedMessages : initialMessages;
 
   const {
     messages,
@@ -191,34 +217,15 @@ export function ChatSidebarContent({
     resumeStream,
     addToolApprovalResponse,
   } = useChat<ChatMessage>({
-    id: chatId,
-    messages: messagesToUse,
     experimental_throttle: 100,
     generateId: generateUUID,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      fetch: fetchWithErrorHandlers,
-      prepareSendMessagesRequest(request) {
-        return {
-          body: {
-            id: request.id,
-            message: request.messages.at(-1),
-            selectedChatModel: currentModelIdRef.current,
-            selectedVisibilityType: visibilityType,
-            personalizationEnabled,
-            ...request.body,
-          },
-        };
-      },
-    }),
+    id: chatId,
+    messages: messagesToUse,
     onData: (dataPart) => {
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
       if (dataPart.type === "data-usage") {
         setUsage(dataPart.data);
       }
-    },
-    onFinish: () => {
-      mutate(unstable_serialize(getChatHistoryPaginationKey));
     },
     onError: (error) => {
       if (error instanceof ChatSDKError) {
@@ -228,12 +235,31 @@ export function ChatSidebarContent({
           setShowCreditCardAlert(true);
         } else {
           toast({
-            type: "error",
             description: error.message,
+            type: "error",
           });
         }
       }
     },
+    onFinish: () => {
+      mutate(unstable_serialize(getChatHistoryPaginationKey));
+    },
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      fetch: fetchWithErrorHandlers,
+      prepareSendMessagesRequest(request) {
+        return {
+          body: {
+            id: request.id,
+            message: request.messages.at(-1),
+            personalizationEnabled,
+            selectedChatModel: currentModelIdRef.current,
+            selectedVisibilityType: visibilityType,
+            ...request.body,
+          },
+        };
+      },
+    }),
   });
 
   const searchParams = useSearchParams();
@@ -246,8 +272,8 @@ export function ChatSidebarContent({
   useEffect(() => {
     if (query && !hasAppendedQuery) {
       sendMessage({
+        parts: [{ text: query, type: "text" }],
         role: "user" as const,
-        parts: [{ type: "text", text: query }],
       });
 
       setHasAppendedQuery(true);
@@ -265,9 +291,10 @@ export function ChatSidebarContent({
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
-  
+
   // Optimistic message state for instant display
-  const [optimisticMessage, setOptimisticMessage] = useState<OptimisticMessage | null>(null);
+  const [optimisticMessage, setOptimisticMessage] =
+    useState<OptimisticMessage | null>(null);
 
   // Callback for MultimodalInput to set optimistic message before sendMessage
   const handleOptimisticMessage = useCallback((message: OptimisticMessage) => {
@@ -281,11 +308,15 @@ export function ChatSidebarContent({
     if (optimisticMessage) {
       // Check if any user message in the array matches our optimistic message text
       const messageExists = messages.some((msg) => {
-        if (msg.role !== "user") return false;
-        const textPart = msg.parts?.find(p => p.type === "text") as { text?: string } | undefined;
+        if (msg.role !== "user") {
+          return false;
+        }
+        const textPart = msg.parts?.find((p) => p.type === "text") as
+          | { text?: string }
+          | undefined;
         return textPart?.text === optimisticMessage.text;
       });
-      
+
       if (messageExists) {
         setOptimisticMessage(null);
       }
@@ -355,8 +386,6 @@ export function ChatSidebarContent({
     currentModelId,
     visibilityType,
     sendMessage,
-    setAttachments,
-    setInput,
     setMessages,
     status,
     stop,
@@ -369,12 +398,12 @@ export function ChatSidebarContent({
         <AnimatePresence mode="wait">
           {isLoadingExistingChat ? (
             <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
               className="flex h-full flex-1 flex-col overflow-hidden"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key="loading"
+              transition={{ duration: 0.15 }}
             >
               {/* Loading skeleton */}
               <div className="flex flex-1 flex-col gap-4 p-4 pt-6">
@@ -389,7 +418,7 @@ export function ChatSidebarContent({
                   </div>
                 </div>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-3 justify-end">
+                  <div className="flex items-start justify-end gap-3">
                     <div className="flex flex-1 flex-col items-end gap-2">
                       <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
                     </div>
@@ -416,25 +445,16 @@ export function ChatSidebarContent({
             </motion.div>
           ) : (
             <motion.div
-              key="content"
-              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
               className="flex h-full flex-1 flex-col overflow-hidden"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key="content"
+              transition={{ duration: 0.2 }}
             >
               <Messages
                 addToolApprovalResponse={addToolApprovalResponse}
                 chatId={chatId}
-                isArtifactVisible={isArtifactVisible}
-                isReadonly={isReadonly}
-                messages={messages}
-                optimisticMessage={optimisticMessage}
-                regenerate={regenerate}
-                selectedModelId={initialChatModel}
-                setMessages={setMessages}
-                status={status}
-                votes={votes}
                 inputSlot={
                   !isReadonly && (
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col">
@@ -468,6 +488,15 @@ export function ChatSidebarContent({
                     </div>
                   )
                 }
+                isArtifactVisible={isArtifactVisible}
+                isReadonly={isReadonly}
+                messages={messages}
+                optimisticMessage={optimisticMessage}
+                regenerate={regenerate}
+                selectedModelId={initialChatModel}
+                setMessages={setMessages}
+                status={status}
+                votes={votes}
               />
             </motion.div>
           )}
@@ -506,4 +535,3 @@ export function ChatSidebarContent({
     </>
   );
 }
-

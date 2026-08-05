@@ -1,12 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import type { TenantContext } from "@/lib/server/tenant/context";
+import { createClient } from "@/lib/supabase/server";
 import {
   createTableSchema,
+  type TableRecord,
   tableIdSchema,
   tableRecordSchema,
-  updateTableSchema,
-  type TableRecord,
   type UpdateTableInput,
+  updateTableSchema,
 } from "./schema";
 
 export class TableNotFoundError extends Error {
@@ -174,12 +174,12 @@ export async function createTableConfig(
   const { data, error } = await supabase
     .from("tables")
     .insert({
-      id: input.id,
-      workspace_id: tenant.workspaceId,
-      name: input.name,
-      description: input.description ?? null,
       config: input.config ?? {},
       created_by: tenant.userId,
+      description: input.description ?? null,
+      id: input.id,
+      name: input.name,
+      workspace_id: tenant.workspaceId,
     })
     .select("*")
     .single();
@@ -209,11 +209,11 @@ export async function updateTableConfig(
   const { data, error } = await supabase
     .from("tables")
     .update({
-      id: targetId,
-      name: input.name,
+      config: input.config ?? {},
       description:
         input.description === undefined ? undefined : input.description,
-      config: input.config ?? {},
+      id: targetId,
+      name: input.name,
       updated_at: new Date().toISOString(),
     })
     .eq("workspace_id", tenant.workspaceId)
@@ -250,4 +250,3 @@ export async function deleteTableConfig(
     throw new Error(`Failed to delete table: ${error.message}`);
   }
 }
-

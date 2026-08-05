@@ -7,14 +7,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type BranchContextType = {
-  currentBranch: number;
-  totalBranches: number;
-  goToPrevious: () => void;
-  goToNext: () => void;
+interface BranchContextType {
   branches: ReactElement[];
+  currentBranch: number;
+  goToNext: () => void;
+  goToPrevious: () => void;
   setBranches: (branches: ReactElement[]) => void;
-};
+  totalBranches: number;
+}
 
 const BranchContext = createContext<BranchContextType | null>(null);
 
@@ -60,12 +60,12 @@ export const Branch = ({
   };
 
   const contextValue: BranchContextType = {
-    currentBranch,
-    totalBranches: branches.length,
-    goToPrevious,
-    goToNext,
     branches,
+    currentBranch,
+    goToNext,
+    goToPrevious,
     setBranches,
+    totalBranches: branches.length,
   };
 
   return (

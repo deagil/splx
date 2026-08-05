@@ -1,14 +1,9 @@
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import { AnimatedMarkdown } from "flowtoken";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import type { ComponentProps } from "react";
 import {
   createContext,
@@ -19,27 +14,32 @@ import {
   useState,
 } from "react";
 import { Streamdown } from "streamdown";
-import { AnimatedMarkdown } from "flowtoken";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { Shimmer } from "./shimmer";
 
 // ============================================================================
 // Types & Context
 // ============================================================================
 
-type ReasoningStep = {
+interface ReasoningStep {
+  content: string;
   id: string;
   title: string;
-  content: string;
-};
+}
 
-type ReasoningContextValue = {
-  isStreaming: boolean;
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
+interface ReasoningContextValue {
   duration: number | undefined;
+  isOpen: boolean;
+  isStreaming: boolean;
   reasoning: string;
+  setIsOpen: (open: boolean) => void;
   steps: ReasoningStep[];
-};
+}
 
 const ReasoningContext = createContext<ReasoningContextValue | null>(null);
 
@@ -60,38 +60,42 @@ const useReasoning = () => {
  * Each step has a title (the bold text) and content (text after it).
  */
 function parseReasoningSteps(text: string): ReasoningStep[] {
-  if (!text.trim()) return [];
+  if (!text.trim()) {
+    return [];
+  }
 
   const steps: ReasoningStep[] = [];
-  
+
   // Match **Header** patterns and split content
   // Pattern: **Title**\n\nContent (or **Title**\nContent)
   const headerPattern = /\*\*([^*]+)\*\*/g;
   const matches = [...text.matchAll(headerPattern)];
-  
+
   if (matches.length === 0) {
     // No headers found - treat entire text as single step
-    return [{
-      id: "step-0",
-      title: "",
-      content: text.trim(),
-    }];
+    return [
+      {
+        content: text.trim(),
+        id: "step-0",
+        title: "",
+      },
+    ];
   }
-  
-  for (let i = 0; i < matches.length; i++) {
+
+  for (let i = 0; i < matches.length; i += 1) {
     const match = matches[i];
     const title = match[1].trim();
     const startIndex = match.index! + match[0].length;
     const endIndex = matches[i + 1]?.index ?? text.length;
     const content = text.slice(startIndex, endIndex).trim();
-    
+
     steps.push({
+      content,
       id: `step-${i}`,
       title,
-      content,
     });
   }
-  
+
   return steps;
 }
 
@@ -125,18 +129,18 @@ export const Reasoning = memo(
     ...props
   }: ReasoningProps) => {
     const [isOpen, setIsOpen] = useControllableState({
-      prop: open,
       defaultProp: defaultOpen,
       onChange: onOpenChange,
+      prop: open,
     });
     const [duration, setDuration] = useControllableState({
-      prop: durationProp,
       defaultProp: undefined,
+      prop: durationProp,
     });
 
     const [hasAutoClosed, setHasAutoClosed] = useState(false);
     const [startTime, setStartTime] = useState<number | null>(null);
-    
+
     // Parse reasoning into steps
     const steps = useMemo(() => parseReasoningSteps(reasoning), [reasoning]);
 
@@ -154,7 +158,13 @@ export const Reasoning = memo(
 
     // Auto-close when streaming ends (once only)
     useEffect(() => {
-      if (defaultOpen && !isStreaming && isOpen && !hasAutoClosed && reasoning.trim().length > 0) {
+      if (
+        defaultOpen &&
+        !isStreaming &&
+        isOpen &&
+        !hasAutoClosed &&
+        reasoning.trim().length > 0
+      ) {
         const timer = setTimeout(() => {
           setIsOpen(false);
           setHasAutoClosed(true);
@@ -170,11 +180,11 @@ export const Reasoning = memo(
 
     const contextValue = useMemo(
       () => ({
-        isStreaming,
-        isOpen,
-        setIsOpen,
         duration,
+        isOpen,
+        isStreaming,
         reasoning,
+        setIsOpen,
         steps,
       }),
       [isStreaming, isOpen, setIsOpen, duration, reasoning, steps]
@@ -215,25 +225,24 @@ export const ReasoningTrigger = memo(
             <AnimatePresence mode="wait">
               {isStreaming ? (
                 <motion.span
-                  key="thinking"
-                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  key="thinking"
                   transition={{ duration: 0.15 }}
                 >
                   <Shimmer duration={1.5}>Thinking...</Shimmer>
                 </motion.span>
               ) : (
                 <motion.span
-                  key="complete"
-                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  initial={{ opacity: 0 }}
+                  key="complete"
                   transition={{ duration: 0.15 }}
                 >
-                  {duration !== undefined && duration > 0 
+                  {duration !== undefined && duration > 0
                     ? `Thought for ${duration} second${duration === 1 ? "" : "s"}`
-                    : "Thinking complete"
-                  }
+                    : "Thinking complete"}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -250,7 +259,9 @@ export const ReasoningTrigger = memo(
   }
 );
 
-export type ReasoningContentProps = ComponentProps<typeof CollapsibleContent> & {
+export type ReasoningContentProps = ComponentProps<
+  typeof CollapsibleContent
+> & {
   children?: string;
 };
 
@@ -263,10 +274,10 @@ export type ReasoningContentProps = ComponentProps<typeof CollapsibleContent> & 
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => {
     const { isStreaming, isOpen, reasoning, steps } = useReasoning();
-    
+
     // Use reasoning from context, fall back to children prop
     const content = reasoning || children || "";
-    const hasSteps = steps.length > 0 && steps.some(s => s.title);
+    const hasSteps = steps.length > 0 && steps.some((s) => s.title);
     const latestStepIndex = steps.length - 1;
 
     return (
@@ -286,50 +297,50 @@ export const ReasoningContent = memo(
             <div className="space-y-2">
               {steps.map((step, index) => {
                 const isLatest = index === latestStepIndex;
-                const showContent = isStreaming 
-                  ? isLatest && isOpen  // During streaming: only show content for latest step when open
-                  : isOpen;              // After streaming: show all content when open
-                
+                const showContent = isStreaming
+                  ? isLatest && isOpen // During streaming: only show content for latest step when open
+                  : isOpen; // After streaming: show all content when open
+
                 return (
                   <div key={step.id}>
                     {/* Step header - always visible */}
-                    {step.title && (
+                    {!!step.title && (
                       <motion.div
-                        initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.15 }}
                         className={cn(
                           "font-medium text-foreground/80",
                           !isLatest && isStreaming && "text-muted-foreground/60"
                         )}
+                        initial={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
                       >
                         {step.title}
                       </motion.div>
                     )}
-                    
+
                     {/* Step content - conditional display */}
                     <AnimatePresence mode="wait">
-                      {showContent && step.content && (
+                      {!!showContent && step.content && (
                         <motion.div
-                          key={`content-${step.id}`}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ 
-                            duration: 0.4, 
-                            ease: [0.4, 0, 0.2, 1],
-                            opacity: { duration: 0.3 },
-                            height: { duration: 0.4, delay: 0.1 }
-                          }}
+                          animate={{ height: "auto", opacity: 1 }}
                           className="overflow-hidden"
+                          exit={{ height: 0, opacity: 0 }}
+                          initial={{ height: 0, opacity: 0 }}
+                          key={`content-${step.id}`}
+                          transition={{
+                            duration: 0.4,
+                            ease: [0.4, 0, 0.2, 1],
+                            height: { delay: 0.1, duration: 0.4 },
+                            opacity: { duration: 0.3 },
+                          }}
                         >
                           <div className="pt-1 text-muted-foreground">
                             {isStreaming && isLatest ? (
                               <AnimatedMarkdown
-                                content={step.content}
                                 animation="fadeIn"
                                 animationDuration="0.6s"
                                 animationTimingFunction="ease-in-out"
+                                content={step.content}
                                 sep="word"
                               />
                             ) : (
@@ -345,18 +356,18 @@ export const ReasoningContent = memo(
             </div>
           ) : (
             // No headers - show raw content
-            <motion.div 
+            <motion.div
+              animate={{ opacity: 1 }}
               className="text-muted-foreground"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
               transition={{ duration: 0.15 }}
             >
               {isStreaming ? (
                 <AnimatedMarkdown
-                  content={content}
                   animation="fadeIn"
                   animationDuration="0.6s"
                   animationTimingFunction="ease-in-out"
+                  content={content}
                   sep="word"
                 />
               ) : (

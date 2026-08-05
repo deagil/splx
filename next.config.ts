@@ -1,5 +1,5 @@
+import { execSync } from "node:child_process";
 import type { NextConfig } from "next";
-import { execSync } from "child_process";
 
 let gitBranch = "unknown";
 try {
@@ -13,24 +13,24 @@ try {
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  env: {
+    NEXT_PUBLIC_GIT_BRANCH: gitBranch,
+  },
   images: {
     remotePatterns: [
       {
         hostname: "avatar.vercel.sh",
       },
       {
-        protocol: "https",
         //https://nextjs.org/docs/messages/next-image-unconfigured-host
         hostname: "*.public.blob.vercel-storage.com",
+        protocol: "https",
       },
       {
-        protocol: "https",
         hostname: "images.unsplash.com",
+        protocol: "https",
       },
     ],
-  },
-  env: {
-    NEXT_PUBLIC_GIT_BRANCH: gitBranch,
   },
 };
 

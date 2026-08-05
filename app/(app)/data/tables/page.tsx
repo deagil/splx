@@ -1,6 +1,6 @@
+import { TablesListView } from "@/components/data/tables-list-view";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
-import { TablesListView } from "@/components/data/tables-list-view";
 
 /**
  * System page for managing tables
@@ -14,9 +14,10 @@ export default async function TablesPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Tables</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your data tables, configure labels, descriptions, and field styling.
+        <h1 className="font-bold text-3xl">Tables</h1>
+        <p className="mt-2 text-muted-foreground">
+          Manage your data tables, configure labels, descriptions, and field
+          styling.
         </p>
       </div>
       <TablesListView />

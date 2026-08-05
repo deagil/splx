@@ -1,24 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LogLevel = "log" | "error" | "warn" | "info";
 
 export interface ConsoleLog {
-  timestamp: Date;
+  args: unknown[];
   level: LogLevel;
   message: string;
-  args: unknown[];
+  timestamp: Date;
 }
 
 export function useConsoleLogs() {
   const [logs, setLogs] = useState<ConsoleLog[]>([]);
-  const originalConsole = useRef<{
-    log: typeof console.log;
-    error: typeof console.error;
-    warn: typeof console.warn;
-    info: typeof console.info;
-  } | undefined>(undefined);
+  const originalConsole = useRef<
+    | {
+        log: typeof console.log;
+        error: typeof console.error;
+        warn: typeof console.warn;
+        info: typeof console.info;
+      }
+    | undefined
+  >(undefined);
 
   const addLog = useCallback((level: LogLevel, ...args: unknown[]) => {
     const message = args
@@ -37,10 +40,10 @@ export function useConsoleLogs() {
     setLogs((prev) => [
       ...prev,
       {
-        timestamp: new Date(),
+        args,
         level,
         message,
-        args,
+        timestamp: new Date(),
       },
     ]);
   }, []);
@@ -48,10 +51,10 @@ export function useConsoleLogs() {
   useEffect(() => {
     // Store original console methods
     originalConsole.current = {
-      log: console.log,
       error: console.error,
-      warn: console.warn,
       info: console.info,
+      log: console.log,
+      warn: console.warn,
     };
 
     // Override console methods
@@ -122,14 +125,10 @@ export function useConsoleLogs() {
   }, []);
 
   return {
-    logs,
-    logCount: logs.length,
-    copyLogsToClipboard,
     clearLogs,
+    copyLogsToClipboard,
     formatLogsAsMarkdown,
+    logCount: logs.length,
+    logs,
   };
 }
-
-
-
-

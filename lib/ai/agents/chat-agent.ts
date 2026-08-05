@@ -1,16 +1,15 @@
 import {
-  InferAgentUIMessage,
+  type InferAgentUIMessage,
   stepCountIs,
   ToolLoopAgent,
   type UIMessageStreamWriter,
 } from "ai";
-import type { Session } from "@/lib/artifacts/server";
-import { myProvider } from "@/lib/ai/providers";
 import {
   type RequestHints,
   systemPrompt,
   type UserPreferences,
 } from "@/lib/ai/prompts";
+import { myProvider } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { navigateToPage } from "@/lib/ai/tools/navigate-to-page";
@@ -19,15 +18,16 @@ import { readUrlContent } from "@/lib/ai/tools/read-url-content";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { searchPages } from "@/lib/ai/tools/search-pages";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import type { Session } from "@/lib/artifacts/server";
 import type { ChatMessage } from "@/lib/types";
 
-export type ChatAgentOptions = {
-  selectedChatModel: string;
-  requestHints: RequestHints;
-  userPreferences?: UserPreferences;
-  session: Session;
+export interface ChatAgentOptions {
   dataStream: UIMessageStreamWriter<ChatMessage>;
-};
+  requestHints: RequestHints;
+  selectedChatModel: string;
+  session: Session;
+  userPreferences?: UserPreferences;
+}
 
 /**
  * Creates a chat agent with all tools configured for the current request.
@@ -50,23 +50,23 @@ export const createChatAgent = (options: ChatAgentOptions) => {
   } = options;
 
   return new ToolLoopAgent({
-    model: myProvider.languageModel(selectedChatModel),
     instructions: systemPrompt({
-      selectedChatModel,
       requestHints,
+      selectedChatModel,
       userPreferences,
     }),
-    tools: {
-      getWeather,
-      createDocument: createDocument({ session, dataStream }),
-      updateDocument: updateDocument({ session, dataStream }),
-      requestSuggestions: requestSuggestions({ session, dataStream }),
-      readUrlContent,
-      queryUserTable,
-      searchPages,
-      navigateToPage: navigateToPage({ dataStream }),
-    },
+    model: myProvider.languageModel(selectedChatModel),
     stopWhen: stepCountIs(5),
+    tools: {
+      createDocument: createDocument({ dataStream, session }),
+      getWeather,
+      navigateToPage: navigateToPage({ dataStream }),
+      queryUserTable,
+      readUrlContent,
+      requestSuggestions: requestSuggestions({ dataStream, session }),
+      searchPages,
+      updateDocument: updateDocument({ dataStream, session }),
+    },
   });
 };
 

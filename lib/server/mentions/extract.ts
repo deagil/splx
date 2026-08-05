@@ -4,14 +4,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type {
+  BlockMention,
+  LookupMention,
   Mention,
   PageMention,
-  BlockMention,
-  TableMention,
   RecordMention,
-  UserMention,
-  LookupMention,
+  TableMention,
   UrlMention,
+  UserMention,
 } from "@/lib/types/mentions";
 
 /**
@@ -58,7 +58,7 @@ export async function extractPageMentionData(
 
     return result;
   } catch (error) {
-    console.error(`Error extracting page mention data:`, error);
+    console.error("Error extracting page mention data:", error);
     return `[Page Context: ${mention.label}]\n\nError loading page data: ${error instanceof Error ? error.message : "Unknown error"}`;
   }
 }
@@ -73,11 +73,12 @@ export async function extractBlockMentionData(
     const supabase = await createClient();
 
     // For list and record blocks, fetch data from the table
-    if ((mention.blockType === "list" || mention.blockType === "record") && mention.tableName) {
+    if (
+      (mention.blockType === "list" || mention.blockType === "record") &&
+      mention.tableName
+    ) {
       // Fetch data from the table (limit to 10 rows for list blocks)
-      const query = supabase
-        .from(mention.tableName)
-        .select("*");
+      const query = supabase.from(mention.tableName).select("*");
 
       if (mention.blockType === "list") {
         query.limit(10);
@@ -96,18 +97,21 @@ export async function extractBlockMentionData(
       }
 
       // Format data as readable text
-      const rows = data.map((row: any, idx: number) => {
-        const fields = Object.entries(row)
-          .map(([key, value]) => `  ${key}: ${String(value)}`)
-          .join("\n");
-        return mention.blockType === "list"
-          ? `Row ${idx + 1}:\n${fields}`
-          : fields;
-      }).join("\n\n");
+      const rows = data
+        .map((row: any, idx: number) => {
+          const fields = Object.entries(row)
+            .map(([key, value]) => `  ${key}: ${String(value)}`)
+            .join("\n");
+          return mention.blockType === "list"
+            ? `Row ${idx + 1}:\n${fields}`
+            : fields;
+        })
+        .join("\n\n");
 
-      const countInfo = mention.blockType === "list" && data.length >= 10
-        ? "(showing first 10 rows)"
-        : "";
+      const countInfo =
+        mention.blockType === "list" && data.length >= 10
+          ? "(showing first 10 rows)"
+          : "";
 
       return `[Block: ${mention.label}]\n\n${mention.blockType} block (${mention.tableName}) ${countInfo}\n\n${rows}`;
     }
@@ -115,7 +119,7 @@ export async function extractBlockMentionData(
     // For other block types, return basic info
     return `[Block: ${mention.label}]\n\n${mention.blockType} block${mention.tableName ? ` (table: ${mention.tableName})` : ""}`;
   } catch (error) {
-    console.error(`Error extracting block mention data:`, error);
+    console.error("Error extracting block mention data:", error);
     return `[Block: ${mention.label}]\n\nError loading block data: ${error instanceof Error ? error.message : "Unknown error"}`;
   }
 }
@@ -130,10 +134,7 @@ export async function extractTableMentionData(
     const supabase = await createClient();
 
     // Fetch first 10 rows from the table
-    const query = supabase
-      .from(mention.tableName)
-      .select("*")
-      .limit(10);
+    const query = supabase.from(mention.tableName).select("*").limit(10);
 
     const { data, error } = await query;
 
@@ -146,20 +147,24 @@ export async function extractTableMentionData(
     }
 
     // Format data as readable text
-    const rows = data.slice(0, 10).map((row: any, idx: number) => {
-      const fields = Object.entries(row)
-        .map(([key, value]) => `  ${key}: ${String(value)}`)
-        .join("\n");
-      return `Row ${idx + 1}:\n${fields}`;
-    }).join("\n\n");
+    const rows = data
+      .slice(0, 10)
+      .map((row: any, idx: number) => {
+        const fields = Object.entries(row)
+          .map(([key, value]) => `  ${key}: ${String(value)}`)
+          .join("\n");
+        return `Row ${idx + 1}:\n${fields}`;
+      })
+      .join("\n\n");
 
-    const countInfo = data.length < 10
-      ? `(showing all ${data.length} rows)`
-      : "(showing first 10 rows)";
+    const countInfo =
+      data.length < 10
+        ? `(showing all ${data.length} rows)`
+        : "(showing first 10 rows)";
 
     return `[Table: ${mention.tableName}] ${countInfo}\n\n${rows}`;
   } catch (error) {
-    console.error(`Error extracting table mention data:`, error);
+    console.error("Error extracting table mention data:", error);
     return `[Table: ${mention.tableName}]\n\nError loading data: ${error instanceof Error ? error.message : "Unknown error"}`;
   }
 }
@@ -195,7 +200,7 @@ export async function extractRecordMentionData(
 
     return `[Record: ${mention.tableName}:${mention.recordId}]\n\n${fields}`;
   } catch (error) {
-    console.error(`Error extracting record mention data:`, error);
+    console.error("Error extracting record mention data:", error);
     return `[Record: ${mention.tableName}:${mention.recordId}]\n\nError loading data: ${error instanceof Error ? error.message : "Unknown error"}`;
   }
 }
@@ -210,7 +215,8 @@ export async function extractUserMentionData(
     const supabase = await createClient();
 
     // Get current user if no specific user ID provided
-    const userId = mention.userId || (await supabase.auth.getUser()).data.user?.id;
+    const userId =
+      mention.userId || (await supabase.auth.getUser()).data.user?.id;
 
     if (!userId) {
       return `[User Profile: ${mention.label}]\n\nUser not authenticated.`;
@@ -239,7 +245,7 @@ export async function extractUserMentionData(
 
     return `[User Profile: ${mention.label}]\n\n${fields}`;
   } catch (error) {
-    console.error(`Error extracting user mention data:`, error);
+    console.error("Error extracting user mention data:", error);
     return `[User Profile: ${mention.label}]\n\nError loading user data: ${error instanceof Error ? error.message : "Unknown error"}`;
   }
 }
@@ -247,12 +253,14 @@ export async function extractUserMentionData(
 /**
  * Extract data for a lookup mention
  */
-export async function extractLookupMentionData(
+export function extractLookupMentionData(
   mention: LookupMention
 ): Promise<string> {
   // For now, return a placeholder
   // In production, this would perform the specific lookup
-  return `[Lookup: ${mention.lookupType}]\n\nLookup data for ${mention.lookupType}.`;
+  return Promise.resolve(
+    `[Lookup: ${mention.lookupType}]\n\nLookup data for ${mention.lookupType}.`
+  );
 }
 
 /**
@@ -261,7 +269,7 @@ export async function extractLookupMentionData(
  * Skips retry if pre-fetch already failed with a known error (e.g., domain blocked)
  */
 export async function extractUrlMentionData(
-  mention: UrlMention & { 
+  mention: UrlMention & {
     prefetchedContent?: string;
     contentStatus?: "loading" | "loaded" | "error";
     contentError?: string;
@@ -270,12 +278,14 @@ export async function extractUrlMentionData(
   try {
     // Check if we have pre-fetched content (saves ~20-30s!)
     if (mention.prefetchedContent) {
-      console.log(`[URL Enrichment] Using pre-fetched content for ${mention.url} (${mention.prefetchedContent.length} chars)`);
-      
+      console.log(
+        `[URL Enrichment] Using pre-fetched content for ${mention.url} (${mention.prefetchedContent.length} chars)`
+      );
+
       // Format with title and URL info
       let result = `[Web Page: ${mention.title || mention.label}]\n`;
       result += `URL: ${mention.url}\n`;
-      result += `(Content pre-fetched by client)\n`;
+      result += "(Content pre-fetched by client)\n";
       result += `\n${mention.prefetchedContent}`;
 
       return result;
@@ -285,50 +295,63 @@ export async function extractUrlMentionData(
     // Both use the same service, so retry would likely fail too
     if (mention.contentStatus === "error" && mention.contentError) {
       const errorLower = mention.contentError.toLowerCase();
-      if (errorLower.includes("blocked") || errorLower.includes("domain temporarily")) {
-        console.log(`[URL Enrichment] Skipping retry - pre-fetch already failed with known error: ${mention.url}`);
+      if (
+        errorLower.includes("blocked") ||
+        errorLower.includes("domain temporarily")
+      ) {
+        console.log(
+          `[URL Enrichment] Skipping retry - pre-fetch already failed with known error: ${mention.url}`
+        );
         return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved - the content service has temporarily blocked this domain. The user referenced this URL in their message.)`;
       }
     }
 
     // Fallback: fetch via Jina Reader (slow path)
     // Only attempt if pre-fetch didn't fail or failed for unknown reason
-    console.log(`[URL Enrichment] No pre-fetched content, fetching via Jina Reader for ${mention.url}`);
-    
+    console.log(
+      `[URL Enrichment] No pre-fetched content, fetching via Jina Reader for ${mention.url}`
+    );
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-    
+    const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+
     const response = await fetch(`https://r.jina.ai/${mention.url}`, {
-      signal: controller.signal,
-      headers: { 
+      headers: {
         Accept: "text/markdown",
         "User-Agent": "Mozilla/5.0 (compatible; SplxBot/1.0)",
       },
+      signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
-      
+
       // Check if domain is blocked
       if (response.status === 451 || errorText.includes("blocked")) {
-        console.warn(`[URL Enrichment] Domain blocked by Jina Reader: ${mention.url}`);
+        console.warn(
+          `[URL Enrichment] Domain blocked by Jina Reader: ${mention.url}`
+        );
         return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved - the content service has temporarily blocked this domain. The user referenced this URL in their message.)`;
       }
-      
-      console.warn(`[URL Enrichment] Failed to fetch ${mention.url}: ${response.status}`);
+
+      console.warn(
+        `[URL Enrichment] Failed to fetch ${mention.url}: ${response.status}`
+      );
       return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Full content could not be retrieved. The user referenced this URL in their message.)`;
     }
 
     const content = await response.text();
 
     // Truncate if too long (to avoid token limits)
-    const maxLength = 15000;
+    const maxLength = 15_000;
     const truncated = content.length > maxLength;
     const finalContent = truncated ? content.slice(0, maxLength) : content;
 
-    console.log(`[URL Enrichment] Fetched ${mention.url} (${content.length} chars${truncated ? ", truncated" : ""})`);
+    console.log(
+      `[URL Enrichment] Fetched ${mention.url} (${content.length} chars${truncated ? ", truncated" : ""})`
+    );
 
     // Format with title and URL info
     let result = `[Web Page: ${mention.title || mention.label}]\n`;
@@ -344,7 +367,7 @@ export async function extractUrlMentionData(
       console.warn(`[URL Enrichment] Timeout fetching ${mention.url}`);
       return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Request timed out while fetching content. The user referenced this URL in their message.)`;
     }
-    
+
     console.error(`[URL Enrichment] Error for ${mention.url}:`, error);
     return `[Web Page Reference: ${mention.title || mention.label}]\nURL: ${mention.url}\n\n(Note: Could not fetch content - ${error instanceof Error ? error.message : "Unknown error"}. The user referenced this URL in their message.)`;
   }
@@ -353,7 +376,7 @@ export async function extractUrlMentionData(
 /**
  * Extract data for any mention type
  */
-export async function extractMentionData(mention: Mention): Promise<string> {
+export function extractMentionData(mention: Mention): Promise<string> {
   switch (mention.type) {
     case "page":
       return extractPageMentionData(mention);
@@ -369,8 +392,11 @@ export async function extractMentionData(mention: Mention): Promise<string> {
       return extractLookupMentionData(mention);
     case "url":
       return extractUrlMentionData(mention);
-    default:
-      return `[Unknown mention type]`;
+    default: {
+      const _exhaustive: never = mention;
+      return Promise.resolve(
+        `[Unknown mention type: ${(_exhaustive as Mention).type}]`
+      );
+    }
   }
 }
-

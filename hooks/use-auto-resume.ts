@@ -5,12 +5,12 @@ import { useEffect } from "react";
 import { useDataStream } from "@/components/shared/data-stream-provider";
 import type { ChatMessage } from "@/lib/types";
 
-export type UseAutoResumeParams = {
+export interface UseAutoResumeParams {
   autoResume: boolean;
   initialMessages: ChatMessage[];
   resumeStream: UseChatHelpers<ChatMessage>["resumeStream"];
   setMessages: UseChatHelpers<ChatMessage>["setMessages"];
-};
+}
 
 export function useAutoResume({
   autoResume,
@@ -43,7 +43,7 @@ export function useAutoResume({
       return;
     }
 
-    const dataPart = dataStream[0];
+    const [dataPart] = dataStream;
 
     if (dataPart.type === "data-appendMessage") {
       const message = JSON.parse(dataPart.data);

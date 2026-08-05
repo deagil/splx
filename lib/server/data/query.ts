@@ -1,28 +1,39 @@
 import { sql } from "drizzle-orm";
-import type { TenantContext } from "@/lib/server/tenant/context";
-import { requireCapability } from "@/lib/server/tenant/permissions";
-import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { getTableConfig, TableNotFoundError } from "@/lib/server/tables";
+import { getTableConfig, type TableRecord } from "@/lib/server/tables";
 import {
   buildSelectQuery,
-  executeSelectQuery,
   countRecords,
+  executeSelectQuery,
   type QueryOptions,
 } from "@/lib/server/tables/query-builder";
+import type { TenantContext } from "@/lib/server/tenant/context";
+import { requireCapability } from "@/lib/server/tenant/permissions";
+import {
+  getResourceStore,
+  type ResourceStore,
+} from "@/lib/server/tenant/resource-store";
+
+const columnNameInErrorRegex = /column "([^"]+)"/;
+const tableNameRegex = /^[a-zA-Z0-9_]+$/;
 
 /**
  * Custom error class for query-related errors
  * Provides user-friendly error messages for the AI to communicate
  */
 export class QueryError extends Error {
+  readonly userMessage: string;
+  readonly tableName?: string;
+
   constructor(
     message: string,
-    public readonly userMessage: string,
-    public readonly tableName?: string,
-    public readonly cause?: Error
+    userMessage: string,
+    tableName?: string,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
     this.name = "QueryError";
+    this.userMessage = userMessage;
+    this.tableName = tableName;
   }
 }
 
@@ -33,32 +44,41 @@ function parseQueryError(error: unknown, tableName: string): QueryError {
   const errorMessage = error instanceof Error ? error.message : String(error);
 
   // Handle common SQL errors with friendly messages
-  if (errorMessage.includes("duplicate key") || errorMessage.includes("duplicate alias")) {
+  if (
+    errorMessage.includes("duplicate key") ||
+    errorMessage.includes("duplicate alias")
+  ) {
     return new QueryError(
       errorMessage,
       `There was a configuration issue with the "${tableName}" table. The query could not be completed due to a duplicate field reference.`,
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
-  if (errorMessage.includes("column") && errorMessage.includes("does not exist")) {
-    const columnMatch = errorMessage.match(/column "([^"]+)"/);
+  if (
+    errorMessage.includes("column") &&
+    errorMessage.includes("does not exist")
+  ) {
+    const columnMatch = errorMessage.match(columnNameInErrorRegex);
     const columnName = columnMatch ? columnMatch[1] : "unknown";
     return new QueryError(
       errorMessage,
       `The column "${columnName}" does not exist in the "${tableName}" table.`,
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
-  if (errorMessage.includes("relation") && errorMessage.includes("does not exist")) {
+  if (
+    errorMessage.includes("relation") &&
+    errorMessage.includes("does not exist")
+  ) {
     return new QueryError(
       errorMessage,
       `The table "${tableName}" does not exist or is not accessible.`,
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
@@ -67,25 +87,28 @@ function parseQueryError(error: unknown, tableName: string): QueryError {
       errorMessage,
       `You don't have permission to access the "${tableName}" table.`,
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
   if (errorMessage.includes("syntax error")) {
     return new QueryError(
       errorMessage,
-      `There was an issue with the query syntax. Please try a simpler query.`,
+      "There was an issue with the query syntax. Please try a simpler query.",
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
-  if (errorMessage.includes("timeout") || errorMessage.includes("canceling statement")) {
+  if (
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("canceling statement")
+  ) {
     return new QueryError(
       errorMessage,
-      `The query took too long to execute. Try adding more specific filters or reducing the limit.`,
+      "The query took too long to execute. Try adding more specific filters or reducing the limit.",
       tableName,
-      error instanceof Error ? error : undefined
+      { cause: error instanceof Error ? error : undefined }
     );
   }
 
@@ -94,22 +117,22 @@ function parseQueryError(error: unknown, tableName: string): QueryError {
     errorMessage,
     `Unable to query the "${tableName}" table. Please try again or contact support if the issue persists.`,
     tableName,
-    error instanceof Error ? error : undefined
+    { cause: error instanceof Error ? error : undefined }
   );
 }
 
-export type QueryUserTableInput = {
-  tableName: string;
+export interface QueryUserTableInput {
   filters?: Array<{
     column: string;
     operator: FilterOperator;
     value: string | null;
   }>;
   limit?: number;
-  page?: number;
   orderBy?: string;
   orderDirection?: "asc" | "desc";
-};
+  page?: number;
+  tableName: string;
+}
 
 export type FilterOperator =
   | "equals"
@@ -122,10 +145,8 @@ export type FilterOperator =
   | "is_null"
   | "is_not_null";
 
-export type QueryUserTableResult = {
-  tableName: string;
+export interface QueryUserTableResult {
   columns: string[];
-  rows: Record<string, unknown>[];
   pagination: {
     page: number;
     limit: number;
@@ -134,7 +155,9 @@ export type QueryUserTableResult = {
     hasNextPage: boolean;
     hasPreviousPage: boolean;
   };
-};
+  rows: Record<string, unknown>[];
+  tableName: string;
+}
 
 /**
  * Converts tool filter format to query builder filters format
@@ -183,15 +206,15 @@ async function executeSimpleQuery(
   const escapedTable = escapeIdentifier(tableName);
 
   // Simple count
-  const countResult = await db.execute(
+  const countResult = (await db.execute(
     sql.raw(`SELECT COUNT(*) as count FROM ${escapedTable}`)
-  ) as Array<{ count: string }>;
+  )) as Array<{ count: string }>;
   const total = Number.parseInt(countResult[0]?.count ?? "0", 10);
 
   // Simple select
-  const rows = await db.execute(
+  const rows = (await db.execute(
     sql.raw(`SELECT * FROM ${escapedTable} LIMIT ${limit} OFFSET ${offset}`)
-  ) as Record<string, unknown>[];
+  )) as Record<string, unknown>[];
 
   return { rows, total };
 }
@@ -213,12 +236,14 @@ export async function queryUserTable(
   // Check permissions
   try {
     requireCapability(tenant, "data.view");
-  } catch {
-    throw new QueryError(
+  } catch (error) {
+    const err = new QueryError(
       "Permission denied",
       "You don't have permission to view data.",
       input.tableName
     );
+    err.cause = error;
+    throw err;
   }
 
   const {
@@ -231,7 +256,7 @@ export async function queryUserTable(
   } = input;
 
   // Validate table name
-  if (!tableName || !/^[a-zA-Z0-9_]+$/.test(tableName)) {
+  if (!tableName || !tableNameRegex.test(tableName)) {
     throw new QueryError(
       "Invalid table name",
       `The table name "${tableName}" is invalid. Table names can only contain letters, numbers, and underscores.`,
@@ -244,13 +269,17 @@ export async function queryUserTable(
   try {
     tableConfig = await getTableConfig(tenant, tableName);
   } catch (error) {
-    console.error(`[queryUserTable] Error getting table config for "${tableName}":`, error);
-    throw new QueryError(
+    console.error(
+      `[queryUserTable] Error getting table config for "${tableName}":`,
+      error
+    );
+    const err = new QueryError(
       "Table config error",
       `Unable to load configuration for table "${tableName}".`,
-      tableName,
-      error instanceof Error ? error : undefined
+      tableName
     );
+    err.cause = error;
+    throw err;
   }
 
   if (!tableConfig) {
@@ -258,7 +287,7 @@ export async function queryUserTable(
     try {
       const { listTableConfigs } = await import("@/lib/server/tables");
       const tables = await listTableConfigs(tenant);
-      const tableNames = tables.map(t => t.id);
+      const tableNames = tables.map((t) => t.id);
 
       if (tableNames.length > 0) {
         throw new QueryError(
@@ -268,7 +297,9 @@ export async function queryUserTable(
         );
       }
     } catch (e) {
-      if (e instanceof QueryError) throw e;
+      if (e instanceof QueryError) {
+        throw e;
+      }
     }
 
     throw new QueryError(
@@ -283,13 +314,14 @@ export async function queryUserTable(
   try {
     store = await getResourceStore(tenant);
   } catch (error) {
-    console.error(`[queryUserTable] Error getting resource store:`, error);
-    throw new QueryError(
+    console.error("[queryUserTable] Error getting resource store:", error);
+    const err = new QueryError(
       "Connection error",
       "Unable to connect to the database. Please try again.",
-      tableName,
-      error instanceof Error ? error : undefined
+      tableName
     );
+    err.cause = error;
+    throw err;
   }
 
   try {
@@ -297,12 +329,12 @@ export async function queryUserTable(
     const convertedFilters = convertFilters(filters);
 
     const queryOptions: QueryOptions = {
+      filters: convertedFilters,
+      includeLabels: true,
       limit,
       offset,
       orderBy,
       orderDirection,
-      filters: convertedFilters,
-      includeLabels: true,
     };
 
     let rows: Record<string, unknown>[];
@@ -324,37 +356,44 @@ export async function queryUserTable(
         const queryTotal = await countRecords(db, tableName, convertedFilters);
 
         return {
+          columns:
+            queryRows.length > 0
+              ? Object.keys(queryRows[0] as Record<string, unknown>)
+              : [],
           rows: queryRows,
           total: queryTotal,
-          columns: queryRows.length > 0
-            ? Object.keys(queryRows[0] as Record<string, unknown>)
-            : []
         };
       });
 
-      rows = result.rows;
-      columns = result.columns;
-      total = result.total;
+      ({ rows, columns, total } = result);
     } catch (complexQueryError) {
       // Log the error for debugging
-      console.error(`[queryUserTable] Complex query failed for "${tableName}", trying simple query:`, complexQueryError);
+      console.error(
+        `[queryUserTable] Complex query failed for "${tableName}", trying simple query:`,
+        complexQueryError
+      );
 
       // Fallback to simple query without joins/labels
       try {
-        const simpleResult = await store.withSqlClient(async (db) => {
-          return executeSimpleQuery(db, tableName, limit, offset);
-        });
+        const simpleResult = await store.withSqlClient(async (db) =>
+          executeSimpleQuery(db, tableName, limit, offset)
+        );
 
-        rows = simpleResult.rows;
-        total = simpleResult.total;
-        columns = rows.length > 0
-          ? Object.keys(rows[0] as Record<string, unknown>)
-          : [];
+        ({ rows, total } = simpleResult);
+        columns =
+          rows.length > 0
+            ? Object.keys(rows[0] as Record<string, unknown>)
+            : [];
 
-        console.log(`[queryUserTable] Simple query succeeded for "${tableName}": ${rows.length} rows`);
+        console.log(
+          `[queryUserTable] Simple query succeeded for "${tableName}": ${rows.length} rows`
+        );
       } catch (simpleQueryError) {
         // Both queries failed, throw a user-friendly error
-        console.error(`[queryUserTable] Simple query also failed for "${tableName}":`, simpleQueryError);
+        console.error(
+          `[queryUserTable] Simple query also failed for "${tableName}":`,
+          simpleQueryError
+        );
         throw parseQueryError(simpleQueryError, tableName);
       }
     }
@@ -362,23 +401,23 @@ export async function queryUserTable(
     const totalPages = limit === 0 ? 0 : Math.max(1, Math.ceil(total / limit));
 
     return {
-      tableName,
       columns,
-      rows,
       pagination: {
-        page,
-        limit,
-        totalRows: total,
-        totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
+        limit,
+        page,
+        totalPages,
+        totalRows: total,
       },
+      rows,
+      tableName,
     };
   } finally {
     try {
       await store.dispose();
     } catch (disposeError) {
-      console.error(`[queryUserTable] Error disposing store:`, disposeError);
+      console.error("[queryUserTable] Error disposing store:", disposeError);
     }
   }
 }
@@ -395,7 +434,7 @@ export async function listUserTables(
   const tables = await listTableConfigs(tenant);
 
   return tables.map((t) => ({
-    name: t.id,
     description: t.description ?? null,
+    name: t.id,
   }));
 }

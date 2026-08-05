@@ -1,13 +1,6 @@
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
 import {
   BrainIcon,
   ChevronDownIcon,
@@ -16,11 +9,18 @@ import {
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
-type ChainOfThoughtContextValue = {
+interface ChainOfThoughtContextValue {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-};
+}
 
 const ChainOfThoughtContext = createContext<ChainOfThoughtContextValue | null>(
   null
@@ -52,9 +52,9 @@ export const ChainOfThought = memo(
     ...props
   }: ChainOfThoughtProps) => {
     const [isOpen, setIsOpen] = useControllableState({
-      prop: open,
       defaultProp: defaultOpen,
       onChange: onOpenChange,
+      prop: open,
     });
 
     const chainOfThoughtContext = useMemo(
@@ -126,8 +126,8 @@ export const ChainOfThoughtStep = memo(
     ...props
   }: ChainOfThoughtStepProps) => {
     const statusStyles = {
-      complete: "text-muted-foreground",
       active: "text-foreground",
+      complete: "text-muted-foreground",
       pending: "text-muted-foreground/50",
     };
 
@@ -143,11 +143,11 @@ export const ChainOfThoughtStep = memo(
       >
         <div className="relative mt-0.5">
           <Icon className="size-4" />
-          <div className="-mx-px absolute top-7 bottom-0 left-1/2 w-px bg-border" />
+          <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
         </div>
         <div className="flex-1 space-y-2">
           <div>{label}</div>
-          {description && (
+          {!!description && (
             <div className="text-muted-foreground text-xs">{description}</div>
           )}
           {children}
@@ -214,7 +214,7 @@ export const ChainOfThoughtImage = memo(
       <div className="relative flex max-h-[22rem] items-center justify-center overflow-hidden rounded-lg bg-muted p-3">
         {children}
       </div>
-      {caption && <p className="text-muted-foreground text-xs">{caption}</p>}
+      {!!caption && <p className="text-muted-foreground text-xs">{caption}</p>}
     </div>
   )
 );

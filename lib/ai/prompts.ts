@@ -6,7 +6,9 @@ import type { ArtifactKind } from "@/components/artifact/artifact";
  * Strips patterns that could manipulate the AI's behavior.
  */
 export function sanitizeUserInput(text: string): string {
-  if (!text) return "";
+  if (!text) {
+    return "";
+  }
 
   let sanitized = text;
 
@@ -34,7 +36,7 @@ export function sanitizeUserInput(text: string): string {
   // Limit length to prevent context overflow
   const maxLength = 2000;
   if (sanitized.length > maxLength) {
-    sanitized = sanitized.slice(0, maxLength) + "...";
+    sanitized = `${sanitized.slice(0, maxLength)}...`;
   }
 
   return sanitized.trim();
@@ -77,40 +79,39 @@ Do not update document right after creating it. Wait for user feedback or reques
 export const regularPrompt =
   "You are a friendly assistant! Keep your responses concise and helpful.";
 
-export type RequestHints = {
-  latitude: Geo["latitude"];
-  longitude: Geo["longitude"];
+export interface RequestHints {
   city: Geo["city"];
   country: Geo["country"];
-};
+  latitude: Geo["latitude"];
+  longitude: Geo["longitude"];
+}
 
 /**
  * User preferences for AI personalization
  */
-export type UserPreferences = {
-  // User profile fields
-  firstName?: string | null;
-  lastName?: string | null;
-  jobTitle?: string | null;
-
+export interface UserPreferences {
   // AI preferences
   aiContext?: string | null;
-  proficiency?: string | null;
-  aiTone?: string | null;
   aiGuidance?: string | null;
+  aiTone?: string | null;
+  // User profile fields
+  firstName?: string | null;
+  jobTitle?: string | null;
+  lastName?: string | null;
   personalizationEnabled?: boolean;
-
-  // Workspace context
-  workspaceName?: string | null;
-  workspaceDescription?: string | null;
+  proficiency?: string | null;
 
   // Role context
   roleLabel?: string | null;
+  skillName?: string | null;
 
   // Active skill (from slash commands)
   skillPrompt?: string | null;
-  skillName?: string | null;
-};
+  workspaceDescription?: string | null;
+
+  // Workspace context
+  workspaceName?: string | null;
+}
 
 export const getRequestPromptFromHints = (requestHints: RequestHints) =>
   `\
@@ -129,9 +130,9 @@ export const getPersonalizationPrompt = (preferences: UserPreferences) => {
   if (!preferences.personalizationEnabled) {
     // Even if personalization is disabled, still apply skill prompt if present
     if (preferences.skillPrompt) {
-      return `\n\n[Active Skill: ${
-        sanitizeUserInput(preferences.skillName || "Custom")
-      }]\n${sanitizeUserInput(preferences.skillPrompt)}`;
+      return `\n\n[Active Skill: ${sanitizeUserInput(
+        preferences.skillName || "Custom"
+      )}]\n${sanitizeUserInput(preferences.skillPrompt)}`;
     }
     return "";
   }
@@ -167,24 +168,24 @@ export const getPersonalizationPrompt = (preferences: UserPreferences) => {
   }
 
   if (identityParts.length > 0) {
-    parts.push(identityParts[0] + ".");
+    parts.push(`${identityParts[0]}.`);
   }
 
   // Workspace description
   if (preferences.workspaceDescription) {
     parts.push(
-      `About their organization: ${
-        sanitizeUserInput(preferences.workspaceDescription)
-      }`,
+      `About their organization: ${sanitizeUserInput(
+        preferences.workspaceDescription
+      )}`
     );
   }
 
   // User's role in workspace
   if (preferences.roleLabel) {
     parts.push(
-      `Their role in this workspace: ${
-        sanitizeUserInput(preferences.roleLabel)
-      }`,
+      `Their role in this workspace: ${sanitizeUserInput(
+        preferences.roleLabel
+      )}`
     );
   }
 
@@ -193,12 +194,10 @@ export const getPersonalizationPrompt = (preferences: UserPreferences) => {
 
   if (preferences.proficiency) {
     const proficiencyMap: Record<string, string> = {
-      less:
-        "Prefer simpler language with step-by-step explanations. Avoid technical jargon.",
+      less: "Prefer simpler language with step-by-step explanations. Avoid technical jargon.",
+      more: "You can use technical terminology and detailed information. Assume technical knowledge.",
       regular:
         "Use a balanced approach with clear explanations and moderate technical detail.",
-      more:
-        "You can use technical terminology and detailed information. Assume technical knowledge.",
     };
     const proficiencyText = proficiencyMap[preferences.proficiency];
     if (proficiencyText) {
@@ -208,9 +207,9 @@ export const getPersonalizationPrompt = (preferences: UserPreferences) => {
 
   if (preferences.aiTone) {
     const toneMap: Record<string, string> = {
-      friendly: "Adopt a friendly, bubbly, and playful tone.",
       balanced: "Maintain a professional yet approachable tone.",
       efficient: "Be direct and concise. Get straight to the point.",
+      friendly: "Adopt a friendly, bubbly, and playful tone.",
     };
     const toneText = toneMap[preferences.aiTone];
     if (toneText) {
@@ -225,23 +224,23 @@ export const getPersonalizationPrompt = (preferences: UserPreferences) => {
   // User's background and interests
   if (preferences.aiContext) {
     parts.push(
-      `User's background: ${sanitizeUserInput(preferences.aiContext)}`,
+      `User's background: ${sanitizeUserInput(preferences.aiContext)}`
     );
   }
 
   // Additional custom instructions
   if (preferences.aiGuidance) {
     parts.push(
-      `Special instructions: ${sanitizeUserInput(preferences.aiGuidance)}`,
+      `Special instructions: ${sanitizeUserInput(preferences.aiGuidance)}`
     );
   }
 
   // Active skill prompt (from slash commands)
   if (preferences.skillPrompt) {
     parts.push(
-      `\n[Active Skill: ${
-        sanitizeUserInput(preferences.skillName || "Custom")
-      }]\n${sanitizeUserInput(preferences.skillPrompt)}`,
+      `\n[Active Skill: ${sanitizeUserInput(
+        preferences.skillName || "Custom"
+      )}]\n${sanitizeUserInput(preferences.skillPrompt)}`
     );
   }
 
@@ -301,7 +300,7 @@ You are a spreadsheet creation assistant. Create a spreadsheet in csv format bas
 
 export const updateDocumentPrompt = (
   currentContent: string | null,
-  type: ArtifactKind,
+  type: ArtifactKind
 ) => {
   let mediaType = "document";
 

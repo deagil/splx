@@ -10,9 +10,9 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 pb-12 pt-8">
+    <div className="mx-auto w-full max-w-3xl px-6 pt-8 pb-12">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">My Profile</h1>
+        <h1 className="font-semibold text-2xl">My Profile</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           These details are visible to your teammates across Splx. Keep them up
           to date so people know who they are collaborating with.
@@ -22,8 +22,3 @@ export default async function ProfilePage() {
     </div>
   );
 }
-
-
-
-
-

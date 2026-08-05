@@ -10,7 +10,6 @@ type MetadataResult = { table: TableRecord } | { tables: TableRecord[] };
 /** Table metadata configs. Read-only, so gated on `tables.view`. */
 export const GET = endpoint<undefined, unknown, MetadataResult>({
   auth: "required",
-  permission: "tables.view",
   async handler({ user, query }) {
     const tableParam = query.get("table");
 
@@ -25,4 +24,5 @@ export const GET = endpoint<undefined, unknown, MetadataResult>({
     const tables = await listTableConfigs(user.tenant);
     return { data: { tables } };
   },
+  permission: "tables.view",
 });

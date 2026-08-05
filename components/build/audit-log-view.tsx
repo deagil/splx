@@ -23,9 +23,9 @@ export function AuditLogView() {
     <ActivityLogView
       columns={[
         {
-          key: "createdAt",
-          header: "When",
           className: "w-44",
+          header: "When",
+          key: "createdAt",
           render: (entry) => (
             <span title={formatTimestamp(entry.createdAt)}>
               {formatRelative(entry.createdAt)}
@@ -33,14 +33,14 @@ export function AuditLogView() {
           ),
         },
         {
-          key: "action",
-          header: "Action",
           className: "w-56",
+          header: "Action",
+          key: "action",
           render: (entry) => <ActionBadge value={entry.action as string} />,
         },
         {
-          key: "resourceType",
           header: "Resource",
+          key: "resourceType",
           render: (entry) => (
             <div className="flex flex-col">
               <span className="text-sm">{entry.resourceType as string}</span>
@@ -49,8 +49,8 @@ export function AuditLogView() {
           ),
         },
         {
-          key: "actor",
           header: "Actor",
+          key: "actor",
           render: (entry) => <span className="text-sm">{actor(entry)}</span>,
         },
       ]}

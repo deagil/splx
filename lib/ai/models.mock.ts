@@ -1,36 +1,35 @@
 import type { LanguageModel } from "ai";
 
-const createMockModel = (): LanguageModel => {
-  return {
-    specificationVersion: "v2",
-    provider: "mock",
-    modelId: "mock-model",
+const createMockModel = (): LanguageModel =>
+  ({
     defaultObjectGenerationMode: "tool",
-    supportedUrls: [],
-    supportsImageUrls: false,
-    supportsStructuredOutputs: false,
     doGenerate: async () => ({
-      rawCall: { rawPrompt: null, rawSettings: {} },
+      content: [{ text: "Hello, world!", type: "text" }],
       finishReason: "stop",
+      rawCall: { rawPrompt: null, rawSettings: {} },
       usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-      content: [{ type: "text", text: "Hello, world!" }],
       warnings: [],
     }),
     doStream: async () => ({
+      rawCall: { rawPrompt: null, rawSettings: {} },
       stream: new ReadableStream({
         start(controller) {
           controller.enqueue({
-            type: "text-delta",
-            id: "mock-id",
             delta: "Mock response",
+            id: "mock-id",
+            type: "text-delta",
           });
           controller.close();
         },
       }),
-      rawCall: { rawPrompt: null, rawSettings: {} },
     }),
-  } as unknown as LanguageModel;
-};
+    modelId: "mock-model",
+    provider: "mock",
+    specificationVersion: "v2",
+    supportedUrls: [],
+    supportsImageUrls: false,
+    supportsStructuredOutputs: false,
+  }) as unknown as LanguageModel;
 
 export const chatModel = createMockModel();
 export const reasoningModel = createMockModel();

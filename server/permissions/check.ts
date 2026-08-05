@@ -2,9 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_ROLE_PERMISSIONS, type Permission } from "./definitions";
 import {
   checkPermissionAgainstMap,
-  resolveEffectivePermissions,
   type RolePermissionMap,
   type RolePermissionRow,
+  resolveEffectivePermissions,
 } from "./match";
 
 export {
@@ -20,7 +20,9 @@ const cache = new Map<string, { map: RolePermissionMap; loadedAt: number }>();
 
 function staticMap(): RolePermissionMap {
   const map: RolePermissionMap = {};
-  for (const [roleId, permissions] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+  for (const [roleId, permissions] of Object.entries(
+    DEFAULT_ROLE_PERMISSIONS
+  )) {
     map[roleId] = [...permissions];
   }
   return map;
@@ -62,22 +64,22 @@ async function loadRolePermissions(
     }
 
     const map = resolveEffectivePermissions(rows, workspaceId);
-    cache.set(workspaceId, { map, loadedAt: Date.now() });
+    cache.set(workspaceId, { loadedAt: Date.now(), map });
     return map;
   } catch (error) {
     console.error("[permissions] falling back to static role map", {
-      workspaceId,
       error: error instanceof Error ? error.message : String(error),
+      workspaceId,
     });
     return staticMap();
   }
 }
 
-export type PermissionCheck = {
-  workspaceId: string;
-  roles: string[];
+export interface PermissionCheck {
   permission: Permission | string;
-};
+  roles: string[];
+  workspaceId: string;
+}
 
 export async function hasPermission({
   workspaceId,

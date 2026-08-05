@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { z, ZodError } from "zod";
 import { sql } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { ZodError, z } from "zod";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
@@ -8,16 +8,16 @@ import { getResourceStore } from "@/lib/server/tenant/resource-store";
 const COLUMN_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
 const querySchema = z.object({
-  table: z
-    .string()
-    .min(1, "Table is required")
-    .regex(COLUMN_NAME_REGEX, "Table name must be alphanumeric or underscore"),
+  id: z.string().min(1, "Record identifier is required"),
   idColumn: z
     .string()
     .min(1)
     .regex(COLUMN_NAME_REGEX, "Column name must be alphanumeric or underscore")
     .default("id"),
-  id: z.string().min(1, "Record identifier is required"),
+  table: z
+    .string()
+    .min(1, "Table is required")
+    .regex(COLUMN_NAME_REGEX, "Table name must be alphanumeric or underscore"),
 });
 
 export async function GET(request: Request) {
@@ -26,9 +26,9 @@ export async function GET(request: Request) {
     requireCapability(tenant, "data.view");
     const url = new URL(request.url);
     const parsed = querySchema.parse({
-      table: url.searchParams.get("table"),
-      idColumn: url.searchParams.get("idColumn") ?? "id",
       id: url.searchParams.get("id"),
+      idColumn: url.searchParams.get("idColumn") ?? "id",
+      table: url.searchParams.get("table"),
     });
 
     const store = await getResourceStore(tenant);
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         const idValue = escapeString(parsed.id);
 
         const query = sql.raw(
-          `SELECT * FROM ${tableName} WHERE ${idColumn} = ${idValue} LIMIT 1`,
+          `SELECT * FROM ${tableName} WHERE ${idColumn} = ${idValue} LIMIT 1`
         );
         const result = await db.execute(query);
 
@@ -54,18 +54,18 @@ export async function GET(request: Request) {
       if (!record) {
         return NextResponse.json(
           {
-            tableName: parsed.table,
-            record: null,
             columns,
+            record: null,
+            tableName: parsed.table,
           },
-          { status: 404 },
+          { status: 404 }
         );
       }
 
       return NextResponse.json({
-        tableName: parsed.table,
-        record,
         columns,
+        record,
+        tableName: parsed.table,
       });
     } finally {
       await store.dispose();
@@ -89,29 +89,20 @@ function handleError(error: unknown) {
       {
         error: "Validation failed",
         issues: error.issues.map((issue) => ({
-          path: issue.path.join("."),
           message: issue.message,
+          path: issue.path.join("."),
         })),
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   if (error instanceof Error) {
     if (error.message === "Forbidden") {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(
-    { error: "Unknown error" },
-    { status: 500 },
-  );
+  return NextResponse.json({ error: "Unknown error" }, { status: 500 });
 }

@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import {
+  type WorkflowStepConfig,
   workflow,
   workflowRun,
   workflowSchedule,
-  type WorkflowStepConfig,
 } from "@/lib/db/schema";
 import { generateUUID } from "@/lib/utils";
 import { getControlPlaneDb } from "@/server/lib/db";
@@ -20,25 +20,25 @@ import { scheduleTick } from "./nudge";
 import { systemTenantContext } from "./system-context";
 import { resolveTemplateRecord } from "./template";
 
-export type ProcessResult = {
+export interface ProcessResult {
   claimed: number;
-  succeeded: number;
   failed: number;
-};
+  succeeded: number;
+}
 
-type ClaimedSchedule = {
-  id: string;
-  workspace_id: string;
-  workflow_id: string;
-  event_id: string | null;
-  status: string;
-  trigger_source: string;
+interface ClaimedSchedule {
+  actor_user_id: string | null;
   attempts: number;
   context: Record<string, unknown>;
   depth: number;
-  actor_user_id: string | null;
+  event_id: string | null;
+  id: string;
   request_id: string | null;
-};
+  status: string;
+  trigger_source: string;
+  workflow_id: string;
+  workspace_id: string;
+}
 
 /**
  * Claims due `workflow_schedule` rows and executes their workflows.
@@ -60,13 +60,13 @@ export async function processDueSchedules(options?: {
     } catch (error) {
       failed += 1;
       console.error("[workflows] schedule execution failed", {
-        scheduleId: item.id,
         error: error instanceof Error ? error.message : String(error),
+        scheduleId: item.id,
       });
     }
   }
 
-  return { claimed: claimed.length, succeeded, failed };
+  return { claimed: claimed.length, failed, succeeded };
 }
 
 async function claimDueSchedules(limit: number): Promise<ClaimedSchedule[]> {
@@ -111,7 +111,10 @@ async function executeSchedule(
   const db = getControlPlaneDb();
 
   if (item.depth > MAX_WORKFLOW_DEPTH) {
-    await markFailed(item, `Exceeded max workflow depth of ${MAX_WORKFLOW_DEPTH}`);
+    await markFailed(
+      item,
+      `Exceeded max workflow depth of ${MAX_WORKFLOW_DEPTH}`
+    );
     return;
   }
 
@@ -129,11 +132,11 @@ async function executeSchedule(
   const [run] = await db
     .insert(workflowRun)
     .values({
-      workspace_id: item.workspace_id,
-      workflow_id: item.workflow_id,
       schedule_id: item.id,
       status: "running",
       steps: [],
+      workflow_id: item.workflow_id,
+      workspace_id: item.workspace_id,
     })
     .returning();
 
@@ -168,9 +171,9 @@ async function executeSchedule(
     if (!action) {
       failedError = `Unknown action type: ${step.type}`;
       stepResults.push({
-        type: step.type,
-        label: step.label,
         error: failedError,
+        label: step.label,
+        type: step.type,
       });
       break;
     }
@@ -181,18 +184,18 @@ async function executeSchedule(
     try {
       const parsed = action.schema.parse(resolvedInput);
       const result = await action.execute(parsed, {
+        requestId: item.request_id ?? requestId,
+        runContext,
+        runId: run.id,
         tenant,
         workspaceId: item.workspace_id,
-        requestId: item.request_id ?? requestId,
-        runId: run.id,
-        runContext,
       });
 
       stepResults.push({
-        type: step.type,
-        label: step.label,
         input: resolvedInput,
+        label: step.label,
         output: result.output,
+        type: step.type,
       });
 
       const prior = Array.isArray(runContext.steps)
@@ -200,15 +203,15 @@ async function executeSchedule(
         : [];
       runContext.steps = [
         ...prior,
-        { index, type: step.type, output: result.output },
+        { index, output: result.output, type: step.type },
       ];
 
       if (result.stop) {
         for (const remaining of steps.slice(index + 1)) {
           stepResults.push({
-            type: remaining.type,
             label: remaining.label,
             skipped: true,
+            type: remaining.type,
           });
         }
         break;
@@ -216,10 +219,10 @@ async function executeSchedule(
     } catch (error) {
       failedError = error instanceof Error ? error.message : String(error);
       stepResults.push({
-        type: step.type,
-        label: step.label,
-        input: resolvedInput,
         error: failedError,
+        input: resolvedInput,
+        label: step.label,
+        type: step.type,
       });
       break;
     }
@@ -231,27 +234,27 @@ async function executeSchedule(
     await db
       .update(workflowRun)
       .set({
-        status: "failed",
-        steps: stepResults,
         error: failedError,
         finished_at: finishedAt,
+        status: "failed",
+        steps: stepResults,
       })
       .where(eq(workflowRun.id, run.id));
 
     await handleFailure(item, failedError);
 
     await emitEvent({
-      workspaceId: item.workspace_id,
+      actorUserId: item.actor_user_id,
+      causedByRunId: run.id,
       eventName: "workflow.run.failed",
       payload: {
-        workflowId: item.workflow_id,
-        scheduleId: item.id,
-        runId: run.id,
         error: failedError,
+        runId: run.id,
+        scheduleId: item.id,
+        workflowId: item.workflow_id,
       },
-      actorUserId: item.actor_user_id,
       requestId: item.request_id ?? requestId,
-      causedByRunId: run.id,
+      workspaceId: item.workspace_id,
     });
     return;
   }
@@ -259,32 +262,32 @@ async function executeSchedule(
   await db
     .update(workflowRun)
     .set({
+      finished_at: finishedAt,
       status: "succeeded",
       steps: stepResults,
-      finished_at: finishedAt,
     })
     .where(eq(workflowRun.id, run.id));
 
   await db
     .update(workflowSchedule)
     .set({
-      status: "done",
-      locked_at: null,
       last_error: null,
+      locked_at: null,
+      status: "done",
     })
     .where(eq(workflowSchedule.id, item.id));
 
   await emitEvent({
-    workspaceId: item.workspace_id,
+    actorUserId: item.actor_user_id,
+    causedByRunId: run.id,
     eventName: "workflow.run.succeeded",
     payload: {
-      workflowId: item.workflow_id,
-      scheduleId: item.id,
       runId: run.id,
+      scheduleId: item.id,
+      workflowId: item.workflow_id,
     },
-    actorUserId: item.actor_user_id,
     requestId: item.request_id ?? requestId,
-    causedByRunId: run.id,
+    workspaceId: item.workspace_id,
   });
 }
 
@@ -298,9 +301,9 @@ async function handleFailure(
     await db
       .update(workflowSchedule)
       .set({
-        status: "failed",
-        locked_at: null,
         last_error: errorMessage,
+        locked_at: null,
+        status: "failed",
       })
       .where(eq(workflowSchedule.id, item.id));
     return;
@@ -309,10 +312,10 @@ async function handleFailure(
   await db
     .update(workflowSchedule)
     .set({
-      status: "pending",
-      locked_at: null,
       last_error: errorMessage,
+      locked_at: null,
       run_after: nextRunAfter(item.attempts),
+      status: "pending",
     })
     .where(eq(workflowSchedule.id, item.id));
 }
@@ -325,9 +328,9 @@ async function markFailed(
   await db
     .update(workflowSchedule)
     .set({
-      status: "failed",
-      locked_at: null,
       last_error: errorMessage,
+      locked_at: null,
+      status: "failed",
     })
     .where(eq(workflowSchedule.id, item.id));
 }
@@ -364,15 +367,15 @@ export async function enqueueManualRun(options: {
   const [row] = await db
     .insert(workflowSchedule)
     .values({
-      workspace_id: options.workspaceId,
-      workflow_id: options.workflowId,
-      event_id: options.eventId ?? null,
-      status: "pending",
-      trigger_source: options.triggerSource ?? "manual",
+      actor_user_id: options.actorUserId,
       context: options.context ?? { event: null, steps: [] },
       depth: 0,
-      actor_user_id: options.actorUserId,
+      event_id: options.eventId ?? null,
       request_id: options.requestId ?? generateUUID(),
+      status: "pending",
+      trigger_source: options.triggerSource ?? "manual",
+      workflow_id: options.workflowId,
+      workspace_id: options.workspaceId,
     })
     .returning({ id: workflowSchedule.id });
 

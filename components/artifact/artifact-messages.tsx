@@ -6,20 +6,20 @@ import { memo } from "react";
 import { useMessages } from "@/hooks/use-messages";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
-import type { UIArtifact } from "./artifact";
 import { PreviewMessage, ThinkingMessage } from "../chat/message";
+import type { UIArtifact } from "./artifact";
 
-type ArtifactMessagesProps = {
+interface ArtifactMessagesProps {
   addToolApprovalResponse: ChatAddToolApproveResponseFunction;
+  artifactStatus: UIArtifact["status"];
   chatId: string;
+  isReadonly: boolean;
+  messages: ChatMessage[];
+  regenerate: UseChatHelpers<ChatMessage>["regenerate"];
+  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
   status: UseChatHelpers<ChatMessage>["status"];
   votes: Vote[] | undefined;
-  messages: ChatMessage[];
-  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
-  regenerate: UseChatHelpers<ChatMessage>["regenerate"];
-  isReadonly: boolean;
-  artifactStatus: UIArtifact["status"];
-};
+}
 
 function PureArtifactMessages({
   addToolApprovalResponse,

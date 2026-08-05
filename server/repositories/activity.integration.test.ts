@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
  * Integration tests for the audit-log / event-log readers.
@@ -19,12 +19,9 @@ if (TEST_DB) {
   process.env.APP_MODE = "local";
 }
 
-const {
-  getAuditLog,
-  getEvent,
-  listAuditLogs,
-  listEvents,
-} = await import("./activity");
+const { getAuditLog, getEvent, listAuditLogs, listEvents } = await import(
+  "./activity"
+);
 const { writeAuditLog } = await import("@/server/lib/audit");
 const { emitEvent } = await import("@/server/lib/events");
 const { getControlPlaneDb, closeControlPlaneDb } = await import(
@@ -45,38 +42,38 @@ describeIfDb("activity readers (integration)", () => {
     // Three entries in workspace A, written in order, plus one in B.
     for (const action of ["data.created", "data.updated", "data.deleted"]) {
       await writeAuditLog({
-        workspaceId: WORKSPACE_A,
-        actorUserId: ACTOR,
         action,
-        resourceType: "contacts",
-        resourceId: "rec-1",
+        actorUserId: ACTOR,
         changes: { action },
         requestId: `req-${action}`,
+        resourceId: "rec-1",
+        resourceType: "contacts",
+        workspaceId: WORKSPACE_A,
       });
       // Distinct created_at values so ordering is unambiguous.
       await new Promise((resolve) => setTimeout(resolve, 12));
     }
 
     await writeAuditLog({
-      workspaceId: WORKSPACE_B,
-      actorUserId: ACTOR,
       action: "data.created",
-      resourceType: "other",
+      actorUserId: ACTOR,
       resourceId: "rec-b",
+      resourceType: "other",
+      workspaceId: WORKSPACE_B,
     });
 
     await emitEvent({
-      workspaceId: WORKSPACE_A,
+      actorUserId: ACTOR,
       eventName: "db.contacts.created",
       payload: { record: { id: "rec-1" } },
-      actorUserId: ACTOR,
       requestId: "req-evt",
+      workspaceId: WORKSPACE_A,
     });
     await emitEvent({
-      workspaceId: WORKSPACE_B,
+      actorUserId: ACTOR,
       eventName: "db.other.created",
       payload: {},
-      actorUserId: ACTOR,
+      workspaceId: WORKSPACE_B,
     });
   });
 
@@ -119,8 +116,8 @@ describeIfDb("activity readers (integration)", () => {
   it("keyset-paginates with before", async () => {
     const first = await listAuditLogs(WORKSPACE_A, { limit: 1 });
     const next = await listAuditLogs(WORKSPACE_A, {
-      limit: 10,
       before: first[0].createdAt.toISOString(),
+      limit: 10,
     });
 
     expect(next.map((e) => e.action)).toEqual(["data.updated", "data.created"]);

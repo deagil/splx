@@ -13,10 +13,10 @@ const executeSchema = z.object({
  */
 export const POST = endpoint<z.infer<typeof executeSchema>>({
   auth: "required",
-  permission: "reports.view",
-  schema: executeSchema,
   async handler({ user, body }) {
     const data = await runReportQuery(user.tenant, body.sql);
     return { data: { data } };
   },
+  permission: "reports.view",
+  schema: executeSchema,
 });

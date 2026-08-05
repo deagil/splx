@@ -1,12 +1,22 @@
 "use client";
 
+import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
+import { FileXCorner, Maximize2, Minimize2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { User } from "@/lib/types";
-import { useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { ChatSidebarContent } from "@/components/sidebar/chat-sidebar-content";
+import { useEffect, useState } from "react";
+import { Artifact } from "@/components/artifact/artifact";
 import { DataStreamHandler } from "@/components/shared/data-stream-handler";
+import { ClockRewind, CrossIcon, PlusIcon } from "@/components/shared/icons";
+import type { VisibilityType } from "@/components/shared/visibility-selector";
+import { ChatSidebarContent } from "@/components/sidebar/chat-sidebar-content";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -14,26 +24,23 @@ import {
   SidebarMenu,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { ChatAddToolApproveResponseFunction } from "ai";
-import type { UseChatHelpers } from "@ai-sdk/react";
-import type { ChatMessage, Attachment } from "@/lib/types";
-import { generateUUID, cn } from "@/lib/utils";
-import { PlusIcon, ClockRewind, CrossIcon } from "@/components/shared/icons";
-import { Maximize2, Minimize2, FileXCorner } from "lucide-react";
-import { SidebarHistory } from "./sidebar-history";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  initialArtifactData,
+  useArtifact,
+  useArtifactSelector,
+} from "@/hooks/use-artifact";
+import type { Vote } from "@/lib/db/schema";
+import type { Attachment, ChatMessage, User } from "@/lib/types";
+import { cn, generateUUID } from "@/lib/utils";
 import { ChatSidebarResizeHandle } from "./chat-sidebar-resize-handle";
 import { CHAT_SIDEBAR_SIDE } from "./chat-sidebar-side";
-import type { VisibilityType } from "@/components/shared/visibility-selector";
 import type { ChatHistory } from "./sidebar-history";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useArtifactSelector, useArtifact, initialArtifactData } from "@/hooks/use-artifact";
-import { Artifact } from "@/components/artifact/artifact";
-import type { Vote } from "@/lib/db/schema";
+import { SidebarHistory } from "./sidebar-history";
 
 export function ChatSidebar({
   chatId: initialChatId,
@@ -94,7 +101,7 @@ export function ChatSidebar({
     const newMode = !isExpandedMode;
     setIsExpandedMode(newMode);
     localStorage.setItem("sidebar-expanded-mode", newMode ? "true" : "false");
-    
+
     // Dispatch custom event to notify SidebarWidthManager
     window.dispatchEvent(
       new CustomEvent("sidebar-expanded-toggle", { detail: newMode })
@@ -174,23 +181,23 @@ export function ChatSidebar({
   // Clear artifact props when chatId changes
   useEffect(() => {
     setArtifactProps(null);
-  }, [chatId]);
+  }, []);
 
   return (
     <>
       <Sidebar
-        variant="inset"
-        side={CHAT_SIDEBAR_SIDE}
         className={cn(
           CHAT_SIDEBAR_SIDE === "right" ? "md:order-last" : "md:order-first",
-          "**:data-[slot=sidebar-container]:p-0! **:data-[sidebar=sidebar]:bg-transparent!"
+          "**:data-[sidebar=sidebar]:bg-transparent! **:data-[slot=sidebar-container]:p-0!"
         )}
+        side={CHAT_SIDEBAR_SIDE}
+        variant="inset"
       >
         <SidebarHeader>
           <SidebarMenu>
             <div
               className={cn(
-                "flex flex-row items-center justify-between gap-2 p-1 transition-opacity ease-in-out duration-250",
+                "flex flex-row items-center justify-between gap-2 p-1 transition-opacity duration-250 ease-in-out",
                 CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse",
                 open ? "opacity-100" : "opacity-0",
                 !controlsReady && "pointer-events-none"
@@ -202,7 +209,7 @@ export function ChatSidebar({
                   CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse"
                 )}
               >
-                {hasMessages && (
+                {!!hasMessages && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -236,9 +243,15 @@ export function ChatSidebar({
                       Chat History
                     </TooltipContent>
                   </Tooltip>
-                  <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto p-0">
+                  <DropdownMenuContent
+                    align="end"
+                    className="max-h-[400px] w-64 overflow-y-auto p-0"
+                  >
                     <div className="p-2">
-                      <SidebarHistory user={user} initialHistory={initialHistory} />
+                      <SidebarHistory
+                        initialHistory={initialHistory}
+                        user={user}
+                      />
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -254,7 +267,7 @@ export function ChatSidebar({
                     <Button
                       className={cn(
                         "h-8 p-1 opacity-50 hover:opacity-100 md:h-fit md:p-2",
-                        isExpandedMode && "opacity-100 bg-accent"
+                        isExpandedMode && "bg-accent opacity-100"
                       )}
                       onClick={handleExpandedToggle}
                       type="button"
@@ -295,21 +308,33 @@ export function ChatSidebar({
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent className="relative flex flex-col overflow-hidden">
-          <div className={isArtifactVisible ? "flex h-full flex-row overflow-hidden" : "flex h-full flex-col overflow-hidden"}>
-            <div className={isArtifactVisible ? "flex min-w-0 flex-1 flex-col overflow-hidden border-r border-border" : "flex h-full flex-1 flex-col overflow-hidden"}>
+          <div
+            className={
+              isArtifactVisible
+                ? "flex h-full flex-row overflow-hidden"
+                : "flex h-full flex-col overflow-hidden"
+            }
+          >
+            <div
+              className={
+                isArtifactVisible
+                  ? "flex min-w-0 flex-1 flex-col overflow-hidden border-border border-r"
+                  : "flex h-full flex-1 flex-col overflow-hidden"
+              }
+            >
               <ChatSidebarContent
-                key={chatId}
                 autoResume={!!chatIdFromUrl}
                 chatId={chatId}
                 initialChatModel={initialChatModel}
                 initialMessages={initialMessages}
                 initialVisibilityType={initialVisibilityType}
                 isReadonly={isReadonly}
-                onMessagesChange={handleMessagesChange}
+                key={chatId}
                 onArtifactPropsReady={setArtifactProps}
+                onMessagesChange={handleMessagesChange}
               />
             </div>
-            {isArtifactVisible && artifactProps && (
+            {!!isArtifactVisible && artifactProps && (
               <div className="flex min-w-0 flex-[2] flex-col overflow-hidden">
                 <Artifact {...artifactProps} variant="sidebar" />
               </div>
@@ -322,4 +347,3 @@ export function ChatSidebar({
     </>
   );
 }
-

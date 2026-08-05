@@ -10,7 +10,7 @@ type MentionRegistryListener = (items: MentionableItem[]) => void;
 
 class GlobalMentionRegistry {
   private items: MentionableItem[] = [];
-  private listeners: Set<MentionRegistryListener> = new Set();
+  private readonly listeners: Set<MentionRegistryListener> = new Set();
 
   /**
    * Register mentionable items (called by MentionContextProvider)
@@ -42,13 +42,11 @@ class GlobalMentionRegistry {
 
   private notifyListeners(): void {
     const items = this.getItems();
-    this.listeners.forEach((listener) => {
+    for (const listener of this.listeners) {
       listener(items);
-    });
+    }
   }
 }
 
 // Singleton instance
 export const globalMentionRegistry = new GlobalMentionRegistry();
-
-

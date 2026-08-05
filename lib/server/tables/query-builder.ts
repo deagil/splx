@@ -1,25 +1,24 @@
 import { sql } from "drizzle-orm";
-import type { DbClient } from "@/lib/server/tenant/context";
-import type { TableRecord } from "./schema";
+import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
 import { resolveLabelField } from "./labels";
-import type { TenantContext } from "@/lib/server/tenant/context";
+import type { TableRecord } from "./schema";
 
-export type QueryOptions = {
+export interface QueryOptions {
+  filters?: Record<string, unknown>;
+  includeLabels?: boolean;
   limit?: number;
   offset?: number;
   orderBy?: string;
   orderDirection?: "asc" | "desc";
-  filters?: Record<string, unknown>;
-  includeLabels?: boolean;
-};
+}
 
-type JoinInfo = {
+interface JoinInfo {
   alias: string;
-  table: string;
   condition: string;
-  labelField: string;
   fkColumn: string;
-};
+  labelField: string;
+  table: string;
+}
 
 /**
  * Escapes SQL identifiers
@@ -72,7 +71,7 @@ function buildWhereClause(
  */
 function buildOrderByClause(
   orderBy: string | undefined,
-  orderDirection: "asc" | "desc" = "asc",
+  orderDirection: "asc" | "desc",
   tableAlias: string
 ): string {
   if (!orderBy) {
@@ -113,13 +112,13 @@ export async function buildSelectQuery(
   const escapedMainAlias = escapeIdentifier(mainTableAlias);
 
   // Get all columns from the table
-  const columnsResult = await db.execute(sql`
+  const columnsResult = (await db.execute(sql`
     SELECT column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
       AND table_name = ${tableName}
     ORDER BY ordinal_position
-  `) as Array<{ column_name: string }>;
+  `)) as Array<{ column_name: string }>;
 
   const columns = columnsResult.map((row) => row.column_name);
   let selectColumns = columns
@@ -144,18 +143,22 @@ export async function buildSelectQuery(
         const joinAlias = `label_${relationship.foreign_key_column}`;
         const escapedJoinAlias = escapeIdentifier(joinAlias);
         const escapedRefTable = escapeIdentifier(labelInfo.referencedTable);
-        const escapedFkColumn = escapeIdentifier(relationship.foreign_key_column);
-        const escapedRefColumn = escapeIdentifier(relationship.referenced_column);
+        const escapedFkColumn = escapeIdentifier(
+          relationship.foreign_key_column
+        );
+        const escapedRefColumn = escapeIdentifier(
+          relationship.referenced_column
+        );
         const escapedLabelField = escapeIdentifier(labelInfo.labelField);
 
         joinClauses += `\nLEFT JOIN ${escapedRefTable} AS ${escapedJoinAlias} ON ${escapedMainAlias}.${escapedFkColumn} = ${escapedJoinAlias}.${escapedRefColumn}`;
 
         joins.push({
           alias: joinAlias,
-          table: labelInfo.referencedTable,
           condition: `${escapedMainAlias}.${escapedFkColumn} = ${escapedJoinAlias}.${escapedRefColumn}`,
-          labelField: labelInfo.labelField,
           fkColumn: relationship.foreign_key_column,
+          labelField: labelInfo.labelField,
+          table: labelInfo.referencedTable,
         });
 
         // Add label field to SELECT
@@ -165,7 +168,11 @@ export async function buildSelectQuery(
   }
 
   const whereClause = buildWhereClause(filters, mainTableAlias);
-  const orderByClause = buildOrderByClause(orderBy, orderDirection, mainTableAlias);
+  const orderByClause = buildOrderByClause(
+    orderBy,
+    orderDirection,
+    mainTableAlias
+  );
 
   const query = `
     SELECT ${selectColumns}
@@ -177,7 +184,7 @@ export async function buildSelectQuery(
     OFFSET ${offset}
   `.trim();
 
-  return { query, joins };
+  return { joins, query };
 }
 
 /**
@@ -203,17 +210,11 @@ export async function getRecordById(
   includeLabels = true
 ): Promise<Record<string, unknown> | null> {
   const primaryKeyColumn = tableConfig.config.primary_key_column ?? "id";
-  const { query } = await buildSelectQuery(
-    db,
-    tenant,
-    tableConfig,
-    tableName,
-    {
-      filters: { [primaryKeyColumn]: recordId },
-      limit: 1,
-      includeLabels,
-    }
-  );
+  const { query } = await buildSelectQuery(db, tenant, tableConfig, tableName, {
+    filters: { [primaryKeyColumn]: recordId },
+    includeLabels,
+    limit: 1,
+  });
 
   const results = await executeSelectQuery(db, query);
   return results[0] ?? null;
@@ -236,7 +237,6 @@ export async function countRecords(
     ${whereClause}
   `.trim();
 
-  const result = await db.execute(sql.raw(query)) as Array<{ count: string }>;
+  const result = (await db.execute(sql.raw(query))) as Array<{ count: string }>;
   return Number.parseInt(result[0]?.count ?? "0", 10);
 }
-

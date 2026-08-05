@@ -4,58 +4,54 @@ import type { TableRecord } from "../schema";
 /**
  * Generates a list page block for a table
  */
-export function generateListPageBlock(
-  tableConfig: TableRecord
-): PageBlock {
+export function generateListPageBlock(tableConfig: TableRecord): PageBlock {
   return {
-    id: `${tableConfig.id}_list`,
-    type: "list",
-    position: {
-      x: 0,
-      y: 0,
-      width: 12,
-      height: 8,
-    },
     dataSource: {
-      type: "table",
-      tableName: tableConfig.id,
       endpoint: `/api/data/${tableConfig.id}`,
+      tableName: tableConfig.id,
+      type: "table",
     },
     displayConfig: {
-      title: tableConfig.name,
-      showSearch: true,
-      showFilters: true,
       pageSize: 20,
+      showFilters: true,
+      showSearch: true,
+      title: tableConfig.name,
     },
+    id: `${tableConfig.id}_list`,
+    position: {
+      height: 8,
+      width: 12,
+      x: 0,
+      y: 0,
+    },
+    type: "list",
   };
 }
 
 /**
  * Generates a detail page block for a table
  */
-export function generateDetailPageBlock(
-  tableConfig: TableRecord
-): PageBlock {
+export function generateDetailPageBlock(tableConfig: TableRecord): PageBlock {
   return {
-    id: `${tableConfig.id}_detail`,
-    type: "record",
-    position: {
-      x: 0,
-      y: 0,
-      width: 12,
-      height: 10,
-    },
     dataSource: {
-      type: "table",
-      tableName: tableConfig.id,
       endpoint: `/api/data/${tableConfig.id}`,
       recordIdParam: "id",
+      tableName: tableConfig.id,
+      type: "table",
     },
     displayConfig: {
-      title: tableConfig.name,
-      showEditButton: true,
       showDeleteButton: true,
+      showEditButton: true,
+      title: tableConfig.name,
     },
+    id: `${tableConfig.id}_detail`,
+    position: {
+      height: 10,
+      width: 12,
+      x: 0,
+      y: 0,
+    },
+    type: "record",
   };
 }
 
@@ -67,16 +63,15 @@ export function generatePageSettings(
   isDetail = false
 ): PageSettings {
   return {
+    hideHeader: false,
     urlParams: isDetail
       ? [
           {
+            description: `Record ID for ${tableConfig.name}`,
             name: "id",
             required: true,
-            description: `Record ID for ${tableConfig.name}`,
           },
         ]
       : [],
-    hideHeader: false,
   };
 }
-

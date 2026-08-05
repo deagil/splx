@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { MentionableItem } from "@/lib/types/mentions";
+import { useEffect, useMemo, useState } from "react";
 import { useMentionableDataSafe } from "@/components/pages/mention-context";
 import { globalMentionRegistry } from "@/lib/mentions/global-registry";
+import type { MentionableItem } from "@/lib/types/mentions";
 import { useMentionableTables } from "./use-mentionable-tables";
 
 /**
@@ -39,7 +39,9 @@ export function useMentionableItems(): MentionableItem[] {
   );
 
   useEffect(() => {
-    if (!useGlobalRegistry) return;
+    if (!useGlobalRegistry) {
+      return;
+    }
 
     // Subscribe to global registry updates
     const unsubscribe = globalMentionRegistry.subscribe((items) => {
@@ -53,17 +55,17 @@ export function useMentionableItems(): MentionableItem[] {
   const alwaysAvailableItems: MentionableItem[] = useMemo(
     () => [
       {
-        key: "user-profile",
-        text: "me",
         description: "Current user",
+        key: "user-profile",
         mention: {
-          type: "user",
-          label: "User Profile",
           description: "Current user profile information",
+          label: "User Profile",
+          type: "user",
         },
+        text: "me",
       },
     ],
-    [],
+    []
   );
 
   // For non-page routes, also include tables as mentionable items

@@ -7,9 +7,11 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { createChatAgent } from "@/lib/ai/agents/chat-agent";
+import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { unstable_cache as cache } from "next/cache";
 import { after } from "next/server";
+import postgres from "postgres";
 import {
   createResumableStreamContext,
   type ResumableStreamContext,
@@ -17,9 +19,8 @@ import {
 import type { ModelCatalog } from "tokenlens/core";
 import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
-import type { UserType } from "@/lib/types";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
+import { createChatAgent } from "@/lib/ai/agents/chat-agent";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { getReasoningOpenAIOptions } from "@/lib/ai/openai-config";
@@ -29,18 +30,15 @@ import {
   type UserPreferences,
 } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
-import { readUrlContent } from "@/lib/ai/tools/read-url-content";
-import { and, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import { role, user, workspace, workspaceUser } from "@/lib/db/schema";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
-import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
-import { updateDocument } from "@/lib/ai/tools/update-document";
-import { queryUserTable } from "@/lib/ai/tools/query-user-table";
-import { searchPages } from "@/lib/ai/tools/search-pages";
 import { navigateToPage } from "@/lib/ai/tools/navigate-to-page";
+import { queryUserTable } from "@/lib/ai/tools/query-user-table";
+import { readUrlContent } from "@/lib/ai/tools/read-url-content";
+import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
+import { searchPages } from "@/lib/ai/tools/search-pages";
+import { updateDocument } from "@/lib/ai/tools/update-document";
+import { generateTitleFromUserMessage } from "@/lib/chat/actions";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -54,23 +52,25 @@ import {
   updateChatTitleById,
 } from "@/lib/db/queries";
 import type { DBMessage } from "@/lib/db/schema";
+import { role, user, workspace, workspaceUser } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
+import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
-import type { ChatMessage } from "@/lib/types";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import type { ChatMessage, UserType } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
-import { generateTitleFromUserMessage } from "@/lib/chat/actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
-import { createEnrichedMessageContent } from "@/lib/server/mentions/enrich";
 
 export const maxDuration = 60;
 
 // Helper for timestamped logging
 function logWithTimestamp(label: string, data?: Record<string, unknown>) {
   const timestamp = new Date().toISOString();
-  const elapsed = typeof performance !== "undefined"
-    ? `+${performance.now().toFixed(0)}ms`
-    : "";
+  const elapsed =
+    typeof performance === "undefined"
+      ? ""
+      : `+${performance.now().toFixed(0)}ms`;
   if (data) {
     console.log(`[Chat API] ${timestamp} ${elapsed} | ${label}`, data);
   } else {
@@ -79,16 +79,16 @@ function logWithTimestamp(label: string, data?: Record<string, unknown>) {
 }
 
 // Enrichment status type for streaming progress to UI
-export type EnrichmentStatus = {
+export interface EnrichmentStatus {
+  label: string;
+  progress?: number; // 0-100
   step:
     | "reading-url"
     | "processing-mentions"
     | "personalizing"
     | "preparing"
     | "starting";
-  label: string;
-  progress?: number; // 0-100
-};
+}
 
 /**
  * Cached user preferences fetcher
@@ -103,13 +103,13 @@ const getCachedUserPreferences = cache(
       // Fetch user data with profile fields
       const [userData] = await db
         .select({
-          firstname: user.firstname,
-          lastname: user.lastname,
-          job_title: user.job_title,
           ai_context: user.ai_context,
-          proficiency: user.proficiency,
-          ai_tone: user.ai_tone,
           ai_guidance: user.ai_guidance,
+          ai_tone: user.ai_tone,
+          firstname: user.firstname,
+          job_title: user.job_title,
+          lastname: user.lastname,
+          proficiency: user.proficiency,
         })
         .from(user)
         .where(eq(user.id, userId))
@@ -118,8 +118,8 @@ const getCachedUserPreferences = cache(
       // Get workspace details
       const [workspaceData] = await db
         .select({
-          name: workspace.name,
           description: workspace.description,
+          name: workspace.name,
         })
         .from(workspace)
         .where(eq(workspace.id, workspaceId))
@@ -135,8 +135,8 @@ const getCachedUserPreferences = cache(
         .where(
           and(
             eq(workspaceUser.user_id, userId),
-            eq(workspaceUser.workspace_id, workspaceId),
-          ),
+            eq(workspaceUser.workspace_id, workspaceId)
+          )
         )
         .limit(1);
 
@@ -149,8 +149,8 @@ const getCachedUserPreferences = cache(
           .where(
             and(
               eq(role.id, workspaceUserData.role_id),
-              eq(role.workspace_id, workspaceId),
-            ),
+              eq(role.workspace_id, workspaceId)
+            )
           )
           .limit(1);
 
@@ -160,16 +160,16 @@ const getCachedUserPreferences = cache(
       }
 
       return {
+        roleLabel,
         userData,
         workspaceData,
-        roleLabel,
       };
     } finally {
       await sql.end({ timeout: 5 });
     }
   },
   ["user-preferences"],
-  { revalidate: 300 }, // Cache for 5 minutes
+  { revalidate: 300 } // Cache for 5 minutes
 );
 
 let globalStreamContext: ResumableStreamContext | null = null;
@@ -181,13 +181,12 @@ const getTokenlensCatalog = cache(
     } catch (err) {
       console.warn(
         "TokenLens: catalog fetch failed, using default catalog",
-        err,
+        err
       );
-      return; // tokenlens helpers will fall back to defaultCatalog
     }
   },
   ["tokenlens-catalog"],
-  { revalidate: 24 * 60 * 60 }, // 24 hours
+  { revalidate: 24 * 60 * 60 } // 24 hours
 );
 
 export function getStreamContext() {
@@ -199,7 +198,7 @@ export function getStreamContext() {
     } catch (error: any) {
       if (error.message.includes("REDIS_URL")) {
         console.log(
-          " > Resumable streams are disabled due to missing REDIS_URL",
+          " > Resumable streams are disabled due to missing REDIS_URL"
         );
       } else {
         console.error(error);
@@ -221,13 +220,13 @@ export async function POST(request: Request) {
     requestBody = postRequestBodySchema.parse(json);
     logWithTimestamp("✓ Request body parsed", {
       chatId: (json as { id?: string }).id,
-      model: (json as { selectedChatModel?: string }).selectedChatModel,
       hasMentions: Boolean(
         (json as { message?: { mentions?: unknown[] } }).message?.mentions
-          ?.length,
+          ?.length
       ),
+      model: (json as { selectedChatModel?: string }).selectedChatModel,
     });
-  } catch (_) {
+  } catch {
     logWithTimestamp("✗ Request body parse failed");
     return new ChatSDKError("bad_request:api").toResponse();
   }
@@ -261,7 +260,7 @@ export async function POST(request: Request) {
     const userId = authUser.id;
 
     // Extract skill from message (from slash commands)
-    const skill = (message as any).skill;
+    const { skill } = message as any;
 
     // Resolve tenant context early (needed for preferences caching and chat)
     const tenant = await resolveTenantContext();
@@ -277,28 +276,28 @@ export async function POST(request: Request) {
         // Use cached preferences (cache key: userId + workspaceId)
         const cachedPrefs = await getCachedUserPreferences(
           userId,
-          currentWorkspaceId,
+          currentWorkspaceId
         );
 
         userPreferences = {
-          // User profile
-          firstName: cachedPrefs.userData?.firstname,
-          lastName: cachedPrefs.userData?.lastname,
-          jobTitle: cachedPrefs.userData?.job_title,
           // AI preferences
           aiContext: cachedPrefs.userData?.ai_context,
-          proficiency: cachedPrefs.userData?.proficiency,
-          aiTone: cachedPrefs.userData?.ai_tone,
           aiGuidance: cachedPrefs.userData?.ai_guidance,
+          aiTone: cachedPrefs.userData?.ai_tone,
+          // User profile
+          firstName: cachedPrefs.userData?.firstname,
+          jobTitle: cachedPrefs.userData?.job_title,
+          lastName: cachedPrefs.userData?.lastname,
           personalizationEnabled: personalizationEnabled ?? false,
-          // Workspace context
-          workspaceName: cachedPrefs.workspaceData?.name,
-          workspaceDescription: cachedPrefs.workspaceData?.description,
+          proficiency: cachedPrefs.userData?.proficiency,
           // Role context
           roleLabel: cachedPrefs.roleLabel,
+          skillName: skill?.name,
           // Skill context (from slash commands)
           skillPrompt: skill?.prompt,
-          skillName: skill?.name,
+          workspaceDescription: cachedPrefs.workspaceData?.description,
+          // Workspace context
+          workspaceName: cachedPrefs.workspaceData?.name,
         };
         logWithTimestamp("✓ User preferences fetched (cached)", {
           duration: `${Date.now() - prefsStartTime}ms`,
@@ -314,8 +313,8 @@ export async function POST(request: Request) {
         if (skill) {
           userPreferences = {
             personalizationEnabled: false,
-            skillPrompt: skill.prompt,
             skillName: skill.name,
+            skillPrompt: skill.prompt,
           };
         }
       }
@@ -325,8 +324,8 @@ export async function POST(request: Request) {
     const userType: UserType = "regular";
 
     const messageCount = await getMessageCountByUserId({
-      id: userId,
       differenceInHours: 24,
+      id: userId,
     });
 
     if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
@@ -359,13 +358,13 @@ export async function POST(request: Request) {
 
       await saveChat({
         id,
-        userId,
         title: placeholderTitle,
+        userId,
         visibility: selectedVisibilityType,
       });
       logWithTimestamp("✓ New chat created", {
-        duration: `${Date.now() - chatLookupStartTime}ms`,
         chatId: id,
+        duration: `${Date.now() - chatLookupStartTime}ms`,
         title: placeholderTitle,
       });
 
@@ -377,14 +376,15 @@ export async function POST(request: Request) {
           });
           await updateChatTitleById({ chatId: id, title: generatedTitle });
           console.log(
-            `[Chat API] Background title generated for chat ${id}: ${
-              generatedTitle?.slice(0, 30)
-            }`,
+            `[Chat API] Background title generated for chat ${id}: ${generatedTitle?.slice(
+              0,
+              30
+            )}`
           );
         } catch (error) {
           console.error(
             `[Chat API] Failed to generate title for chat ${id}:`,
-            error,
+            error
           );
           // Non-critical error - chat already exists with placeholder title
         }
@@ -405,8 +405,8 @@ export async function POST(request: Request) {
     if (mentionCount > 0) {
       logWithTimestamp("📎 Mentions detected", {
         count: mentionCount,
-        types: messageWithMentions.mentions?.map((m: { type: string }) =>
-          m.type
+        types: messageWithMentions.mentions?.map(
+          (m: { type: string }) => m.type
         ),
       });
     }
@@ -414,11 +414,10 @@ export async function POST(request: Request) {
     // Create enriched message for AI (with mention data as text)
     const enrichmentStartTime = Date.now();
     let enrichedMessageForAI = messageWithMentions;
-    const enrichedText = await createEnrichedMessageContent(
-      messageWithMentions,
-    );
+    const enrichedText =
+      await createEnrichedMessageContent(messageWithMentions);
 
-    if (enrichedText && enrichedText.trim()) {
+    if (enrichedText?.trim()) {
       logWithTimestamp("✓ Message enriched with mention data", {
         duration: `${Date.now() - enrichmentStartTime}ms`,
         enrichedTextLength: enrichedText.length,
@@ -426,15 +425,12 @@ export async function POST(request: Request) {
     }
 
     // If we have enriched text (mentions converted to text), create version for AI
-    if (enrichedText && enrichedText.trim() && message.parts) {
+    if (enrichedText?.trim() && message.parts) {
       // Replace all text parts with the enriched text (which includes mention context + user message)
       const nonTextParts = message.parts.filter((part) => part.type !== "text");
       enrichedMessageForAI = {
         ...messageWithMentions,
-        parts: [
-          { type: "text", text: enrichedText },
-          ...nonTextParts,
-        ],
+        parts: [{ text: enrichedText, type: "text" }, ...nonTextParts],
       };
     }
 
@@ -448,10 +444,10 @@ export async function POST(request: Request) {
     const { longitude, latitude, city, country } = geolocation(request);
 
     const requestHints: RequestHints = {
-      longitude,
-      latitude,
       city,
       country,
+      latitude,
+      longitude,
     };
 
     // Save the original message to database (preserve original text and mentions separately)
@@ -460,13 +456,13 @@ export async function POST(request: Request) {
     await saveMessages({
       messages: [
         {
-          chat_id: id,
-          id: message.id,
-          role: "user",
-          parts: message.parts, // Use original parts (not enriched) for display
           attachments: [],
-          mentions: messageWithMentions.mentions || null, // Store mentions separately
+          chat_id: id,
           created_at: new Date(),
+          id: message.id,
+          mentions: messageWithMentions.mentions || null, // Store mentions separately
+          parts: message.parts, // Use original parts (not enriched) for display
+          role: "user",
           workspace_id: workspaceId,
         },
       ],
@@ -477,11 +473,11 @@ export async function POST(request: Request) {
     });
 
     const streamId = generateUUID();
-    await createStreamId({ streamId, chatId: id });
+    await createStreamId({ chatId: id, streamId });
 
     let finalMergedUsage: AppUsage | undefined;
     let streamStartTime: number;
-    let firstChunkTime: number | undefined;
+    let _firstChunkTime: number | undefined;
 
     logWithTimestamp("🚀 Starting AI stream", {
       model: selectedChatModel,
@@ -493,12 +489,12 @@ export async function POST(request: Request) {
       execute: async ({ writer: dataStream }) => {
         // Create agent with runtime dependencies (dataStream, session)
         // This ensures tools are configured consistently
-        const agent = createChatAgent({
-          selectedChatModel,
-          requestHints,
-          userPreferences,
-          session: { user: { id: userId } } as any,
+        const _agent = createChatAgent({
           dataStream,
+          requestHints,
+          selectedChatModel,
+          session: { user: { id: userId } } as any,
+          userPreferences,
         });
 
         // Extract tools from agent configuration for use with streamText
@@ -507,65 +503,52 @@ export async function POST(request: Request) {
         // The agent abstraction provides consistency and type safety
         const session = { user: { id: userId } } as any;
         const tools = {
+          createDocument: createDocument({ dataStream, session }),
           getWeather,
-          createDocument: createDocument({ session, dataStream }),
-          updateDocument: updateDocument({ session, dataStream }),
-          requestSuggestions: requestSuggestions({ session, dataStream }),
-          readUrlContent,
-          queryUserTable,
-          searchPages,
           navigateToPage: navigateToPage({ dataStream }),
+          queryUserTable,
+          readUrlContent,
+          requestSuggestions: requestSuggestions({ dataStream, session }),
+          searchPages,
+          updateDocument: updateDocument({ dataStream, session }),
         };
 
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({
-            selectedChatModel,
-            requestHints,
-            userPreferences,
-          }),
-          messages: await convertToModelMessages(
-            // Replace the last message (user message) with enriched version for AI
-            uiMessages.slice(0, -1).concat([enrichedMessageForAI]),
-          ),
-          stopWhen: stepCountIs(5),
-          activeTools: selectedChatModel === "chat-model-reasoning"
-            ? []
-            : [
-              "getWeather",
-              "createDocument",
-              "updateDocument",
-              "requestSuggestions",
-              "readUrlContent",
-              "queryUserTable",
-              "searchPages",
-              "navigateToPage",
-            ],
+          activeTools:
+            selectedChatModel === "chat-model-reasoning"
+              ? []
+              : [
+                  "getWeather",
+                  "createDocument",
+                  "updateDocument",
+                  "requestSuggestions",
+                  "readUrlContent",
+                  "queryUserTable",
+                  "searchPages",
+                  "navigateToPage",
+                ],
+          experimental_telemetry: {
+            functionId: "stream-text",
+            isEnabled: isProductionEnvironment,
+          },
           experimental_transform: smoothStream({
             chunking: "word",
             delayInMs: 20,
           }),
-          // Enable reasoning visibility for reasoning models
-          providerOptions: selectedChatModel === "chat-model-reasoning"
-            ? {
-              openai: getReasoningOpenAIOptions(),
-            }
-            : undefined,
-          tools,
-          experimental_telemetry: {
-            isEnabled: isProductionEnvironment,
-            functionId: "stream-text",
-          },
+          messages: await convertToModelMessages(
+            // Replace the last message (user message) with enriched version for AI
+            uiMessages.slice(0, -1).concat([enrichedMessageForAI])
+          ),
+          model: myProvider.languageModel(selectedChatModel),
           onFinish: async ({ usage }) => {
             try {
               const providers = await getTokenlensCatalog();
-              const modelId =
-                myProvider.languageModel(selectedChatModel).modelId;
+              const { modelId } = myProvider.languageModel(selectedChatModel);
               if (!modelId) {
                 finalMergedUsage = usage;
                 dataStream.write({
-                  type: "data-usage",
                   data: finalMergedUsage,
+                  type: "data-usage",
                 });
                 return;
               }
@@ -573,21 +556,35 @@ export async function POST(request: Request) {
               if (!providers) {
                 finalMergedUsage = usage;
                 dataStream.write({
-                  type: "data-usage",
                   data: finalMergedUsage,
+                  type: "data-usage",
                 });
                 return;
               }
 
-              const summary = getUsage({ modelId, usage, providers });
+              const summary = getUsage({ modelId, providers, usage });
               finalMergedUsage = { ...usage, ...summary, modelId } as AppUsage;
-              dataStream.write({ type: "data-usage", data: finalMergedUsage });
+              dataStream.write({ data: finalMergedUsage, type: "data-usage" });
             } catch (err) {
               console.warn("TokenLens enrichment failed", err);
               finalMergedUsage = usage;
-              dataStream.write({ type: "data-usage", data: finalMergedUsage });
+              dataStream.write({ data: finalMergedUsage, type: "data-usage" });
             }
           },
+          // Enable reasoning visibility for reasoning models
+          providerOptions:
+            selectedChatModel === "chat-model-reasoning"
+              ? {
+                  openai: getReasoningOpenAIOptions(),
+                }
+              : undefined,
+          stopWhen: stepCountIs(5),
+          system: systemPrompt({
+            requestHints,
+            selectedChatModel,
+            userPreferences,
+          }),
+          tools,
         });
 
         result.consumeStream();
@@ -596,15 +593,16 @@ export async function POST(request: Request) {
         dataStream.merge(
           result.toUIMessageStream({
             sendReasoning: true,
-          }),
+          })
         );
       },
       generateId: generateUUID,
+      onError: () => "Oops, an error occurred!",
       onFinish: async ({ messages }) => {
         const streamDuration = Date.now() - streamStartTime;
         logWithTimestamp("✅ AI stream completed", {
-          streamDuration: `${streamDuration}ms`,
           messageCount: messages.length,
+          streamDuration: `${streamDuration}ms`,
           totalTokens: finalMergedUsage?.totalTokens,
         });
 
@@ -614,51 +612,53 @@ export async function POST(request: Request) {
           JSON.stringify(
             messages.map((m) => ({
               id: m.id,
-              role: m.role,
               parts: m.parts.map((p) => {
                 if (p.type === "reasoning") {
                   return {
-                    type: p.type,
                     textLength: p.text?.length ?? 0,
-                    textPreview: p.text?.substring(0, 150) +
+                    textPreview:
+                      p.text?.slice(0, 150) +
                       (p.text && p.text.length > 150 ? "..." : ""),
+                    type: p.type,
                   };
                 }
                 if (p.type === "text") {
                   return {
-                    type: p.type,
                     textLength: p.text?.length ?? 0,
-                    textPreview: p.text?.substring(0, 150) +
+                    textPreview:
+                      p.text?.slice(0, 150) +
                       (p.text && p.text.length > 150 ? "..." : ""),
+                    type: p.type,
                   };
                 }
                 if (p.type?.startsWith("tool-")) {
                   const toolPart = p as { state?: string; toolCallId?: string };
                   return {
-                    type: p.type,
                     state: toolPart.state,
                     toolCallId: toolPart.toolCallId,
+                    type: p.type,
                   };
                 }
                 return { type: p.type };
               }),
+              role: m.role,
             })),
             null,
-            2,
-          ),
+            2
+          )
         );
 
         const saveResponseStartTime = Date.now();
         await saveMessages({
           messages: messages.map((currentMessage) => ({
-            id: currentMessage.id,
-            role: currentMessage.role,
-            parts: currentMessage.parts,
-            created_at: new Date(),
             attachments: [],
             chat_id: id,
-            workspace_id: workspaceId,
+            created_at: new Date(),
+            id: currentMessage.id,
             mentions: null,
+            parts: currentMessage.parts,
+            role: currentMessage.role,
+            workspace_id: workspaceId,
           })),
         });
         logWithTimestamp("✓ AI response saved to DB", {
@@ -678,12 +678,9 @@ export async function POST(request: Request) {
         }
 
         logWithTimestamp("🏁 Request complete", {
-          totalDuration: `${Date.now() - requestStartTime}ms`,
           chatId: id,
+          totalDuration: `${Date.now() - requestStartTime}ms`,
         });
-      },
-      onError: () => {
-        return "Oops, an error occurred!";
       },
     });
 
@@ -709,7 +706,7 @@ export async function POST(request: Request) {
     if (
       error instanceof Error &&
       error.message?.includes(
-        "AI Gateway requires a valid credit card on file to service requests",
+        "AI Gateway requires a valid credit card on file to service requests"
       )
     ) {
       return new ChatSDKError("bad_request:activate_gateway").toResponse();

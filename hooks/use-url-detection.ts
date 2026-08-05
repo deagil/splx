@@ -8,18 +8,18 @@ import type { UrlMention } from "@/lib/types/mentions";
 /**
  * URL detection state for a single URL
  */
-export type DetectedUrl = {
-  url: string;
-  status: "loading" | "loaded" | "error";
-  metadata?: OGMetadata;
+export interface DetectedUrl {
   /** Pre-fetched full content (fetched in background) */
   content?: UrlContent;
-  /** Content fetch status */
-  contentStatus?: "loading" | "loaded" | "error";
   /** Content fetch error message */
   contentError?: string;
+  /** Content fetch status */
+  contentStatus?: "loading" | "loaded" | "error";
   error?: string;
-};
+  metadata?: OGMetadata;
+  status: "loading" | "loaded" | "error";
+  url: string;
+}
 
 /**
  * URL regex pattern - matches http/https URLs
@@ -32,7 +32,9 @@ const URL_PATTERN =
  */
 export function extractUrls(text: string): string[] {
   const matches = text.match(URL_PATTERN);
-  if (!matches) return [];
+  if (!matches) {
+    return [];
+  }
 
   // Deduplicate URLs
   return [...new Set(matches)];
@@ -41,7 +43,7 @@ export function extractUrls(text: string): string[] {
 /**
  * Extended UrlMention with pre-fetch status for UI display
  */
-export type UrlMentionWithStatus = UrlMention & { 
+export type UrlMentionWithStatus = UrlMention & {
   prefetchedContent?: string;
   /** Content pre-fetch status */
   contentStatus?: "loading" | "loaded" | "error";
@@ -66,19 +68,19 @@ export function toUrlMention(detected: DetectedUrl): UrlMentionWithStatus {
   }
 
   return {
-    type: "url",
-    id: url, // Use URL as ID
-    label,
-    description: metadata?.description,
-    url,
-    title: metadata?.title,
-    favicon: metadata?.favicon,
-    image: metadata?.image,
-    // Include pre-fetched content if available (saves ~20-30s during enrichment!)
-    prefetchedContent: content?.content,
+    contentError,
     // Include status and error for UI display
     contentStatus,
-    contentError,
+    description: metadata?.description,
+    favicon: metadata?.favicon,
+    id: url, // Use URL as ID
+    image: metadata?.image,
+    label,
+    // Include pre-fetched content if available (saves ~20-30s during enrichment!)
+    prefetchedContent: content?.content,
+    title: metadata?.title,
+    type: "url",
+    url,
   };
 }
 
@@ -109,7 +111,9 @@ export function useUrlDetection(options?: {
    */
   const fetchContent = useCallback(async (url: string) => {
     // Skip if already fetching
-    if (pendingContentFetches.current.has(url)) return;
+    if (pendingContentFetches.current.has(url)) {
+      return;
+    }
 
     pendingContentFetches.current.add(url);
 
@@ -126,7 +130,7 @@ export function useUrlDetection(options?: {
     try {
       // Use a shorter timeout for pre-fetch (10s) - if it takes longer, skip it
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       const response = await fetch(
         `/api/url-content?url=${encodeURIComponent(url)}`,
@@ -137,7 +141,8 @@ export function useUrlDetection(options?: {
 
       if (!response.ok) {
         // Try to get error details from response
-        let errorMessage = "Content couldn't be pre-loaded. Will attempt during processing.";
+        let errorMessage =
+          "Content couldn't be pre-loaded. Will attempt during processing.";
         try {
           const errorData = await response.json();
           if (errorData.error) {
@@ -150,19 +155,21 @@ export function useUrlDetection(options?: {
         } catch {
           // If JSON parse fails, use default message
         }
-        
+
         // Don't throw - just log and mark as failed
         // Server will skip retry if it's a known error (e.g., domain blocked)
-        console.log(`[URL Pre-fetch] Failed for ${url}: ${response.status} - ${errorMessage}`);
+        console.log(
+          `[URL Pre-fetch] Failed for ${url}: ${response.status} - ${errorMessage}`
+        );
         setDetectedUrls((prev) => {
           const next = new Map(prev);
           const existing = next.get(url);
           if (existing) {
             // Mark as error with message - the mention is still valid
-            next.set(url, { 
-              ...existing, 
-              contentStatus: "error",
+            next.set(url, {
+              ...existing,
               contentError: errorMessage,
+              contentStatus: "error",
             });
           }
           return next;
@@ -181,12 +188,15 @@ export function useUrlDetection(options?: {
         return next;
       });
 
-      console.log(`[URL Pre-fetch] ✓ Content loaded for ${url} (${content.originalLength} chars)`);
+      console.log(
+        `[URL Pre-fetch] ✓ Content loaded for ${url} (${content.originalLength} chars)`
+      );
     } catch (error) {
       // Handle errors - pre-fetch is best-effort
       // Server will skip retry if it's a known error (e.g., timeout/blocked)
-      let errorMessage = "Content couldn't be pre-loaded. Will attempt during processing.";
-      
+      let errorMessage =
+        "Content couldn't be pre-loaded. Will attempt during processing.";
+
       if (error instanceof Error) {
         if (error.name === "AbortError") {
           errorMessage = "Request timed out. Will attempt during processing.";
@@ -196,15 +206,15 @@ export function useUrlDetection(options?: {
           console.log(`[URL Pre-fetch] Error for ${url}:`, error);
         }
       }
-      
+
       setDetectedUrls((prev) => {
         const next = new Map(prev);
         const existing = next.get(url);
         if (existing) {
-          next.set(url, { 
-            ...existing, 
-            contentStatus: "error",
+          next.set(url, {
+            ...existing,
             contentError: errorMessage,
+            contentStatus: "error",
           });
         }
         return next;
@@ -217,53 +227,58 @@ export function useUrlDetection(options?: {
   /**
    * Fetch OG metadata for a URL, then trigger content pre-fetch
    */
-  const fetchMetadata = useCallback(async (url: string) => {
-    // Skip if already fetching or loaded
-    if (pendingFetches.current.has(url)) return;
-
-    pendingFetches.current.add(url);
-
-    // Set loading state
-    setDetectedUrls((prev) => {
-      const next = new Map(prev);
-      next.set(url, { url, status: "loading" });
-      return next;
-    });
-
-    try {
-      const response = await fetch(
-        `/api/og-metadata?url=${encodeURIComponent(url)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch metadata: ${response.status}`);
+  const fetchMetadata = useCallback(
+    async (url: string) => {
+      // Skip if already fetching or loaded
+      if (pendingFetches.current.has(url)) {
+        return;
       }
 
-      const metadata: OGMetadata = await response.json();
+      pendingFetches.current.add(url);
 
+      // Set loading state
       setDetectedUrls((prev) => {
         const next = new Map(prev);
-        next.set(url, { url, status: "loaded", metadata });
+        next.set(url, { status: "loading", url });
         return next;
       });
 
-      // Start fetching full content in background (don't await)
-      // This saves ~20-30s during message enrichment!
-      fetchContent(url);
-    } catch (error) {
-      setDetectedUrls((prev) => {
-        const next = new Map(prev);
-        next.set(url, {
-          url,
-          status: "error",
-          error: error instanceof Error ? error.message : "Unknown error",
+      try {
+        const response = await fetch(
+          `/api/og-metadata?url=${encodeURIComponent(url)}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch metadata: ${response.status}`);
+        }
+
+        const metadata: OGMetadata = await response.json();
+
+        setDetectedUrls((prev) => {
+          const next = new Map(prev);
+          next.set(url, { metadata, status: "loaded", url });
+          return next;
         });
-        return next;
-      });
-    } finally {
-      pendingFetches.current.delete(url);
-    }
-  }, [fetchContent]);
+
+        // Start fetching full content in background (don't await)
+        // This saves ~20-30s during message enrichment!
+        fetchContent(url);
+      } catch (error) {
+        setDetectedUrls((prev) => {
+          const next = new Map(prev);
+          next.set(url, {
+            error: error instanceof Error ? error.message : "Unknown error",
+            status: "error",
+            url,
+          });
+          return next;
+        });
+      } finally {
+        pendingFetches.current.delete(url);
+      }
+    },
+    [fetchContent]
+  );
 
   /**
    * Process text to detect and fetch URLs
@@ -341,22 +356,22 @@ export function useUrlDetection(options?: {
   }, [detectedUrls]);
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   return {
-    detectedUrls: Array.from(detectedUrls.values()),
-    isLoading,
-    detectUrls,
     addUrl,
-    removeUrl,
     clearUrls,
+    detectedUrls: Array.from(detectedUrls.values()),
+    detectUrls,
     getUrlMentions,
+    isLoading,
+    removeUrl,
   };
 }
-

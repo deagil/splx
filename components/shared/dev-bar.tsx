@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { useConsoleLogs } from "@/hooks/use-console-logs";
-import {
-  isDevelopmentEnvironment,
-  isStagingEnvironment,
-  getEnvironmentType,
-  type EnvironmentType,
-} from "@/lib/constants";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { LogsIcon } from "@/components/shared/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConsoleLogs } from "@/hooks/use-console-logs";
+import {
+  type EnvironmentType,
+  getEnvironmentType,
+  isDevelopmentEnvironment,
+  isStagingEnvironment,
+} from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { LogsIcon } from "@/components/shared/icons";
 
 export function DevBar() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,13 +22,13 @@ export function DevBar() {
   const { logCount, copyLogsToClipboard } = useConsoleLogs();
   const [copied, setCopied] = useState(false);
   const [pathname, setPathname] = useState<string>(
-    typeof window !== "undefined" ? window.location.pathname : nextPathname
+    typeof window === "undefined" ? nextPathname : window.location.pathname
   );
 
   // Check Supabase auth state
   useEffect(() => {
     const supabase = createClient();
-    
+
     // Get initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
@@ -53,7 +53,7 @@ export function DevBar() {
       // Always use the actual browser URL - this catches server-side redirects
       setPathname(window.location.pathname);
     }
-  }, [nextPathname]);
+  }, []);
 
   const envType = getEnvironmentType();
   const isDev = isDevelopmentEnvironment;
@@ -64,8 +64,7 @@ export function DevBar() {
     return null;
   }
 
-  const gitBranch =
-    process.env.NEXT_PUBLIC_GIT_BRANCH || "unknown";
+  const gitBranch = process.env.NEXT_PUBLIC_GIT_BRANCH || "unknown";
 
   const handleCopyLogs = async () => {
     const success = await copyLogsToClipboard();
@@ -79,8 +78,8 @@ export function DevBar() {
 
   const envColors: Record<EnvironmentType, string> = {
     development: "bg-blue-950/50 border-blue-800/50 text-blue-200",
-    staging: "bg-amber-950/50 border-amber-800/50 text-amber-200",
     production: "bg-green-950/50 border-green-800/50 text-green-200",
+    staging: "bg-amber-950/50 border-amber-800/50 text-amber-200",
   };
 
   const envColor = envColors[envType];
@@ -88,28 +87,22 @@ export function DevBar() {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 flex h-7 items-center gap-2 border-t px-3 text-xs font-mono",
+        "fixed right-0 bottom-0 left-0 z-50 flex h-7 items-center gap-2 border-t px-3 font-mono text-xs",
         envColor
       )}
     >
       {/* Auth Status */}
       <Badge
-        variant="outline"
         className="h-5 border-current/30 bg-transparent px-1.5 text-[10px]"
+        variant="outline"
       >
-        {user ? (
-          <>
-            {user.email || "Logged in"} (user)
-          </>
-        ) : (
-          "Logged out"
-        )}
+        {user ? <>{user.email || "Logged in"} (user)</> : "Logged out"}
       </Badge>
 
       {/* Git Branch */}
       <Badge
-        variant="outline"
         className="h-5 border-current/30 bg-transparent px-1.5 text-[10px]"
+        variant="outline"
       >
         {gitBranch}
       </Badge>
@@ -120,27 +113,27 @@ export function DevBar() {
       <div className="flex-1" />
 
       {/* Dev-only quick links */}
-      {isDev && (
+      {!!isDev && (
         <>
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
             className="h-5 px-2 text-[10px] hover:bg-current/10"
             onClick={() => {
               window.open("http://localhost:54323", "_blank");
             }}
+            size="sm"
+            type="button"
+            variant="ghost"
           >
             Supabase
           </Button>
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
             className="h-5 px-2 text-[10px] hover:bg-current/10"
             onClick={() => {
               window.open("http://localhost:54324", "_blank");
             }}
+            size="sm"
+            type="button"
+            variant="ghost"
           >
             Mailpit
           </Button>
@@ -149,27 +142,26 @@ export function DevBar() {
 
       {/* Console Logs */}
       <Button
-        type="button"
-        variant="ghost"
-        size="sm"
         className="h-5 gap-1 px-2 text-[10px] hover:bg-current/10"
         onClick={handleCopyLogs}
+        size="sm"
         title="Copy console logs as markdown"
+        type="button"
+        variant="ghost"
       >
         <LogsIcon size={12} />
         {logCount > 0 && (
           <Badge
-            variant="outline"
             className="h-3 min-w-3 border-current/30 bg-current/20 px-0.5 text-[9px]"
+            variant="outline"
           >
             {logCount}
           </Badge>
         )}
-        {copied && (
+        {!!copied && (
           <span className="ml-1 text-[9px] opacity-70">Copied!</span>
         )}
       </Button>
     </div>
   );
 }
-

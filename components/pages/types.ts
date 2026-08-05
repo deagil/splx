@@ -1,11 +1,11 @@
 import type { PageRecord } from "@/lib/server/pages";
 
-export type GridPosition = {
+export interface GridPosition {
+  height: number;
+  width: number;
   x: number;
   y: number;
-  width: number;
-  height: number;
-};
+}
 
 export type ListFilterOperator =
   | "equals"
@@ -30,12 +30,12 @@ export const LIST_FILTER_OPERATORS: readonly ListFilterOperator[] = [
   "is_not_null",
 ];
 
-export type ListBlockFilter = {
-  id: string;
+export interface ListBlockFilter {
   column: string;
+  id: string;
   operator: ListFilterOperator;
   value: string;
-};
+}
 
 export type ListDisplayFormat = "table" | "cards" | "grid";
 export const LIST_DISPLAY_FORMATS: readonly ListDisplayFormat[] = [
@@ -76,12 +76,7 @@ export const REPORT_CHART_TYPES: readonly ReportChartType[] = [
   "radar",
 ];
 
-export type ListBlockDraft = {
-  id: string;
-  type: "list";
-  position: GridPosition;
-  tableName: string;
-  filters: ListBlockFilter[];
+export interface ListBlockDraft {
   display: {
     format: ListDisplayFormat;
     showActions: boolean;
@@ -98,36 +93,38 @@ export type ListBlockDraft = {
     defaultPageSize?: number;
     searchPlaceholder?: string;
   };
-};
-
-export type RecordBlockDraft = {
+  filters: ListBlockFilter[];
   id: string;
-  type: "record";
   position: GridPosition;
   tableName: string;
-  recordId: string;
+  type: "list";
+}
+
+export interface RecordBlockDraft {
   display: {
     mode: RecordDisplayMode;
     format: RecordDisplayFormat;
     columns: string[];
   };
-};
-
-export type ReportBlockDraft = {
   id: string;
-  type: "report";
   position: GridPosition;
-  reportId: string;
+  recordId: string;
+  tableName: string;
+  type: "record";
+}
+
+export interface ReportBlockDraft {
   display: {
     chartType: ReportChartType;
     title: string;
   };
-};
-
-export type TriggerBlockDraft = {
   id: string;
-  type: "trigger";
   position: GridPosition;
+  reportId: string;
+  type: "report";
+}
+
+export interface TriggerBlockDraft {
   display: {
     buttonText: string;
     actionType: TriggerActionType;
@@ -135,7 +132,10 @@ export type TriggerBlockDraft = {
     confirmationText: string;
     hookName: string;
   };
-};
+  id: string;
+  position: GridPosition;
+  type: "trigger";
+}
 
 export type PageBlockDraft =
   | ListBlockDraft
@@ -143,32 +143,31 @@ export type PageBlockDraft =
   | ReportBlockDraft
   | TriggerBlockDraft;
 
-export type PageUrlParamDraft = {
+export interface PageUrlParamDraft {
+  description?: string;
   id: string;
   name: string;
   required: boolean;
-  description?: string;
-};
+}
 
-export type PageDraft = {
-  id: string;
-  name: string;
-  description: string | null;
+export interface PageDraft {
   blocks: PageBlockDraft[];
+  description: string | null;
+  id: string;
+  layout: Record<string, unknown>;
+  name: string;
   settings: {
     urlParams: PageUrlParamDraft[];
     hideHeader?: boolean;
     [key: string]: unknown;
   };
-  layout: Record<string, unknown>;
-};
+}
 
-export type PageSavePayload = {
-  id: string;
-  name: string;
-  description: string | null;
+export interface PageSavePayload {
   blocks: PageRecord["blocks"];
-  settings: PageRecord["settings"];
+  description: string | null;
+  id: string;
   layout: PageRecord["layout"];
-};
-
+  name: string;
+  settings: PageRecord["settings"];
+}

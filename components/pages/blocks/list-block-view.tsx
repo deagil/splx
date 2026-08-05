@@ -1,47 +1,78 @@
 "use client";
 
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
-import Link from "next/link";
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  PaginationState,
+  SortingState,
+} from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
+import { Settings2Icon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
 import {
-  dataGridFeatures,
-  type DataGridFeatures,
-} from "@/components/ui/data-grid-features";
-import { Card, CardHeader, CardHeading, CardTable, CardFooter } from "@/components/ui/card";
+  type PointerEvent as ReactPointerEvent,
+  useMemo,
+  useState,
+} from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardFooter,
+  CardHeader,
+  CardHeading,
+  CardTable,
+} from "@/components/ui/card";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import {
+  type DataGridFeatures,
+  dataGridFeatures,
+} from "@/components/ui/data-grid-features";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Settings2Icon, Trash2Icon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { FieldMetadata } from "@/lib/server/tables";
-import type { ListBlockDraft } from "../types";
-import { useListBlockData, useTableMetadata } from "../hooks";
 import { cn } from "@/lib/utils";
+import { useListBlockData, useTableMetadata } from "../hooks";
+import type { ListBlockDraft } from "../types";
 
-export type ListBlockViewProps = {
+export interface ListBlockViewProps {
   block: ListBlockDraft;
-  urlParams: Record<string, string>;
   editControls?: {
     onOpenSettings: () => void;
     onRemove: () => void;
     onStartDrag: (event: ReactPointerEvent) => void;
   };
-};
+  urlParams: Record<string, string>;
+}
 
 type TableRow = Record<string, unknown>;
-type ResolvedListFilter = ListBlockDraft["filters"][number] & { resolvedValue: string | null };
+type ResolvedListFilter = ListBlockDraft["filters"][number] & {
+  resolvedValue: string | null;
+};
 
-export function ListBlockView({ block, urlParams, editControls }: ListBlockViewProps) {
+export function ListBlockView({
+  block,
+  urlParams,
+  editControls,
+}: ListBlockViewProps) {
   const { data, isLoading, error } = useListBlockData(block, urlParams);
-  const { table: tableMetadata, isLoading: isMetadataLoading, error: metadataError } = useTableMetadata(
-    block.tableName || null
-  );
+  const {
+    table: tableMetadata,
+    isLoading: isMetadataLoading,
+    error: metadataError,
+  } = useTableMetadata(block.tableName || null);
   const { copy } = useCopyToClipboard();
 
   const [pagination, setPagination] = useState<PaginationState>({
@@ -51,7 +82,10 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const fieldMetaMap = useMemo(() => {
-    const meta = new Map<string, NonNullable<typeof tableMetadata>["config"]["field_metadata"][number]>();
+    const meta = new Map<
+      string,
+      NonNullable<typeof tableMetadata>["config"]["field_metadata"][number]
+    >();
     if (tableMetadata?.config?.field_metadata) {
       for (const field of tableMetadata.config.field_metadata) {
         meta.set(field.field_name, field);
@@ -65,41 +99,52 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
     if (block.display.columns.length === 0) {
       return availableColumns;
     }
-    return block.display.columns.filter((column) => availableColumns.includes(column));
+    return block.display.columns.filter((column) =>
+      availableColumns.includes(column)
+    );
   }, [block.display.columns, data?.columns]);
 
   const rows = data?.rows ?? [];
 
-  const columns = useMemo<ColumnDef<DataGridFeatures, TableRow>[]>(() => {
-    return resolvedColumns.map((columnName) => {
-      const meta = fieldMetaMap.get(columnName);
-      const headerLabel = meta?.display_name ?? columnName;
-      return {
-        id: columnName,
-        accessorKey: columnName,
-        header: ({ column }) => <DataGridColumnHeader title={headerLabel} visibility={true} column={column} />,
-        cell: ({ row }) => formatCellValue((row.original as TableRow)[columnName], meta, copy),
-        enableSorting: true,
-        enableHiding: true,
-        enableResizing: true,
-        size: 180,
-      } satisfies ColumnDef<DataGridFeatures, TableRow>;
-    });
-  }, [copy, fieldMetaMap, resolvedColumns]);
+  const columns = useMemo<ColumnDef<DataGridFeatures, TableRow>[]>(
+    () =>
+      resolvedColumns.map((columnName) => {
+        const meta = fieldMetaMap.get(columnName);
+        const headerLabel = meta?.display_name ?? columnName;
+        return {
+          accessorKey: columnName,
+          cell: ({ row }) =>
+            formatCellValue((row.original as TableRow)[columnName], meta, copy),
+          enableHiding: true,
+          enableResizing: true,
+          enableSorting: true,
+          header: ({ column }) => (
+            <DataGridColumnHeader
+              column={column}
+              title={headerLabel}
+              visibility={true}
+            />
+          ),
+          id: columnName,
+          size: 180,
+        } satisfies ColumnDef<DataGridFeatures, TableRow>;
+      }),
+    [copy, fieldMetaMap, resolvedColumns]
+  );
 
   // v9: features are registered explicitly; the core row model is automatic.
   const table = useTable({
-    features: dataGridFeatures,
-    data: rows,
+    columnResizeMode: "onChange",
     columns,
+    data: rows,
+    features: dataGridFeatures,
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    pageCount: Math.max(1, Math.ceil((rows.length || 1) / pagination.pageSize)),
     state: {
       pagination,
       sorting,
     },
-    onPaginationChange: setPagination,
-    onSortingChange: setSorting,
-    columnResizeMode: "onChange",
-    pageCount: Math.max(1, Math.ceil((rows.length || 1) / pagination.pageSize)),
   });
 
   const resolvedFilters = useMemo<ResolvedListFilter[]>(
@@ -129,15 +174,15 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
     <div className="flex h-full min-h-0 w-full flex-col gap-4">
       <TooltipProvider delayDuration={80}>
         <DataGrid
-          table={table}
           recordCount={rows.length}
+          table={table}
           tableClassNames={{
             edgeCell: "px-5",
           }}
           tableLayout={{
+            columnsMovable: true,
             columnsPinnable: true,
             columnsResizable: true,
-            columnsMovable: true,
             columnsVisibility: true,
             headerSticky: true,
           }}
@@ -146,17 +191,19 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
             <CardHeader
               className={cn(
                 "py-3.5",
-                editControls ? "cursor-grab select-none active:cursor-grabbing" : undefined
+                editControls
+                  ? "cursor-grab select-none active:cursor-grabbing"
+                  : undefined
               )}
               onPointerDown={editControls?.onStartDrag}
               role={editControls ? "presentation" : undefined}
             >
               <CardHeading className="flex w-full flex-wrap items-start gap-3 md:items-center md:gap-4">
                 <div className="min-w-0 flex-1 space-y-1 md:me-6">
-                  <div className="text-sm font-medium text-foreground">
+                  <div className="font-medium text-foreground text-sm">
                     {block.tableName || "Select a table"}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-muted-foreground text-xs">
                     {tableMetadata?.name ?? "Loading metadata..."}
                   </div>
                 </div>
@@ -166,12 +213,12 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={editControls.onOpenSettings}
                             aria-label="Configure block"
+                            onClick={editControls.onOpenSettings}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            size="icon"
+                            type="button"
+                            variant="outline"
                           >
                             <Settings2Icon className="h-4 w-4" />
                           </Button>
@@ -181,13 +228,13 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={editControls.onRemove}
                             aria-label="Remove block"
+                            className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
+                            onClick={editControls.onRemove}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            size="icon"
+                            type="button"
+                            variant="outline"
                           >
                             <Trash2Icon className="h-4 w-4" />
                           </Button>
@@ -196,18 +243,27 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
                       </Tooltip>
                     </div>
                   ) : (
-                    <FilterSummary summary={filterSummary} filters={resolvedFilters} />
+                    <FilterSummary
+                      filters={resolvedFilters}
+                      summary={filterSummary}
+                    />
                   )}
                 </div>
               </CardHeading>
             </CardHeader>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {isLoading || isMetadataLoading ? (
-                <div className="px-4 py-6 text-sm text-muted-foreground">Loading table data…</div>
+                <div className="px-4 py-6 text-muted-foreground text-sm">
+                  Loading table data…
+                </div>
               ) : hasError ? (
-                <div className="px-4 py-6 text-sm text-destructive">{hasError}</div>
+                <div className="px-4 py-6 text-destructive text-sm">
+                  {hasError}
+                </div>
               ) : rows.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-muted-foreground">No rows found for the current filters.</div>
+                <div className="px-4 py-6 text-muted-foreground text-sm">
+                  No rows found for the current filters.
+                </div>
               ) : (
                 <>
                   <CardTable className="min-h-0 flex-1 overflow-hidden">
@@ -229,11 +285,17 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
   );
 }
 
-function FilterSummary({ summary, filters }: { summary: string; filters: ResolvedListFilter[] }) {
+function FilterSummary({
+  summary,
+  filters,
+}: {
+  summary: string;
+  filters: ResolvedListFilter[];
+}) {
   return (
     <HoverCard>
       <HoverCardTrigger asChild>
-        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/70 px-3 py-1 text-xs text-muted-foreground">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/70 px-3 py-1 text-muted-foreground text-xs">
           <span className="font-semibold text-foreground">Filters</span>
           <span className="truncate">{summary}</span>
         </div>
@@ -244,15 +306,19 @@ function FilterSummary({ summary, filters }: { summary: string; filters: Resolve
         ) : (
           <ul className="space-y-2">
             {filters.map((filter) => (
-              <li key={filter.id} className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-foreground">{filter.column}</span>
+              <li className="flex flex-wrap items-center gap-2" key={filter.id}>
+                <span className="font-semibold text-foreground">
+                  {filter.column}
+                </span>
                 <span className="text-muted-foreground">{filter.operator}</span>
-                <span className="font-mono text-foreground">{filter.resolvedValue ?? filter.value ?? "—"}</span>
-                {filter.resolvedValue !== filter.value ? (
+                <span className="font-mono text-foreground">
+                  {filter.resolvedValue ?? filter.value ?? "—"}
+                </span>
+                {filter.resolvedValue === filter.value ? null : (
                   <span className="text-[10px] text-muted-foreground/80">
                     Source: {filter.value || "—"}
                   </span>
-                ) : null}
+                )}
               </li>
             ))}
           </ul>
@@ -262,20 +328,29 @@ function FilterSummary({ summary, filters }: { summary: string; filters: Resolve
   );
 }
 
-function resolveToken(value: string, urlParams: Record<string, string>): string | null {
-  if (!value || !value.startsWith("url.")) {
+function resolveToken(
+  value: string,
+  urlParams: Record<string, string>
+): string | null {
+  if (!value?.startsWith("url.")) {
     return value;
   }
   const key = value.slice(4);
   return urlParams[key] ?? null;
 }
 
-function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: (text: string) => void) {
+function formatCellValue(
+  value: unknown,
+  meta: FieldMetadata | undefined,
+  copy: (text: string) => void
+) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground/70">—</span>;
   }
 
-  const fieldType = (meta?.ui_hints?.field_type as string | undefined)?.toLowerCase();
+  const fieldType = (
+    meta?.ui_hints?.field_type as string | undefined
+  )?.toLowerCase();
   const dataType = meta?.data_type?.toLowerCase();
 
   if (typeof value === "string") {
@@ -284,10 +359,10 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
         value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
       return (
         <Button
-          type="button"
-          variant="ghost"
           className="h-auto px-0 text-foreground underline-offset-4 hover:underline"
           onClick={() => copy(value)}
+          type="button"
+          variant="ghost"
         >
           {truncated}
         </Button>
@@ -296,7 +371,7 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
 
     if (fieldType === "email") {
       return (
-        <Link href={`mailto:${value}`} className="text-primary hover:underline">
+        <Link className="text-primary hover:underline" href={`mailto:${value}`}>
           {value}
         </Link>
       );
@@ -304,7 +379,7 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
 
     if (fieldType === "phone") {
       return (
-        <Link href={`tel:${value}`} className="text-primary hover:underline">
+        <Link className="text-primary hover:underline" href={`tel:${value}`}>
           {value}
         </Link>
       );
@@ -312,7 +387,12 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
 
     if (fieldType === "url") {
       return (
-        <Link href={value} className="text-primary hover:underline" target="_blank" rel="noreferrer noopener">
+        <Link
+          className="text-primary hover:underline"
+          href={value}
+          rel="noreferrer noopener"
+          target="_blank"
+        >
           {value}
         </Link>
       );
@@ -322,7 +402,7 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
       return renderLongTextWithHover(value);
     }
 
-    if (fieldType === "date" || (dataType && dataType.includes("timestamp"))) {
+    if (fieldType === "date" || dataType?.includes("timestamp")) {
       const date = new Date(value);
       if (!Number.isNaN(date.getTime())) {
         const relative = formatRelativeTime(date);
@@ -335,10 +415,10 @@ function formatCellValue(value: unknown, meta: FieldMetadata | undefined, copy: 
   if (typeof value === "number") {
     if (fieldType === "currency") {
       return new Intl.NumberFormat("en-US", {
-        style: "currency",
         currency: "USD",
-        minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        style: "currency",
       }).format(value);
     }
     return value.toLocaleString();
@@ -383,7 +463,7 @@ function renderLongTextWithHover(text: string) {
           {truncated}
         </span>
       </HoverCardTrigger>
-      <HoverCardContent className="max-w-md text-sm whitespace-pre-wrap wrap-break-word">
+      <HoverCardContent className="wrap-break-word max-w-md whitespace-pre-wrap text-sm">
         {text}
       </HoverCardContent>
     </HoverCard>
@@ -403,8 +483,8 @@ function formatFullDate(date: Date) {
           : "th";
   const time = date.toLocaleString("en-GB", {
     hour: "numeric",
-    minute: "2-digit",
     hour12: true,
+    minute: "2-digit",
   });
   return `${month} ${day}${ordinal}, ${time.toLowerCase()}`;
 }

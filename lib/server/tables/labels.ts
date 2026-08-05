@@ -1,6 +1,10 @@
-import type { TableRecord, LabelFieldConfig, RelationshipConfig } from "./schema";
-import { getTableConfig } from "./repository";
 import type { TenantContext } from "@/lib/server/tenant/context";
+import { getTableConfig } from "./repository";
+import type {
+  LabelFieldConfig,
+  RelationshipConfig,
+  TableRecord,
+} from "./schema";
 
 type LabelFieldCache = Map<string, LabelFieldConfig | null>;
 
@@ -13,9 +17,10 @@ export async function getLabelFieldForTable(
   tenant: TenantContext,
   referencedTableName: string
 ): Promise<LabelFieldConfig | null> {
-  const cacheKey = `${tenant.workspaceId}:${referencedTableName}`;
+  const _cacheKey = `${tenant.workspaceId}:${referencedTableName}`;
   const workspaceCache =
-    labelFieldCache.get(tenant.workspaceId) ?? new Map<string, LabelFieldConfig | null>();
+    labelFieldCache.get(tenant.workspaceId) ??
+    new Map<string, LabelFieldConfig | null>();
 
   if (workspaceCache.has(referencedTableName)) {
     return workspaceCache.get(referencedTableName) ?? null;
@@ -54,8 +59,8 @@ export async function getLabelFieldForRelationship(
   // If relationship has explicit label_field, use it
   if (relationship.label_field) {
     return {
-      field_name: relationship.label_field,
       display_name: relationship.label_field,
+      field_name: relationship.label_field,
     };
   }
 
@@ -87,7 +92,10 @@ export async function resolveLabelField(
     return null;
   }
 
-  const labelFieldConfig = await getLabelFieldForRelationship(tenant, relationship);
+  const labelFieldConfig = await getLabelFieldForRelationship(
+    tenant,
+    relationship
+  );
 
   if (!labelFieldConfig) {
     // Default to the referenced table's primary key or first column
@@ -118,4 +126,3 @@ export function clearLabelFieldCache(workspaceId: string): void {
 export function clearAllLabelFieldCaches(): void {
   labelFieldCache.clear();
 }
-

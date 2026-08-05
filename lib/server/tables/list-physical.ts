@@ -12,11 +12,11 @@ import { getControlPlaneDb } from "@/server/lib/db";
  * name-based filtering.
  */
 
-export type PhysicalTable = {
-  schema: string;
+export interface PhysicalTable {
   name: string;
+  schema: string;
   type: string;
-};
+}
 
 export type TableListingType = "data" | "config";
 
@@ -67,8 +67,8 @@ async function selectBaseTables(db: DbClient): Promise<PhysicalTable[]> {
   }>;
 
   return rows.map((row) => ({
-    schema: row.table_schema,
     name: row.table_name,
+    schema: row.table_schema,
     type: row.table_type,
   }));
 }

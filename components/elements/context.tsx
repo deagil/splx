@@ -27,9 +27,9 @@ const ICON_CENTER = 12;
 const ICON_RADIUS = 10;
 const ICON_STROKE_WIDTH = 2;
 
-type ContextIconProps = {
+interface ContextIconProps {
   percent: number; // 0 - 100
-};
+}
 
 export const ContextIcon = ({ percent }: ContextIconProps) => {
   const radius = ICON_RADIUS;
@@ -114,7 +114,7 @@ export const Context = ({ className, usage, ...props }: ContextProps) => {
           className={cn(
             "inline-flex select-none items-center gap-1 rounded-md text-sm",
             "cursor-pointer bg-background text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none ring-offset-background",
+            "outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             className
           )}
           type="button"
@@ -138,13 +138,14 @@ export const Context = ({ className, usage, ...props }: ContextProps) => {
             <Progress className="h-2 bg-muted" value={usedPercent} />
           </div>
           <div className="mt-1 space-y-1">
-            {usage?.inputTokenDetails?.cacheReadTokens && usage.inputTokenDetails.cacheReadTokens > 0 && (
-              <InfoRow
-                costText={usage?.costUSD?.cacheReadUSD?.toString()}
-                label="Cache Hits"
-                tokens={usage?.inputTokenDetails?.cacheReadTokens}
-              />
-            )}
+            {usage?.inputTokenDetails?.cacheReadTokens &&
+              usage.inputTokenDetails.cacheReadTokens > 0 && (
+                <InfoRow
+                  costText={usage?.costUSD?.cacheReadUSD?.toString()}
+                  label="Cache Hits"
+                  tokens={usage?.inputTokenDetails?.cacheReadTokens}
+                />
+              )}
             <InfoRow
               costText={usage?.costUSD?.inputUSD?.toString()}
               label="Input"
@@ -159,7 +160,8 @@ export const Context = ({ className, usage, ...props }: ContextProps) => {
               costText={usage?.costUSD?.reasoningUSD?.toString()}
               label="Reasoning"
               tokens={
-                usage?.outputTokenDetails?.reasoningTokens && usage.outputTokenDetails.reasoningTokens > 0
+                usage?.outputTokenDetails?.reasoningTokens &&
+                usage.outputTokenDetails.reasoningTokens > 0
                   ? usage.outputTokenDetails.reasoningTokens
                   : undefined
               }

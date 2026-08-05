@@ -1,25 +1,22 @@
-import { type NextRequest, NextResponse } from "next/server";
-
-import { guestRegex, isDevelopmentEnvironment } from "./lib/constants";
 import { createServerClient } from "@supabase/ssr";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { type NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 import { user } from "@/lib/db/schema";
+import { requireEnv } from "@/lib/env";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
+
+const staticAssetExtRegex =
+  /\.(mp4|mov|webm|ogg|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$/i;
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for static files (videos, images, fonts, etc.)
   // Next.js serves these from public/ directory automatically
-  if (
-    pathname.startsWith("/videos/") ||
-    pathname.match(
-      /\.(mp4|mov|webm|ogg|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$/i,
-    )
-  ) {
+  if (pathname.startsWith("/videos/") || pathname.match(staticAssetExtRegex)) {
     return NextResponse.next();
   }
 
@@ -27,13 +24,15 @@ export async function proxy(request: NextRequest) {
   const mode = getAppMode();
   const requestHeaders = new Headers(request.headers);
 
-  let workspaceId = requestHeaders.get("x-workspace-id") ??
+  let workspaceId =
+    requestHeaders.get("x-workspace-id") ??
     request.cookies.get("workspace_id")?.value ??
     request.nextUrl.searchParams.get("workspaceId") ??
     null;
 
   if (mode === "local") {
-    workspaceId = workspaceId ??
+    workspaceId =
+      workspaceId ??
       process.env.DEFAULT_WORKSPACE_ID ??
       process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_ID ??
       null;
@@ -52,7 +51,8 @@ export async function proxy(request: NextRequest) {
   }
 
   // Handle Supabase auth routes
-  const isSupabaseAuthRoute = pathname.startsWith("/signin") ||
+  const isSupabaseAuthRoute =
+    pathname.startsWith("/signin") ||
     pathname.startsWith("/otp") ||
     pathname.startsWith("/onboarding");
 
@@ -69,8 +69,8 @@ export async function proxy(request: NextRequest) {
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     {
       cookies: {
         getAll() {
@@ -88,7 +88,7 @@ export async function proxy(request: NextRequest) {
           }
         },
       },
-    },
+    }
   );
 
   const {
@@ -185,7 +185,8 @@ export async function proxy(request: NextRequest) {
   // Routes that must stay reachable without a session: onboarding needs to
   // check slug availability before the user has one, Stripe calls back with
   // its own signature, and the workflow tick uses a shared runner secret.
-  const isPublicApiRoute = pathname.startsWith("/api/workspace/check-slug") ||
+  const isPublicApiRoute =
+    pathname.startsWith("/api/workspace/check-slug") ||
     pathname.startsWith("/api/stripe/") ||
     pathname.startsWith("/api/internal/");
 

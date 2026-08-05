@@ -1,32 +1,32 @@
 "use server";
 
-import { z } from "zod";
-import { redirect } from "next/navigation";
-import { workspace } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import postgres from "postgres";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { z } from "zod";
+import { workspace } from "@/lib/db/schema";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 const workspaceSchema = z.object({
-  name: z.string().min(1, "Workspace name is required"),
-  slug: z.string().trim().optional(),
-  description: z.string().trim().max(4000).optional(),
   avatar_url: z
     .string()
     .trim()
     .url("Please provide a valid URL")
     .or(z.literal(""))
     .optional(),
+  description: z.string().trim().max(4000).optional(),
+  name: z.string().min(1, "Workspace name is required"),
+  slug: z.string().trim().optional(),
 });
 
-export type UpdateWorkspaceState = {
-  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+export interface UpdateWorkspaceState {
   message?: string;
-};
+  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+}
 
 export async function updateWorkspace(
   _: UpdateWorkspaceState,
@@ -40,10 +40,10 @@ export async function updateWorkspace(
     }
 
     const validatedData = workspaceSchema.parse({
+      avatar_url: formData.get("avatar_url"),
+      description: formData.get("description"),
       name: formData.get("name"),
       slug: formData.get("slug"),
-      description: formData.get("description"),
-      avatar_url: formData.get("avatar_url"),
     });
 
     const normalizeNullable = (value?: string | null) => {
@@ -66,10 +66,10 @@ export async function updateWorkspace(
         await db
           .update(workspace)
           .set({
+            avatar_url: normalizeNullable(validatedData.avatar_url),
+            description: normalizeNullable(validatedData.description),
             name: validatedData.name,
             slug: normalizeNullable(validatedData.slug),
-            description: normalizeNullable(validatedData.description),
-            avatar_url: normalizeNullable(validatedData.avatar_url),
           })
           .where(eq(workspace.id, tenant.workspaceId));
       } finally {
@@ -82,10 +82,10 @@ export async function updateWorkspace(
           db
             .update(workspace)
             .set({
+              avatar_url: normalizeNullable(validatedData.avatar_url),
+              description: normalizeNullable(validatedData.description),
               name: validatedData.name,
               slug: normalizeNullable(validatedData.slug),
-              description: normalizeNullable(validatedData.description),
-              avatar_url: normalizeNullable(validatedData.avatar_url),
             })
             .where(eq(workspace.id, tenant.workspaceId))
         );
@@ -97,14 +97,14 @@ export async function updateWorkspace(
     revalidatePath("/workspace-settings");
 
     return {
-      status: "success",
       message: "Workspace updated successfully",
+      status: "success",
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return {
-        status: "invalid_data",
         message: error.issues[0]?.message ?? "Invalid form data",
+        status: "invalid_data",
       };
     }
 
@@ -114,8 +114,8 @@ export async function updateWorkspace(
 
     console.error("Failed to update workspace:", error);
     return {
-      status: "failed",
       message: "Failed to update workspace",
+      status: "failed",
     };
   }
 }

@@ -1,44 +1,49 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+  Edit2,
+  FileCode,
+  FileText,
+  Settings,
+  Sparkles,
+  Table,
+  Trash2,
+  X,
+  Zap,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/shared/toast";
-import { X, Settings, MessageSquare, Code, Zap, Trash2, Edit2, Sparkles, Code2, FileText, FileCode, Table } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { SkillUI } from "@/lib/ai/skills-ui-schema";
+import { SkillClarification } from "@/components/skills-training/skill-clarification";
+import { SkillPreview } from "@/components/skills-training/skill-preview";
 import { SkillQuestion } from "@/components/skills-training/skill-question";
 import { SkillVariants } from "@/components/skills-training/skill-variants";
-import { SkillPreview } from "@/components/skills-training/skill-preview";
-import { SkillClarification } from "@/components/skills-training/skill-clarification";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { SkillUI } from "@/lib/ai/skills-ui-schema";
 
-type PersonalizationPanelProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface PersonalizationPanelProps {
   aiContext?: string | null;
-  proficiency?: string | null;
-  aiTone?: string | null;
   aiGuidance?: string | null;
-  personalizationEnabled?: boolean;
+  aiTone?: string | null;
+  onOpenChange: (open: boolean) => void;
   onPersonalizationToggle?: (enabled: boolean) => void;
-};
+  open: boolean;
+  personalizationEnabled?: boolean;
+  proficiency?: string | null;
+}
 
-type Skill = {
-  id: string;
-  name: string;
+interface Skill {
   command: string;
   description: string | null;
+  id: string;
+  name: string;
   prompt: string;
-};
+}
 
 export function PersonalizationPanel({
   open,
@@ -52,19 +57,26 @@ export function PersonalizationPanel({
 }: PersonalizationPanelProps) {
   const [formData, setFormData] = useState({
     ai_context: aiContext || "",
-    proficiency: proficiency || "regular",
-    ai_tone: aiTone || "balanced",
     ai_guidance: aiGuidance || "",
+    ai_tone: aiTone || "balanced",
+    proficiency: proficiency || "regular",
   });
   const [skills, setSkills] = useState<Skill[]>([]);
   const [newSkillDescription, setNewSkillDescription] = useState("");
   const [learningSkillId, setLearningSkillId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
-  const [editSkill, setEditSkill] = useState({ name: "", command: "", description: "", prompt: "" });
+  const [editSkill, setEditSkill] = useState({
+    command: "",
+    description: "",
+    name: "",
+    prompt: "",
+  });
   const [currentUIState, setCurrentUIState] = useState<SkillUI | null>(null);
   const [isSavingSkill, setIsSavingSkill] = useState(false);
-  const [previousSkill, setPreviousSkill] = useState<SkillUI["skill"] | null>(null);
+  const [previousSkill, setPreviousSkill] = useState<SkillUI["skill"] | null>(
+    null
+  );
   const [conversationHistory, setConversationHistory] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
   >([]);
@@ -73,9 +85,9 @@ export function PersonalizationPanel({
   useEffect(() => {
     setFormData({
       ai_context: aiContext || "",
-      proficiency: proficiency || "regular",
-      ai_tone: aiTone || "balanced",
       ai_guidance: aiGuidance || "",
+      ai_tone: aiTone || "balanced",
+      proficiency: proficiency || "regular",
     });
   }, [aiContext, proficiency, aiTone, aiGuidance]);
 
@@ -84,7 +96,7 @@ export function PersonalizationPanel({
     if (open) {
       loadSkills();
     }
-  }, [open]);
+  }, [open, loadSkills]);
 
   const loadSkills = async () => {
     try {
@@ -112,9 +124,9 @@ export function PersonalizationPanel({
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await fetch("/api/user/preferences", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newFormData),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH",
         });
 
         if (!response.ok) {
@@ -124,8 +136,8 @@ export function PersonalizationPanel({
         // Silent save - no toast notification to avoid spam
       } catch (error) {
         toast({
-          type: "error",
           description: "Failed to save preferences. Please try again.",
+          type: "error",
         });
         console.error("Error saving preferences:", error);
       }
@@ -133,19 +145,20 @@ export function PersonalizationPanel({
   };
 
   // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   const handleLearnSkill = async (description: string) => {
     if (!description || description.trim().length === 0) {
       toast({
-        type: "error",
         description: "Please describe what you want to accomplish",
+        type: "error",
       });
       return;
     }
@@ -155,26 +168,30 @@ export function PersonalizationPanel({
     setIsGeneratingPrompt(true);
     setCurrentUIState(null);
     setPreviousSkill(null);
-    setConversationHistory([{ role: "user", content: description.trim() }]);
+    setConversationHistory([{ content: description.trim(), role: "user" }]);
 
     try {
       await processSkillGeneration(description.trim(), "auto", null);
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : "Failed to start skill training. Please try again.";
-      
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to start skill training. Please try again.";
+
       toast({
-        type: "error",
         description: errorMessage,
+        type: "error",
       });
       console.error("Error starting skill training:", error);
       setIsGeneratingPrompt(false);
       setLearningSkillId(null);
       setCurrentUIState(null);
-      
+
       // Offer fallback to simple creation
-      if (errorMessage.includes("timeout") || errorMessage.includes("No UI response")) {
+      if (
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("No UI response")
+      ) {
         // Could add a fallback button here to try simple creation
       }
     }
@@ -183,26 +200,26 @@ export function PersonalizationPanel({
   const processSkillGeneration = async (
     description: string,
     mode: "auto" | "create" | "refine",
-    previousSkillData: SkillUI["skill"] | null,
+    previousSkillData: SkillUI["skill"] | null
   ) => {
     const timeoutId = setTimeout(() => {
       setIsGeneratingPrompt(false);
       toast({
-        type: "error",
         description: "Request timed out. Please try again.",
+        type: "error",
       });
-    }, 30000); // 30 second timeout
+    }, 30_000); // 30 second timeout
 
     try {
       const response = await fetch("/api/user/skills/generate-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          conversation_history: conversationHistory,
           description,
           mode,
           previous_skill: previousSkillData,
-          conversation_history: conversationHistory,
         }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -230,31 +247,35 @@ export function PersonalizationPanel({
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
           for (const line of lines) {
-            if (!line.trim() || !line.startsWith("data: ")) continue;
+            if (!line.trim() || !line.startsWith("data: ")) {
+              continue;
+            }
 
             try {
               // Parse SSE format: "data: {...}"
               const jsonStr = line.slice(6); // Remove "data: " prefix
               const data = JSON.parse(jsonStr);
-              
+
               // Handle our custom skill-ui events
               if (data.type === "skill-ui" && data.data) {
                 const uiState = data.data as SkillUI;
-                if (uiState && uiState.type) {
+                if (uiState?.type) {
                   setCurrentUIState(uiState);
                   setIsGeneratingPrompt(false);
                   hasReceivedUI = true;
                   clearTimeout(timeoutId);
                 }
               }
-              
+
               // Handle error events
               if (data.type === "error") {
                 clearTimeout(timeoutId);
@@ -296,14 +317,16 @@ export function PersonalizationPanel({
   };
 
   const handleUIResponse = async (value: string) => {
-    if (!learningSkillId) return;
+    if (!learningSkillId) {
+      return;
+    }
 
     setIsGeneratingPrompt(true);
     setCurrentUIState(null);
     const updatedHistory = [
       ...conversationHistory,
-      { role: "assistant" as const, content: currentUIState?.message || "" },
-      { role: "user" as const, content: value },
+      { content: currentUIState?.message || "", role: "assistant" as const },
+      { content: value, role: "user" as const },
     ];
     setConversationHistory(updatedHistory);
 
@@ -311,8 +334,8 @@ export function PersonalizationPanel({
       await processSkillGeneration(value, "auto", previousSkill);
     } catch (error) {
       toast({
-        type: "error",
         description: "Failed to send response. Please try again.",
+        type: "error",
       });
       console.error("Error sending response:", error);
       setIsGeneratingPrompt(false);
@@ -320,19 +343,21 @@ export function PersonalizationPanel({
   };
 
   const handleSaveSkill = async (skill: SkillUI["skill"]) => {
-    if (!skill) return;
+    if (!skill) {
+      return;
+    }
 
     setIsSavingSkill(true);
     try {
       const response = await fetch("/api/user/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: skill.name.trim(),
           command: skill.slug.trim(),
           description: skill.description.trim() || null,
+          name: skill.name.trim(),
           prompt: skill.prompt.trim(),
         }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -347,15 +372,18 @@ export function PersonalizationPanel({
       setConversationHistory([]);
       setLearningSkillId(null);
       setIsGeneratingPrompt(false);
-      
+
       toast({
-        type: "success",
         description: "Skill learned successfully",
+        type: "success",
       });
     } catch (error) {
       toast({
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to save skill. Please try again.",
         type: "error",
-        description: error instanceof Error ? error.message : "Failed to save skill. Please try again.",
       });
       console.error("Error saving skill:", error);
     } finally {
@@ -364,15 +392,17 @@ export function PersonalizationPanel({
   };
 
   const handleImproveSkill = async (skill: SkillUI["skill"]) => {
-    if (!skill || !learningSkillId) return;
+    if (!skill || !learningSkillId) {
+      return;
+    }
 
     setPreviousSkill(skill);
     setIsGeneratingPrompt(true);
     setCurrentUIState(null);
     const updatedHistory = [
       ...conversationHistory,
-      { role: "assistant" as const, content: "Skill generated" },
-      { role: "user" as const, content: "Please improve this skill further" },
+      { content: "Skill generated", role: "assistant" as const },
+      { content: "Please improve this skill further", role: "user" as const },
     ];
     setConversationHistory(updatedHistory);
 
@@ -380,12 +410,12 @@ export function PersonalizationPanel({
       await processSkillGeneration(
         conversationHistory[0]?.content || "",
         "refine",
-        skill,
+        skill
       );
     } catch (error) {
       toast({
-        type: "error",
         description: "Failed to request improvement. Please try again.",
+        type: "error",
       });
       console.error("Error requesting improvement:", error);
       setIsGeneratingPrompt(false);
@@ -395,39 +425,41 @@ export function PersonalizationPanel({
   const handleStartEdit = (skill: Skill) => {
     setEditingSkillId(skill.id);
     setEditSkill({
-      name: skill.name,
       command: skill.command,
       description: skill.description || "",
+      name: skill.name,
       prompt: skill.prompt,
     });
   };
 
   const handleCancelEdit = () => {
     setEditingSkillId(null);
-    setEditSkill({ name: "", command: "", description: "", prompt: "" });
+    setEditSkill({ command: "", description: "", name: "", prompt: "" });
   };
 
   const handleUpdateSkill = async () => {
     if (!editSkill.name || !editSkill.prompt) {
       toast({
-        type: "error",
         description: "Please provide a name and prompt for the skill",
+        type: "error",
       });
       return;
     }
 
-    if (!editingSkillId) return;
+    if (!editingSkillId) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/user/skills/${editingSkillId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: editSkill.name.trim(),
           command: editSkill.command.trim(),
           description: editSkill.description.trim() || null,
+          name: editSkill.name.trim(),
           prompt: editSkill.prompt.trim(),
         }),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
       });
 
       if (!response.ok) {
@@ -439,13 +471,13 @@ export function PersonalizationPanel({
       handleCancelEdit();
 
       toast({
-        type: "success",
         description: "Skill updated successfully",
+        type: "success",
       });
     } catch (error) {
       toast({
-        type: "error",
         description: "Failed to update skill. Please try again.",
+        type: "error",
       });
       console.error("Error updating skill:", error);
     }
@@ -464,65 +496,102 @@ export function PersonalizationPanel({
       setSkills(skills.filter((s) => s.id !== skillId));
 
       toast({
-        type: "success",
         description: "Skill deleted successfully",
+        type: "success",
       });
     } catch (error) {
       toast({
-        type: "error",
         description: "Failed to delete skill. Please try again.",
+        type: "error",
       });
       console.error("Error deleting skill:", error);
     }
   };
 
   const proficiencyOptions = [
-    { value: "less", label: "Prefer Guidance", description: "Simpler language, more explanations" },
-    { value: "regular", label: "Balanced", description: "Mix of clarity and detail" },
-    { value: "more", label: "Prefer Details", description: "Technical specifics, less hand-holding" },
+    {
+      description: "Simpler language, more explanations",
+      label: "Prefer Guidance",
+      value: "less",
+    },
+    {
+      description: "Mix of clarity and detail",
+      label: "Balanced",
+      value: "regular",
+    },
+    {
+      description: "Technical specifics, less hand-holding",
+      label: "Prefer Details",
+      value: "more",
+    },
   ];
 
   const toneOptions = [
-    { value: "friendly", label: "Friendly", description: "Bubbly and playful" },
-    { value: "balanced", label: "Balanced", description: "Professional yet approachable" },
-    { value: "efficient", label: "Efficient", description: "Direct and concise" },
+    { description: "Bubbly and playful", label: "Friendly", value: "friendly" },
+    {
+      description: "Professional yet approachable",
+      label: "Balanced",
+      value: "balanced",
+    },
+    {
+      description: "Direct and concise",
+      label: "Efficient",
+      value: "efficient",
+    },
   ];
 
   const artifactTypes = [
-    { value: "text", label: "Text", icon: FileText, description: "Documents, essays, articles" },
-    { value: "code", label: "Code", icon: FileCode, description: "Code snippets, scripts, functions" },
-    { value: "sheet", label: "Sheet", icon: Table, description: "Spreadsheets, tables, data" },
+    {
+      description: "Documents, essays, articles",
+      icon: FileText,
+      label: "Text",
+      value: "text",
+    },
+    {
+      description: "Code snippets, scripts, functions",
+      icon: FileCode,
+      label: "Code",
+      value: "code",
+    },
+    {
+      description: "Spreadsheets, tables, data",
+      icon: Table,
+      label: "Sheet",
+      value: "sheet",
+    },
   ];
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-50 animate-in fade-in duration-200"
+        className="fade-in fixed inset-0 z-50 animate-in bg-black/50 duration-200"
         onClick={() => onOpenChange(false)}
       />
 
       {/* Panel */}
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pointer-events-none">
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center p-4">
         <div
-          className="bg-background border rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+          className="fade-in zoom-in-95 pointer-events-auto flex max-h-[90vh] w-full max-w-2xl animate-in flex-col overflow-hidden rounded-lg border bg-background shadow-lg duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-background border-b px-6 py-4 flex items-start justify-between">
+          <div className="flex items-start justify-between border-b bg-background px-6 py-4">
             <div>
-              <h2 className="text-lg font-semibold">AI Personalization</h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h2 className="font-semibold text-lg">AI Personalization</h2>
+              <p className="mt-1 text-muted-foreground text-sm">
                 Customize how the AI assistant works for you
               </p>
             </div>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 -mt-1"
+              className="-mt-1 h-8 w-8"
               onClick={() => onOpenChange(false)}
+              size="icon"
+              variant="ghost"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -530,10 +599,10 @@ export function PersonalizationPanel({
 
           {/* Tabs Content */}
           <div className="flex-1 overflow-y-auto">
-            <Tabs defaultValue="general" className="w-full">
+            <Tabs className="w-full" defaultValue="general">
               <div className="border-b px-6">
-                <TabsList className="w-full justify-start h-auto p-0 bg-transparent">
-                  <TabsTrigger value="general" className="gap-2">
+                <TabsList className="h-auto w-full justify-start bg-transparent p-0">
+                  <TabsTrigger className="gap-2" value="general">
                     <Settings className="h-4 w-4" />
                     General
                   </TabsTrigger>
@@ -545,7 +614,7 @@ export function PersonalizationPanel({
                     <Code className="h-4 w-4" />
                     Generation
                   </TabsTrigger> */}
-                  <TabsTrigger value="skills" className="gap-2">
+                  <TabsTrigger className="gap-2" value="skills">
                     <Zap className="h-4 w-4" />
                     Skills
                   </TabsTrigger>
@@ -553,19 +622,22 @@ export function PersonalizationPanel({
               </div>
 
               {/* General Tab */}
-              <TabsContent value="general" className="p-6 mt-0 space-y-6">
+              <TabsContent className="mt-0 space-y-6 p-6" value="general">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>AI Personalization</Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Enable personalized AI responses based on your preferences
+                      <p className="mt-1 text-muted-foreground text-xs">
+                        Enable personalized AI responses based on your
+                        preferences
                       </p>
                     </div>
                     <Button
-                      variant={personalizationEnabled ? "primary" : "outline"}
+                      onClick={() =>
+                        onPersonalizationToggle?.(!personalizationEnabled)
+                      }
                       size="sm"
-                      onClick={() => onPersonalizationToggle?.(!personalizationEnabled)}
+                      variant={personalizationEnabled ? "primary" : "outline"}
                     >
                       {personalizationEnabled ? "Enabled" : "Disabled"}
                     </Button>
@@ -592,26 +664,31 @@ export function PersonalizationPanel({
                   <div>
                     <Label className="mb-3 block">Technical Proficiency</Label>
                     <ToggleGroup
-                      type="single"
-                      value={formData.proficiency}
+                      className="w-full"
                       onValueChange={(value) => {
                         if (value) {
-                          const newFormData = { ...formData, proficiency: value };
+                          const newFormData = {
+                            ...formData,
+                            proficiency: value,
+                          };
                           setFormData(newFormData);
                           autoSave(newFormData);
                         }
                       }}
-                      className="w-full"
+                      type="single"
+                      value={formData.proficiency}
                     >
                       {proficiencyOptions.map((option) => (
                         <ToggleGroupItem
+                          className="flex-1"
                           key={option.value}
                           value={option.value}
-                          className="flex-1"
                         >
                           <div className="text-center">
-                            <div className="font-medium text-sm">{option.label}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
+                            <div className="font-medium text-sm">
+                              {option.label}
+                            </div>
+                            <div className="mt-0.5 text-muted-foreground text-xs">
                               {option.description}
                             </div>
                           </div>
@@ -623,8 +700,7 @@ export function PersonalizationPanel({
                   <div>
                     <Label className="mb-3 block">Tone of Voice</Label>
                     <ToggleGroup
-                      type="single"
-                      value={formData.ai_tone}
+                      className="w-full"
                       onValueChange={(value) => {
                         if (value) {
                           const newFormData = { ...formData, ai_tone: value };
@@ -632,17 +708,20 @@ export function PersonalizationPanel({
                           autoSave(newFormData);
                         }
                       }}
-                      className="w-full"
+                      type="single"
+                      value={formData.ai_tone}
                     >
                       {toneOptions.map((option) => (
                         <ToggleGroupItem
+                          className="flex-1"
                           key={option.value}
                           value={option.value}
-                          className="flex-1"
                         >
                           <div className="text-center">
-                            <div className="font-medium text-sm">{option.label}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
+                            <div className="font-medium text-sm">
+                              {option.label}
+                            </div>
+                            <div className="mt-0.5 text-muted-foreground text-xs">
                               {option.description}
                             </div>
                           </div>
@@ -655,16 +734,19 @@ export function PersonalizationPanel({
                 <div className="space-y-3">
                   <Label htmlFor="ai_guidance">Additional Instructions</Label>
                   <Textarea
+                    className="min-h-[100px] resize-none"
                     id="ai_guidance"
-                    placeholder="Any specific preferences or instructions for the AI..."
-                    value={formData.ai_guidance}
+                    maxLength={4000}
                     onChange={(e) => {
-                      const newFormData = { ...formData, ai_guidance: e.target.value };
+                      const newFormData = {
+                        ...formData,
+                        ai_guidance: e.target.value,
+                      };
                       setFormData(newFormData);
                       autoSave(newFormData);
                     }}
-                    className="min-h-[100px] resize-none"
-                    maxLength={4000}
+                    placeholder="Any specific preferences or instructions for the AI..."
+                    value={formData.ai_guidance}
                   />
                 </div>
               </TabsContent>
@@ -675,25 +757,28 @@ export function PersonalizationPanel({
               </TabsContent> */}
 
               {/* Generation Tab */}
-              <TabsContent value="generation" className="p-6 mt-0 space-y-6">
+              <TabsContent className="mt-0 space-y-6 p-6" value="generation">
                 <div className="space-y-4">
                   <div>
                     <Label className="mb-3 block">Artifact Types</Label>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Configure preferences for different types of generated content
+                    <p className="mb-3 text-muted-foreground text-xs">
+                      Configure preferences for different types of generated
+                      content
                     </p>
                     <div className="grid gap-3">
                       {artifactTypes.map((type) => {
                         const Icon = type.icon;
                         return (
                           <div
+                            className="flex items-start gap-3 rounded-lg border p-3"
                             key={type.value}
-                            className="flex items-start gap-3 p-3 rounded-lg border"
                           >
-                            <Icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                            <Icon className="mt-0.5 h-5 w-5 text-muted-foreground" />
                             <div className="flex-1">
-                              <div className="font-medium text-sm">{type.label}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5">
+                              <div className="font-medium text-sm">
+                                {type.label}
+                              </div>
+                              <div className="mt-0.5 text-muted-foreground text-xs">
                                 {type.description}
                               </div>
                             </div>
@@ -704,115 +789,136 @@ export function PersonalizationPanel({
                   </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="generation_guidance">Generation Instructions</Label>
+                    <Label htmlFor="generation_guidance">
+                      Generation Instructions
+                    </Label>
                     <Textarea
+                      className="min-h-[100px] resize-none"
                       id="generation_guidance"
-                      placeholder="e.g., Use TypeScript, prefer functional programming, include comments"
-                      value={formData.ai_guidance}
+                      maxLength={2000}
                       onChange={(e) => {
-                        const newFormData = { ...formData, ai_guidance: e.target.value };
+                        const newFormData = {
+                          ...formData,
+                          ai_guidance: e.target.value,
+                        };
                         setFormData(newFormData);
                         autoSave(newFormData);
                       }}
-                      className="min-h-[100px] resize-none"
-                      maxLength={2000}
+                      placeholder="e.g., Use TypeScript, prefer functional programming, include comments"
+                      value={formData.ai_guidance}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      General instructions for how the AI should generate content
+                    <p className="text-muted-foreground text-xs">
+                      General instructions for how the AI should generate
+                      content
                     </p>
                   </div>
                 </div>
               </TabsContent>
 
               {/* Skills Tab */}
-              <TabsContent value="skills" className="p-6 mt-0 space-y-4">
+              <TabsContent className="mt-0 space-y-4 p-6" value="skills">
                 <AnimatePresence mode="popLayout">
                   {skills.map((skill) => (
                     <motion.div
-                      key={skill.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
                       className="relative"
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      key={skill.id}
                     >
                       {editingSkillId === skill.id ? (
-                        <div className="space-y-4 p-4 rounded-lg border">
+                        <div className="space-y-4 rounded-lg border p-4">
                           <div className="space-y-2">
                             <Label>Skill Name</Label>
                             <Input
-                              value={editSkill.name}
                               onChange={(e) =>
-                                setEditSkill({ ...editSkill, name: e.target.value })
+                                setEditSkill({
+                                  ...editSkill,
+                                  name: e.target.value,
+                                })
                               }
+                              value={editSkill.name}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label>Command</Label>
                             <Input
-                              value={editSkill.command}
-                              onChange={(e) =>
-                                setEditSkill({ ...editSkill, command: e.target.value })
-                              }
                               className="font-mono"
+                              onChange={(e) =>
+                                setEditSkill({
+                                  ...editSkill,
+                                  command: e.target.value,
+                                })
+                              }
+                              value={editSkill.command}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label>Prompt</Label>
                             <Textarea
-                              value={editSkill.prompt}
-                              onChange={(e) =>
-                                setEditSkill({ ...editSkill, prompt: e.target.value })
-                              }
                               className="min-h-[100px] font-mono text-xs"
+                              onChange={(e) =>
+                                setEditSkill({
+                                  ...editSkill,
+                                  prompt: e.target.value,
+                                })
+                              }
+                              value={editSkill.prompt}
                             />
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleCancelEdit}
                               className="flex-1"
+                              onClick={handleCancelEdit}
+                              size="sm"
+                              variant="outline"
                             >
                               Cancel
                             </Button>
-                            <Button size="sm" onClick={handleUpdateSkill} className="flex-1">
+                            <Button
+                              className="flex-1"
+                              onClick={handleUpdateSkill}
+                              size="sm"
+                            >
                               Save
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <div className="group relative p-4 rounded-lg border bg-gradient-to-br from-background to-muted/20 hover:shadow-md transition-all">
+                        <div className="group relative rounded-lg border bg-gradient-to-br from-background to-muted/20 p-4 transition-all hover:shadow-md">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-sm">{skill.name}</h4>
-                                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">
+                              <div className="mb-1 flex items-center gap-2">
+                                <h4 className="font-semibold text-sm">
+                                  {skill.name}
+                                </h4>
+                                <span className="rounded bg-muted px-2 py-0.5 font-mono text-muted-foreground text-xs">
                                   /{skill.command}
                                 </span>
                               </div>
-                              {skill.description && (
-                                <p className="text-xs text-muted-foreground mb-2">
+                              {!!skill.description && (
+                                <p className="mb-2 text-muted-foreground text-xs">
                                   {skill.description}
                                 </p>
                               )}
-                              <p className="text-xs font-mono text-muted-foreground line-clamp-2">
+                              <p className="line-clamp-2 font-mono text-muted-foreground text-xs">
                                 {skill.prompt}
                               </p>
                             </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                               <Button
-                                variant="ghost"
-                                size="icon"
                                 className="h-7 w-7"
                                 onClick={() => handleStartEdit(skill)}
+                                size="icon"
+                                variant="ghost"
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="icon"
                                 className="h-7 w-7 text-destructive"
                                 onClick={() => handleDeleteSkill(skill.id)}
+                                size="icon"
+                                variant="ghost"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -826,21 +932,23 @@ export function PersonalizationPanel({
 
                 {/* Skill Input */}
                 <motion.div
-                  key="skill-input"
-                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="relative"
+                  initial={{ opacity: 0, y: 10 }}
+                  key="skill-input"
                 >
                   {learningSkillId && (isGeneratingPrompt || currentUIState) ? (
                     <div className="space-y-3">
                       {/* Loading state */}
                       {isGeneratingPrompt && !currentUIState && (
-                        <div className="p-4 rounded-lg border bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 animate-pulse">
+                        <div className="animate-pulse rounded-lg border bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 p-4">
                           <div className="flex items-center gap-3">
-                            <Sparkles className="h-5 w-5 text-primary animate-spin" />
+                            <Sparkles className="h-5 w-5 animate-spin text-primary" />
                             <div className="flex-1">
-                              <div className="font-medium text-sm">Learning skill...</div>
-                              <div className="text-xs text-muted-foreground mt-1">
+                              <div className="font-medium text-sm">
+                                Learning skill...
+                              </div>
+                              <div className="mt-1 text-muted-foreground text-xs">
                                 AI is analyzing your request
                               </div>
                             </div>
@@ -849,32 +957,37 @@ export function PersonalizationPanel({
                       )}
 
                       {/* Render UI components based on currentUIState */}
-                      {currentUIState && (
+                      {!!currentUIState && (
                         <div className="space-y-3">
                           {currentUIState.type === "question" && (
                             <SkillQuestion
                               message={currentUIState.message}
-                              options={currentUIState.options}
                               onSelect={handleUIResponse}
+                              options={currentUIState.options}
                             />
                           )}
 
                           {currentUIState.type === "variants" && (
                             <SkillVariants
                               message={currentUIState.message}
-                              options={currentUIState.options}
                               onSelect={handleUIResponse}
+                              options={currentUIState.options}
                             />
                           )}
 
-                          {currentUIState.type === "final-skill" && currentUIState.skill && (
-                            <SkillPreview
-                              skill={currentUIState.skill}
-                              onSave={() => handleSaveSkill(currentUIState.skill!)}
-                              onImprove={() => handleImproveSkill(currentUIState.skill!)}
-                              isSaving={isSavingSkill}
-                            />
-                          )}
+                          {currentUIState.type === "final-skill" &&
+                            currentUIState.skill && (
+                              <SkillPreview
+                                isSaving={isSavingSkill}
+                                onImprove={() =>
+                                  handleImproveSkill(currentUIState.skill!)
+                                }
+                                onSave={() =>
+                                  handleSaveSkill(currentUIState.skill!)
+                                }
+                                skill={currentUIState.skill}
+                              />
+                            )}
 
                           {currentUIState.type === "clarification" && (
                             <SkillClarification
@@ -884,10 +997,10 @@ export function PersonalizationPanel({
                           )}
 
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleCancelTraining}
                             className="w-full"
+                            onClick={handleCancelTraining}
+                            size="sm"
+                            variant="ghost"
                           >
                             Cancel Training
                           </Button>
@@ -897,24 +1010,26 @@ export function PersonalizationPanel({
                   ) : (
                     <div className="space-y-2">
                       <Textarea
-                        placeholder="What are you trying to accomplish? (e.g., 'boil a webpage down to a really simple sentence or two, extracting the main point or opinion')"
-                        value={newSkillDescription}
-                        onChange={(e) => setNewSkillDescription(e.target.value)}
                         className="min-h-[100px] resize-none"
+                        onChange={(e) => setNewSkillDescription(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                             e.preventDefault();
                             handleLearnSkill(newSkillDescription);
                           }
                         }}
+                        placeholder="What are you trying to accomplish? (e.g., 'boil a webpage down to a really simple sentence or two, extracting the main point or opinion')"
+                        value={newSkillDescription}
                       />
                       <Button
-                        size="sm"
-                        onClick={() => handleLearnSkill(newSkillDescription)}
-                        disabled={isGeneratingPrompt || !newSkillDescription.trim()}
                         className="w-full"
+                        disabled={
+                          isGeneratingPrompt || !newSkillDescription.trim()
+                        }
+                        onClick={() => handleLearnSkill(newSkillDescription)}
+                        size="sm"
                       >
-                        <Sparkles className="h-3 w-3 mr-2" />
+                        <Sparkles className="mr-2 h-3 w-3" />
                         Learn Skill
                       </Button>
                     </div>
@@ -923,7 +1038,6 @@ export function PersonalizationPanel({
               </TabsContent>
             </Tabs>
           </div>
-
         </div>
       </div>
     </>

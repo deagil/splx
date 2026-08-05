@@ -1,15 +1,15 @@
 "use client";
 
+import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FieldMetadata } from "@/lib/build/table-wizard/types";
 
-type AIAssistantProps = {
-  type: "fields" | "relationships" | "policies";
+interface AIAssistantProps {
   description: string;
   onGenerate: (fields: FieldMetadata[]) => void;
-};
+  type: "fields" | "relationships" | "policies";
+}
 
 export function AIAssistant({
   type,
@@ -26,10 +26,10 @@ export function AIAssistant({
     setLoading(true);
     try {
       const response = await fetch("/api/ai/generate-table-fields", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
         body: JSON.stringify({ description, type }),
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -51,24 +51,23 @@ export function AIAssistant({
 
   return (
     <Button
+      disabled={loading || !description.trim()}
+      onClick={handleGenerate}
+      size="sm"
       type="button"
       variant="outline"
-      onClick={handleGenerate}
-      disabled={loading || !description.trim()}
-      size="sm"
     >
       {loading ? (
         <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Generating...
         </>
       ) : (
         <>
-          <Sparkles className="w-4 h-4 mr-2" />
+          <Sparkles className="mr-2 h-4 w-4" />
           Generate Fields with AI
         </>
       )}
     </Button>
   );
 }
-

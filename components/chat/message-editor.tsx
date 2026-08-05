@@ -9,21 +9,18 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  deleteTrailingMessages,
-  generateTitleFromUserMessage,
-} from "@/lib/chat/actions";
-import type { ChatMessage } from "@/lib/types";
-import { getTextFromMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { deleteTrailingMessages } from "@/lib/chat/actions";
+import type { ChatMessage } from "@/lib/types";
+import { getTextFromMessage } from "@/lib/utils";
 
-export type MessageEditorProps = {
+export interface MessageEditorProps {
   message: ChatMessage;
-  setMode: Dispatch<SetStateAction<"view" | "edit">>;
-  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
-};
+  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
+  setMode: Dispatch<SetStateAction<"view" | "edit">>;
+}
 
 export function MessageEditor({
   message,
@@ -93,7 +90,7 @@ export function MessageEditor({
               if (index !== -1) {
                 const updatedMessage: ChatMessage = {
                   ...message,
-                  parts: [{ type: "text", text: draftContent }],
+                  parts: [{ text: draftContent, type: "text" }],
                 };
 
                 return [...messages.slice(0, index), updatedMessage];

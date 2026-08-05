@@ -1,10 +1,10 @@
 "use client";
 
-import * as React from "react";
+import { Sparkles, Zap } from "lucide-react";
 import type { TComboboxInputElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef } from "platejs/react";
-import { Sparkles, Zap } from "lucide-react";
+import * as React from "react";
 import {
   InlineCombobox,
   InlineComboboxContent,
@@ -14,7 +14,12 @@ import {
   InlineComboboxInput,
   InlineComboboxItem,
 } from "@/components/ui/inline-combobox";
-import { useSkills, skillsToCommandItems, type SkillItem, type Skill } from "@/hooks/use-skills";
+import {
+  type Skill,
+  type SkillItem,
+  skillsToCommandItems,
+  useSkills,
+} from "@/hooks/use-skills";
 
 export type SlashCommandInputElementProps =
   PlateElementProps<TComboboxInputElement> & {
@@ -25,7 +30,9 @@ export type SlashCommandInputElementProps =
  * Filter skill items based on search query
  */
 function filterSkillItems(items: SkillItem[], search: string): SkillItem[] {
-  if (!search) return items;
+  if (!search) {
+    return items;
+  }
   const lowerSearch = search.toLowerCase();
   return items.filter(
     (item) =>
@@ -78,11 +85,11 @@ export function SlashCommandInputElement({
   return (
     <PlateElement {...props} as="span">
       <InlineCombobox
-        value={search}
         element={element}
         setValue={setSearch}
         showTrigger={true}
         trigger="/"
+        value={search}
       >
         <span className="inline-block align-baseline text-sm">
           <InlineComboboxInput />
@@ -90,7 +97,7 @@ export function SlashCommandInputElement({
 
         <InlineComboboxContent className="my-1.5">
           {isLoading ? (
-            <div className="flex min-h-[36px] items-center px-2.5 py-1.5 text-sm text-muted-foreground">
+            <div className="flex min-h-[36px] items-center px-2.5 py-1.5 text-muted-foreground text-sm">
               Loading skills...
             </div>
           ) : (
@@ -112,9 +119,9 @@ export function SlashCommandInputElement({
                   {filteredItems.map((item) => (
                     <InlineComboboxItem
                       key={item.key}
-                      value={item.text}
-                      runOnClickBeforeRemoveInput
                       onClick={() => handleSelectItem(item)}
+                      runOnClickBeforeRemoveInput
+                      value={item.text}
                     >
                       <Zap className="shrink-0 text-amber-500" />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -122,12 +129,12 @@ export function SlashCommandInputElement({
                           <span className="truncate font-medium text-sm">
                             {item.skill.name}
                           </span>
-                          <span className="text-xs font-mono text-muted-foreground">
+                          <span className="font-mono text-muted-foreground text-xs">
                             /{item.skill.command}
                           </span>
                         </div>
-                        {item.description && (
-                          <span className="truncate text-xs text-muted-foreground">
+                        {!!item.description && (
+                          <span className="truncate text-muted-foreground text-xs">
                             {item.description}
                           </span>
                         )}
@@ -145,4 +152,3 @@ export function SlashCommandInputElement({
     </PlateElement>
   );
 }
-

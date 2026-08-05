@@ -1,38 +1,38 @@
-import Image from 'next/image'
-import { cn } from '@/lib/utils'
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
-type MediaContent = {
-  type: 'image' | 'gif' | 'video'
-  src: string
-  alt?: string
-  caption?: string
-  browserFrame?: boolean
+interface MediaContent {
+  alt?: string;
+  browserFrame?: boolean;
+  caption?: string;
+  src: string;
+  type: "image" | "gif" | "video";
 }
 
-type ReleaseNotesContentProps = {
-  children?: React.ReactNode
-  media?: MediaContent
-  className?: string
+interface ReleaseNotesContentProps {
+  children?: React.ReactNode;
+  className?: string;
+  media?: MediaContent;
 }
 
 function BrowserFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-background rounded-lg border border-black/10 shadow-lg shadow-black/10 ring-1 ring-black/5">
+    <div className="rounded-lg border border-black/10 bg-background shadow-black/10 shadow-lg ring-1 ring-black/5">
       {/* Browser chrome */}
-      <div className="flex items-center gap-2 border-b border-black/10 bg-muted/30 px-3 py-2">
+      <div className="flex items-center gap-2 border-black/10 border-b bg-muted/30 px-3 py-2">
         <div className="flex gap-1.5">
           <div className="size-3 rounded-full bg-red-500" />
           <div className="size-3 rounded-full bg-yellow-500" />
           <div className="size-3 rounded-full bg-green-500" />
         </div>
-        <div className="bg-background text-muted-foreground ml-2 flex-1 rounded px-3 py-1 text-xs">
+        <div className="ml-2 flex-1 rounded bg-background px-3 py-1 text-muted-foreground text-xs">
           {/* Browser address bar - placeholder */}
         </div>
       </div>
       {/* Content */}
       <div className="relative">{children}</div>
     </div>
-  )
+  );
 }
 
 export default function ReleaseNotesContent({
@@ -41,17 +41,17 @@ export default function ReleaseNotesContent({
   className,
 }: ReleaseNotesContentProps) {
   return (
-    <article className={cn('mx-auto max-w-7xl px-6', className)}>
+    <article className={cn("mx-auto max-w-7xl px-6", className)}>
       <div className="prose prose-lg dark:prose-invert max-w-none">
         {/* Text content - narrower column, left-aligned */}
-        {children && (
-          <div className="text-foreground mx-auto mb-16 max-w-2xl leading-relaxed">
+        {!!children && (
+          <div className="mx-auto mb-16 max-w-2xl text-foreground leading-relaxed">
             {children}
           </div>
         )}
 
         {/* Media content - wider container than text */}
-        {media && (
+        {!!media && (
           <div className="mx-auto my-20 max-w-5xl">
             {media.browserFrame ? (
               <BrowserFrame>
@@ -60,8 +60,8 @@ export default function ReleaseNotesContent({
             ) : (
               <MediaRenderer media={media} />
             )}
-            {media.caption && (
-              <p className="text-muted-foreground mt-6 text-center text-sm">
+            {!!media.caption && (
+              <p className="mt-6 text-center text-muted-foreground text-sm">
                 {media.caption}
               </p>
             )}
@@ -69,38 +69,38 @@ export default function ReleaseNotesContent({
         )}
       </div>
     </article>
-  )
+  );
 }
 
 function MediaRenderer({ media }: { media: MediaContent }) {
   switch (media.type) {
-    case 'image':
-    case 'gif':
+    case "image":
+    case "gif":
       return (
         <div className="relative aspect-video w-full overflow-hidden">
           <Image
-            src={media.src}
-            alt={media.alt ?? ''}
-            fill
+            alt={media.alt ?? ""}
             className="object-contain"
-            unoptimized={media.type === 'gif'}
+            fill
+            src={media.src}
+            unoptimized={media.type === "gif"}
           />
         </div>
-      )
-    case 'video':
+      );
+    case "video":
       return (
         <div className="relative aspect-video w-full overflow-hidden">
           <video
-            src={media.src}
+            autoPlay
             className="size-full object-contain"
             controls
-            autoPlay
             loop
             muted
+            src={media.src}
           />
         </div>
-      )
+      );
     default:
-      return null
+      return null;
   }
 }

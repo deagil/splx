@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import {
   type ComponentProps,
@@ -13,6 +11,8 @@ import {
   useState,
 } from "react";
 import { type BundledLanguage, codeToHtml, type ShikiTransformer } from "shiki";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
@@ -20,20 +20,18 @@ type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   showLineNumbers?: boolean;
 };
 
-type CodeBlockContextType = {
+interface CodeBlockContextType {
   code: string;
-};
+}
 
 const CodeBlockContext = createContext<CodeBlockContextType>({
   code: "",
 });
 
 const lineNumberTransformer: ShikiTransformer = {
-  name: "line-numbers",
   line(node, line) {
     node.children.unshift({
-      type: "element",
-      tagName: "span",
+      children: [{ type: "text", value: String(line) }],
       properties: {
         className: [
           "inline-block",
@@ -44,9 +42,11 @@ const lineNumberTransformer: ShikiTransformer = {
           "text-muted-foreground",
         ],
       },
-      children: [{ type: "text", value: String(line) }],
+      tagName: "span",
+      type: "element",
     });
   },
+  name: "line-numbers",
 };
 
 export async function highlightCode(
@@ -118,7 +118,7 @@ export const CodeBlock = ({
             // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
             dangerouslySetInnerHTML={{ __html: darkHtml }}
           />
-          {children && (
+          {!!children && (
             <div className="absolute top-2 right-2 flex items-center gap-2">
               {children}
             </div>

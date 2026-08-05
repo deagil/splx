@@ -1,11 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
 import { table as tableConfigTable } from "@/lib/db/schema";
-import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
-import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import {
-  tableRecordSchema,
-  type TableRecord,
-} from "@/lib/server/tables/schema";
 import {
   buildSelectQuery,
   countRecords,
@@ -13,6 +7,12 @@ import {
   getRecordById,
   type QueryOptions,
 } from "@/lib/server/tables/query-builder";
+import {
+  type TableRecord,
+  tableRecordSchema,
+} from "@/lib/server/tables/schema";
+import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
+import { getResourceStore } from "@/lib/server/tenant/resource-store";
 import { ApiError } from "@/server/api/responses";
 import { writeAuditLog } from "@/server/lib/audit";
 import { getControlPlaneDb } from "@/server/lib/db";
@@ -42,25 +42,25 @@ import { emitEvent } from "@/server/lib/events";
  * empty list and reject every write.
  */
 
-export type DataRepositoryContext = {
-  tenant: TenantContext;
-  requestId?: string;
+export interface DataRepositoryContext {
   /** When set, threaded into emitEvent for the workflow recursion guard. */
   causedByRunId?: string | null;
-};
+  requestId?: string;
+  tenant: TenantContext;
+}
 
-type ResolvedTable = {
-  config: TableRecord;
-  /** Physical table name in the resource store. */
-  physicalName: string;
+interface ResolvedTable {
   columns: string[];
-  primaryKey: string;
+  config: TableRecord;
   /**
    * True when the physical table actually carries a `workspace_id` column, in
    * which case reads and writes are additionally scoped by it.
    */
   hasWorkspaceColumn: boolean;
-};
+  /** Physical table name in the resource store. */
+  physicalName: string;
+  primaryKey: string;
+}
 
 const MAX_LIMIT = 1000;
 
@@ -94,7 +94,7 @@ async function loadTableConfig(
     )
     .limit(1);
 
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return null;
   }
@@ -178,11 +178,11 @@ async function resolveTable(
   }
 
   return {
-    config,
-    physicalName,
     columns,
-    primaryKey,
+    config,
     hasWorkspaceColumn: columns.includes("workspace_id"),
+    physicalName,
+    primaryKey,
   };
 }
 
@@ -329,7 +329,10 @@ export function parsePagination(query: URLSearchParams): {
   const offset = rawOffset === null ? 0 : Number(rawOffset);
 
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    throw new ApiError(400, `limit must be an integer between 1 and ${MAX_LIMIT}`);
+    throw new ApiError(
+      400,
+      `limit must be an integer between 1 and ${MAX_LIMIT}`
+    );
   }
 
   if (!Number.isInteger(offset) || offset < 0) {
@@ -349,19 +352,19 @@ export function parseOrderDirection(value: string | null): "asc" | "desc" {
   throw new ApiError(400, 'orderDirection must be "asc" or "desc"');
 }
 
-export type ListOptions = {
+export interface ListOptions {
+  filters: Record<string, unknown>;
+  includeLabels: boolean;
   limit: number;
   offset: number;
   orderBy?: string;
   orderDirection: "asc" | "desc";
-  includeLabels: boolean;
-  filters: Record<string, unknown>;
-};
+}
 
-export type ListResult = {
+export interface ListResult {
   records: Record<string, unknown>[];
   total: number;
-};
+}
 
 /**
  * The repository. One instance per (tenant, table) pair; each method opens and
@@ -370,9 +373,7 @@ export type ListResult = {
 export function dataRepository(context: DataRepositoryContext) {
   const { tenant, requestId, causedByRunId } = context;
 
-  async function withStore<T>(
-    fn: (db: DbClient) => Promise<T>
-  ): Promise<T> {
+  async function withStore<T>(fn: (db: DbClient) => Promise<T>): Promise<T> {
     const store = await getResourceStore(tenant);
     try {
       return await store.withSqlClient(fn);
@@ -382,53 +383,39 @@ export function dataRepository(context: DataRepositoryContext) {
   }
 
   return {
-    async list(tableId: string, options: ListOptions): Promise<ListResult> {
+    async create(
+      tableId: string,
+      body: Record<string, unknown>
+    ): Promise<Record<string, unknown>> {
       return withStore(async (db) => {
         const table = await resolveTable(db, tenant, tableId);
 
-        const unknownFilters = Object.keys(options.filters).filter(
-          (key) => !table.columns.includes(key)
-        );
-        if (unknownFilters.length > 0) {
-          throw new ApiError(
-            400,
-            `Unknown filter column(s): ${unknownFilters.join(", ")}`
-          );
-        }
+        const rows = (await db.execute(
+          buildInsert(table, body, tenant.workspaceId)
+        )) as Record<string, unknown>[];
 
-        if (options.orderBy && !table.columns.includes(options.orderBy)) {
-          throw new ApiError(400, `Unknown orderBy column: ${options.orderBy}`);
-        }
+        const [record] = rows;
 
-        const filters = { ...options.filters };
-        if (table.hasWorkspaceColumn) {
-          filters.workspace_id = tenant.workspaceId;
-        }
+        await writeAuditLog({
+          action: "data.created",
+          actorUserId: tenant.userId,
+          changes: body,
+          requestId,
+          resourceId: String(record?.[table.primaryKey] ?? ""),
+          resourceType: table.config.id,
+          workspaceId: tenant.workspaceId,
+        });
 
-        const queryOptions: QueryOptions = {
-          limit: options.limit,
-          offset: options.offset,
-          orderBy: options.orderBy,
-          orderDirection: options.orderDirection,
-          filters,
-          includeLabels: options.includeLabels,
-        };
+        await emitEvent({
+          actorUserId: tenant.userId,
+          causedByRunId,
+          eventName: `db.${table.physicalName}.created`,
+          payload: { record },
+          requestId,
+          workspaceId: tenant.workspaceId,
+        });
 
-        const { query } = await buildSelectQuery(
-          db,
-          tenant,
-          table.config,
-          table.physicalName,
-          queryOptions
-        );
-
-        const records = (await executeSelectQuery(db, query)) as Record<
-          string,
-          unknown
-        >[];
-        const total = await countRecords(db, table.physicalName, filters);
-
-        return { records, total };
+        return record;
       });
     },
 
@@ -462,40 +449,91 @@ export function dataRepository(context: DataRepositoryContext) {
         return record;
       });
     },
+    async list(tableId: string, options: ListOptions): Promise<ListResult> {
+      return withStore(async (db) => {
+        const table = await resolveTable(db, tenant, tableId);
 
-    async create(
-      tableId: string,
-      body: Record<string, unknown>
-    ): Promise<Record<string, unknown>> {
+        const unknownFilters = Object.keys(options.filters).filter(
+          (key) => !table.columns.includes(key)
+        );
+        if (unknownFilters.length > 0) {
+          throw new ApiError(
+            400,
+            `Unknown filter column(s): ${unknownFilters.join(", ")}`
+          );
+        }
+
+        if (options.orderBy && !table.columns.includes(options.orderBy)) {
+          throw new ApiError(400, `Unknown orderBy column: ${options.orderBy}`);
+        }
+
+        const filters = { ...options.filters };
+        if (table.hasWorkspaceColumn) {
+          filters.workspace_id = tenant.workspaceId;
+        }
+
+        const queryOptions: QueryOptions = {
+          filters,
+          includeLabels: options.includeLabels,
+          limit: options.limit,
+          offset: options.offset,
+          orderBy: options.orderBy,
+          orderDirection: options.orderDirection,
+        };
+
+        const { query } = await buildSelectQuery(
+          db,
+          tenant,
+          table.config,
+          table.physicalName,
+          queryOptions
+        );
+
+        const records = (await executeSelectQuery(db, query)) as Record<
+          string,
+          unknown
+        >[];
+        const total = await countRecords(db, table.physicalName, filters);
+
+        return { records, total };
+      });
+    },
+
+    async remove(tableId: string, recordId: string): Promise<boolean> {
       return withStore(async (db) => {
         const table = await resolveTable(db, tenant, tableId);
 
         const rows = (await db.execute(
-          buildInsert(table, body, tenant.workspaceId)
+          buildDelete(table, recordId, tenant.workspaceId)
         )) as Record<string, unknown>[];
 
-        const record = rows[0];
+        const [record] = rows;
+        if (!record) {
+          // The old route returned { success: true } unconditionally, so
+          // deleting a nonexistent id reported success.
+          return false;
+        }
 
         await writeAuditLog({
-          workspaceId: tenant.workspaceId,
+          action: "data.deleted",
           actorUserId: tenant.userId,
-          action: "data.created",
-          resourceType: table.config.id,
-          resourceId: String(record?.[table.primaryKey] ?? ""),
-          changes: body,
+          changes: { deleted: record },
           requestId,
+          resourceId: recordId,
+          resourceType: table.config.id,
+          workspaceId: tenant.workspaceId,
         });
 
         await emitEvent({
-          workspaceId: tenant.workspaceId,
-          eventName: `db.${table.physicalName}.created`,
-          payload: { record },
           actorUserId: tenant.userId,
-          requestId,
           causedByRunId,
+          eventName: `db.${table.physicalName}.deleted`,
+          payload: { record },
+          requestId,
+          workspaceId: tenant.workspaceId,
         });
 
-        return record;
+        return true;
       });
     },
 
@@ -511,69 +549,31 @@ export function dataRepository(context: DataRepositoryContext) {
           buildUpdate(table, recordId, body, tenant.workspaceId)
         )) as Record<string, unknown>[];
 
-        const record = rows[0];
+        const [record] = rows;
         if (!record) {
           return null;
         }
 
         await writeAuditLog({
-          workspaceId: tenant.workspaceId,
-          actorUserId: tenant.userId,
           action: "data.updated",
-          resourceType: table.config.id,
-          resourceId: recordId,
+          actorUserId: tenant.userId,
           changes: body,
           requestId,
+          resourceId: recordId,
+          resourceType: table.config.id,
+          workspaceId: tenant.workspaceId,
         });
 
         await emitEvent({
-          workspaceId: tenant.workspaceId,
-          eventName: `db.${table.physicalName}.updated`,
-          payload: { record, changes: body },
           actorUserId: tenant.userId,
-          requestId,
           causedByRunId,
+          eventName: `db.${table.physicalName}.updated`,
+          payload: { changes: body, record },
+          requestId,
+          workspaceId: tenant.workspaceId,
         });
 
         return record;
-      });
-    },
-
-    async remove(tableId: string, recordId: string): Promise<boolean> {
-      return withStore(async (db) => {
-        const table = await resolveTable(db, tenant, tableId);
-
-        const rows = (await db.execute(
-          buildDelete(table, recordId, tenant.workspaceId)
-        )) as Record<string, unknown>[];
-
-        const record = rows[0];
-        if (!record) {
-          // The old route returned { success: true } unconditionally, so
-          // deleting a nonexistent id reported success.
-          return false;
-        }
-
-        await writeAuditLog({
-          workspaceId: tenant.workspaceId,
-          actorUserId: tenant.userId,
-          action: "data.deleted",
-          resourceType: table.config.id,
-          resourceId: recordId,
-          changes: { deleted: record },
-          requestId,
-        });
-
-        await emitEvent({
-          workspaceId: tenant.workspaceId,
-          eventName: `db.${table.physicalName}.deleted`,
-          payload: { record },
-          actorUserId: tenant.userId,
-          requestId,
-          causedByRunId,
-        });
-
-        return true;
       });
     },
   };
@@ -585,6 +585,6 @@ export type { ResolvedTable };
 
 /** Exported for unit tests. */
 export const __testing = {
-  validateWriteKeys,
   bindValue,
+  validateWriteKeys,
 };

@@ -16,7 +16,6 @@ import { Streamdown } from "streamdown";
 import { DiffType, diffEditor } from "@/lib/editor/diff";
 
 const diffSchema = new Schema({
-  nodes: addListNodes(schema.spec.nodes, "paragraph block*", "block"),
   marks: OrderedMap.from({
     ...schema.spec.marks.toObject(),
     diffMark: {
@@ -40,16 +39,17 @@ const diffSchema = new Schema({
       },
     } as MarkSpec,
   }),
+  nodes: addListNodes(schema.spec.nodes, "paragraph block*", "block"),
 });
 
 function computeDiff(oldDoc: ProsemirrorNode, newDoc: ProsemirrorNode) {
   return diffEditor(diffSchema, oldDoc.toJSON(), newDoc.toJSON());
 }
 
-type DiffEditorProps = {
-  oldContent: string;
+interface DiffEditorProps {
   newContent: string;
-};
+  oldContent: string;
+}
 
 export const DiffView = ({ oldContent, newContent }: DiffEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -83,8 +83,8 @@ export const DiffView = ({ oldContent, newContent }: DiffEditorProps) => {
       });
 
       viewRef.current = new EditorView(editorRef.current, {
-        state,
         editable: () => false,
+        state,
       });
     }
 

@@ -1,6 +1,5 @@
 import { createUIMessageStream, JsonToSseTransformStream } from "ai";
 import { differenceInSeconds } from "date-fns";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
 import {
   getChatById,
   getMessagesByChatId,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/db/queries";
 import type { Chat } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import type { ChatMessage } from "@/lib/types";
 import { getStreamContext } from "../../route";
 
@@ -96,9 +96,9 @@ export async function GET(
     const restoredStream = createUIMessageStream<ChatMessage>({
       execute: ({ writer }) => {
         writer.write({
-          type: "data-appendMessage",
           data: JSON.stringify(mostRecentMessage),
           transient: true,
+          type: "data-appendMessage",
         });
       },
     });

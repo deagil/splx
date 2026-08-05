@@ -1,39 +1,39 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReportRecord } from "@/lib/server/reports";
+import type { TableRecord } from "@/lib/server/tables";
+import { useMentionableData } from "./mention-context";
 import type {
   ListBlockDraft,
   RecordBlockDraft,
   ReportBlockDraft,
   TriggerBlockDraft,
 } from "./types";
-import { useMentionableData } from "./mention-context";
-import type { TableRecord } from "@/lib/server/tables";
-import type { ReportRecord } from "@/lib/server/reports";
 
-export type ListBlockData = {
+export interface ListBlockData {
   columns: string[];
-  rows: Array<Record<string, unknown>>;
   pagination: {
     page: number;
     limit: number;
     totalRows: number;
     totalPages: number;
   };
+  rows: Record<string, unknown>[];
   tableName: string;
-};
+}
 
-export type RecordBlockData = {
+export interface RecordBlockData {
   columns: string[];
   record: Record<string, unknown> | null;
   tableName: string;
-};
+}
 
 export function useTableMetadata(tableName: string | null) {
   const [table, setTable] = useState<TableRecord | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requestId, setRequestId] = useState(0);
+  const [_requestId, setRequestId] = useState(0);
 
   const fetchMetadata = useCallback(
     async (signal?: AbortSignal) => {
@@ -49,7 +49,7 @@ export function useTableMetadata(tableName: string | null) {
       try {
         const response = await fetch(
           `/api/tables/metadata?table=${encodeURIComponent(tableName)}`,
-          { signal },
+          { signal }
         );
 
         if (!response.ok) {
@@ -63,43 +63,41 @@ export function useTableMetadata(tableName: string | null) {
         if ((caught as Error)?.name === "AbortError") {
           return;
         }
-        setError(
-          caught instanceof Error ? caught.message : "Unknown error",
-        );
+        setError(caught instanceof Error ? caught.message : "Unknown error");
         setTable(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [tableName],
+    [tableName]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     fetchMetadata(controller.signal);
     return () => controller.abort();
-  }, [fetchMetadata, requestId]);
+  }, [fetchMetadata]);
 
   const reload = useCallback(() => {
     setRequestId((current) => current + 1);
   }, []);
 
   return {
-    table,
-    isLoading,
     error,
+    isLoading,
     reload,
+    table,
   };
 }
 
 export function useListBlockData(
   block: ListBlockDraft,
-  urlParams: Record<string, string>,
+  urlParams: Record<string, string>
 ) {
   const [data, setData] = useState<ListBlockData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requestId, setRequestId] = useState(0);
+  const [_requestId, setRequestId] = useState(0);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -107,24 +105,26 @@ export function useListBlockData(
     params.set("page", "1");
     params.set("limit", "100");
 
-    block.filters.forEach((filter) => {
+    for (const filter of block.filters) {
       if (!filter.column) {
-        return;
+        continue;
       }
       if (filter.operator === "is_null" || filter.operator === "is_not_null") {
         params.set(`filter_op[${filter.column}]`, filter.operator);
-        return;
+        continue;
       }
 
       const resolvedValue = resolveUrlValue(filter.value, urlParams);
       if (
-        resolvedValue !== null && resolvedValue !== undefined &&
+        resolvedValue !== null &&
+        resolvedValue !== undefined &&
         resolvedValue !== ""
       ) {
         params.set(`filter_op[${filter.column}]`, filter.operator);
         params.set(`filter[${filter.column}]`, resolvedValue);
       }
-    });
+    }
+    )
 
     return params.toString();
   }, [block.filters, block.tableName, urlParams]);
@@ -141,18 +141,13 @@ export function useListBlockData(
       setError(null);
 
       try {
-        const response = await fetch(
-          `/api/supabase/table?${queryString}`,
-          {
-            signal,
-          },
-        );
+        const response = await fetch(`/api/supabase/table?${queryString}`, {
+          signal,
+        });
 
         if (!response.ok) {
           const payload = await safeJson(response);
-          throw new Error(
-            payload?.error ?? "Failed to load table data",
-          );
+          throw new Error(payload?.error ?? "Failed to load table data");
         }
 
         const payload = (await response.json()) as ListBlockData;
@@ -161,22 +156,20 @@ export function useListBlockData(
         if ((caught as Error)?.name === "AbortError") {
           return;
         }
-        setError(
-          caught instanceof Error ? caught.message : "Unknown error",
-        );
+        setError(caught instanceof Error ? caught.message : "Unknown error");
         setData(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [block.tableName, queryString],
+    [block.tableName, queryString]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     fetchData(controller.signal);
     return () => controller.abort();
-  }, [fetchData, requestId]);
+  }, [fetchData]);
 
   // Register block data with mention context
   const { registerBlockData, unregisterBlockData } = useMentionableData();
@@ -185,10 +178,10 @@ export function useListBlockData(
       registerBlockData({
         blockId: block.id,
         blockType: "list",
-        tableName: block.tableName,
-        label: `List: ${block.tableName}`,
-        description: `${data.rows.length} rows from ${block.tableName}`,
         data,
+        description: `${data.rows.length} rows from ${block.tableName}`,
+        label: `List: ${block.tableName}`,
+        tableName: block.tableName,
       });
     }
     return () => {
@@ -202,20 +195,20 @@ export function useListBlockData(
 
   return {
     data,
-    isLoading,
     error,
+    isLoading,
     reload,
   };
 }
 
 export function useRecordBlockData(
   block: RecordBlockDraft,
-  urlParams: Record<string, string>,
+  urlParams: Record<string, string>
 ) {
   const [data, setData] = useState<RecordBlockData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requestId, setRequestId] = useState(0);
+  const [_requestId, setRequestId] = useState(0);
 
   const { queryString, resolvedId } = useMemo(() => {
     const params = new URLSearchParams();
@@ -245,16 +238,13 @@ export function useRecordBlockData(
       setError(null);
 
       try {
-        const response = await fetch(
-          `/api/supabase/record?${queryString}`,
-          { signal },
-        );
+        const response = await fetch(`/api/supabase/record?${queryString}`, {
+          signal,
+        });
 
         if (!response.ok) {
           const payload = await safeJson(response);
-          throw new Error(
-            payload?.error ?? "Failed to load record data",
-          );
+          throw new Error(payload?.error ?? "Failed to load record data");
         }
 
         const payload = (await response.json()) as RecordBlockData;
@@ -263,22 +253,20 @@ export function useRecordBlockData(
         if ((caught as Error)?.name === "AbortError") {
           return;
         }
-        setError(
-          caught instanceof Error ? caught.message : "Unknown error",
-        );
+        setError(caught instanceof Error ? caught.message : "Unknown error");
         setData(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [block.recordId, block.tableName, queryString],
+    [block.recordId, block.tableName, queryString, resolvedId]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     fetchData(controller.signal);
     return () => controller.abort();
-  }, [fetchData, requestId]);
+  }, [fetchData]);
 
   // Register block data with mention context
   const { registerBlockData, unregisterBlockData } = useMentionableData();
@@ -287,10 +275,10 @@ export function useRecordBlockData(
       registerBlockData({
         blockId: block.id,
         blockType: "record",
-        tableName: block.tableName,
-        label: `Record: ${block.tableName}`,
-        description: `Record from ${block.tableName}`,
         data,
+        description: `Record from ${block.tableName}`,
+        label: `Record: ${block.tableName}`,
+        tableName: block.tableName,
       });
     }
     return () => {
@@ -304,23 +292,23 @@ export function useRecordBlockData(
 
   return {
     data,
-    isLoading,
     error,
+    isLoading,
     reload,
   };
 }
 
 export function useReportBlockData(block: ReportBlockDraft) {
-  const [data, setData] = useState<Array<Record<string, unknown>> | null>(null);
+  const [data, setData] = useState<Record<string, unknown>[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requestId, setRequestId] = useState(0);
+  const [_requestId, setRequestId] = useState(0);
 
   // We need to fetch the report definition to get the SQL
   const { reports } = useReports();
   const reportDef = useMemo(
     () => reports.find((r) => r.id === block.reportId),
-    [reports, block.reportId],
+    [reports, block.reportId]
   );
 
   const fetchData = useCallback(
@@ -341,13 +329,13 @@ export function useReportBlockData(block: ReportBlockDraft) {
 
       try {
         const response = await fetch("/api/reports/execute", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
             sql: reportDef.sql,
           }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
           signal,
         });
 
@@ -357,7 +345,7 @@ export function useReportBlockData(block: ReportBlockDraft) {
         }
 
         const payload = (await response.json()) as {
-          data: Array<Record<string, unknown>>;
+          data: Record<string, unknown>[];
         };
         setData(payload.data);
       } catch (caught) {
@@ -370,14 +358,14 @@ export function useReportBlockData(block: ReportBlockDraft) {
         setIsLoading(false);
       }
     },
-    [block.reportId, reportDef],
+    [block.reportId, reportDef]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     fetchData(controller.signal);
     return () => controller.abort();
-  }, [fetchData, requestId]);
+  }, [fetchData]);
 
   const reload = useCallback(() => {
     setRequestId((current) => current + 1);
@@ -385,8 +373,8 @@ export function useReportBlockData(block: ReportBlockDraft) {
 
   return {
     data,
-    isLoading,
     error,
+    isLoading,
     reload,
   };
 }
@@ -422,7 +410,7 @@ export function useReports() {
     return () => controller.abort();
   }, []);
 
-  return { reports, isLoading, error };
+  return { error, isLoading, reports };
 }
 
 export function useTriggerBlockAction(block: TriggerBlockDraft) {
@@ -441,12 +429,12 @@ export function useTriggerBlockAction(block: TriggerBlockDraft) {
       }
 
       const response = await fetch(`/api/v1/workflows/${workflowId}/run`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          context: { event: null, source: "trigger_block", steps: [] },
           triggerSource: "trigger_block",
-          context: { event: null, steps: [], source: "trigger_block" },
         }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
 
       const body = await safeJson(response);
@@ -460,22 +448,20 @@ export function useTriggerBlockAction(block: TriggerBlockDraft) {
       setStatus("success");
     } catch (caught) {
       setStatus("error");
-      setError(
-        caught instanceof Error ? caught.message : "Trigger failed",
-      );
+      setError(caught instanceof Error ? caught.message : "Trigger failed");
     }
   }, [block.display.hookName]);
 
   return {
+    error,
     execute,
     status,
-    error,
   };
 }
 
 function resolveUrlValue(
   value: string,
-  urlParams: Record<string, string>,
+  urlParams: Record<string, string>
 ): string | null {
   if (!value) {
     return value;

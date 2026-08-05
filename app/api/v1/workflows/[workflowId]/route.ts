@@ -9,17 +9,16 @@ import {
 } from "@/server/repositories/workflows";
 
 const updateSchema = z.object({
-  name: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   enabled: z.boolean().optional(),
-  triggerType: z.enum(["event", "manual"]).optional(),
   eventName: z.string().nullable().optional(),
+  name: z.string().min(1).optional(),
   steps: z.array(z.record(z.string(), z.unknown())).optional(),
+  triggerType: z.enum(["event", "manual"]).optional(),
 });
 
 export const GET = endpoint<undefined, { workflowId: string }>({
   auth: "required",
-  permission: "workflows.view",
   async handler({ user, params }) {
     const workflow = await getWorkflow(user.workspaceId, params.workflowId);
     if (!workflow) {
@@ -27,6 +26,7 @@ export const GET = endpoint<undefined, { workflowId: string }>({
     }
     return { data: { workflow } };
   },
+  permission: "workflows.view",
 });
 
 export const PATCH = endpoint<
@@ -34,8 +34,6 @@ export const PATCH = endpoint<
   { workflowId: string }
 >({
   auth: "required",
-  permission: "workflows.edit",
-  schema: updateSchema,
   async handler({ user, params, body, requestId }) {
     const workflow = await updateWorkflow(
       user.workspaceId,
@@ -47,22 +45,23 @@ export const PATCH = endpoint<
     }
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "workflows.updated",
-      resourceType: "workflow",
-      resourceId: workflow.id,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: workflow.id,
+      resourceType: "workflow",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { workflow } };
   },
+  permission: "workflows.edit",
+  schema: updateSchema,
 });
 
 export const DELETE = endpoint<undefined, { workflowId: string }>({
   auth: "required",
-  permission: "workflows.edit",
   async handler({ user, params, requestId }) {
     const deleted = await deleteWorkflow(user.workspaceId, params.workflowId);
     if (!deleted) {
@@ -70,15 +69,16 @@ export const DELETE = endpoint<undefined, { workflowId: string }>({
     }
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "workflows.deleted",
-      resourceType: "workflow",
-      resourceId: params.workflowId,
+      actorUserId: user.userId,
       changes: {},
       requestId,
+      resourceId: params.workflowId,
+      resourceType: "workflow",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { success: true } };
   },
+  permission: "workflows.edit",
 });

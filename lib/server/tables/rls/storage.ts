@@ -1,9 +1,9 @@
 import type {
-  RLSPolicyTemplate,
   RLSPolicyGroup,
+  RLSPolicyTemplate,
   TableConfig,
+  TableRecord,
 } from "../schema";
-import type { TableRecord } from "../schema";
 
 /**
  * Gets RLS policy templates from table config
@@ -114,4 +114,3 @@ export function getPolicyTemplateById(
   const templates = getPolicyTemplates(tableConfig);
   return templates.find((t) => t.id === templateId) ?? null;
 }
-

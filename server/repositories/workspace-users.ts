@@ -2,8 +2,8 @@ import { and, eq, ne } from "drizzle-orm";
 import { role, user, workspace, workspaceUser } from "@/lib/db/schema";
 import { ApiError } from "@/server/api/responses";
 import { writeAuditLog } from "@/server/lib/audit";
-import { emitEvent } from "@/server/lib/events";
 import { getControlPlaneDb } from "@/server/lib/db";
+import { emitEvent } from "@/server/lib/events";
 
 /**
  * Workspace membership management.
@@ -21,10 +21,10 @@ import { getControlPlaneDb } from "@/server/lib/db";
  *   `roles` is workspace-scoped.
  */
 
-export type WorkspaceMember = {
+export interface WorkspaceMember {
+  created_at: Date;
   id: string;
   role_id: string;
-  created_at: Date;
   user_id: string;
   users: {
     id: string;
@@ -34,28 +34,28 @@ export type WorkspaceMember = {
     avatar_url: string | null;
     job_title: string | null;
   } | null;
-};
+}
 
-export type WorkspaceUsersContext = {
-  workspaceId: string;
+export interface WorkspaceUsersContext {
   actorUserId: string;
   requestId?: string;
-};
+  workspaceId: string;
+}
 
 export async function listWorkspaceMembers(
   workspaceId: string
 ): Promise<WorkspaceMember[]> {
   const rows = await getControlPlaneDb()
     .select({
-      id: workspaceUser.id,
-      role_id: workspaceUser.role_id,
+      avatar_url: user.avatar_url,
       created_at: workspaceUser.created_at,
-      user_id: workspaceUser.user_id,
       email: user.email,
       firstname: user.firstname,
-      lastname: user.lastname,
-      avatar_url: user.avatar_url,
+      id: workspaceUser.id,
       job_title: user.job_title,
+      lastname: user.lastname,
+      role_id: workspaceUser.role_id,
+      user_id: workspaceUser.user_id,
     })
     .from(workspaceUser)
     .leftJoin(user, eq(user.id, workspaceUser.user_id))
@@ -63,18 +63,18 @@ export async function listWorkspaceMembers(
     .orderBy(workspaceUser.created_at);
 
   return rows.map((row) => ({
+    created_at: row.created_at,
     id: row.id,
     role_id: row.role_id,
-    created_at: row.created_at,
     user_id: row.user_id,
     users: row.email
       ? {
-          id: row.user_id,
+          avatar_url: row.avatar_url,
           email: row.email,
           firstname: row.firstname,
-          lastname: row.lastname,
-          avatar_url: row.avatar_url,
+          id: row.user_id,
           job_title: row.job_title,
+          lastname: row.lastname,
         }
       : null,
   }));
@@ -85,8 +85,8 @@ async function requireMembership(workspaceId: string, membershipId: string) {
   const [membership] = await getControlPlaneDb()
     .select({
       id: workspaceUser.id,
-      user_id: workspaceUser.user_id,
       role_id: workspaceUser.role_id,
+      user_id: workspaceUser.user_id,
     })
     .from(workspaceUser)
     .where(
@@ -161,7 +161,10 @@ export async function updateMemberRole(
     .limit(1);
 
   if (!targetRole) {
-    throw new ApiError(400, `Role "${roleId}" does not exist in this workspace`);
+    throw new ApiError(
+      400,
+      `Role "${roleId}" does not exist in this workspace`
+    );
   }
 
   if (membership.role_id === roleId) {
@@ -190,26 +193,30 @@ export async function updateMemberRole(
     );
 
   await writeAuditLog({
-    workspaceId,
-    actorUserId,
     action: "workspace.member_role_changed",
-    resourceType: "workspace_user",
-    resourceId: membershipId,
-    changes: { from: membership.role_id, to: roleId, userId: membership.user_id },
+    actorUserId,
+    changes: {
+      from: membership.role_id,
+      to: roleId,
+      userId: membership.user_id,
+    },
     requestId,
+    resourceId: membershipId,
+    resourceType: "workspace_user",
+    workspaceId,
   });
 
   await emitEvent({
-    workspaceId,
+    actorUserId,
     eventName: "workspace.member_role_changed",
     payload: {
-      membershipId,
-      userId: membership.user_id,
       from: membership.role_id,
+      membershipId,
       to: roleId,
+      userId: membership.user_id,
     },
-    actorUserId,
     requestId,
+    workspaceId,
   });
 }
 
@@ -227,10 +234,7 @@ export async function removeMember(
   }
 
   if (await isLastAdmin(workspaceId, membershipId, membership.role_id)) {
-    throw new ApiError(
-      400,
-      "Cannot remove the last admin from this workspace"
-    );
+    throw new ApiError(400, "Cannot remove the last admin from this workspace");
   }
 
   await db
@@ -243,30 +247,30 @@ export async function removeMember(
     );
 
   await writeAuditLog({
-    workspaceId,
-    actorUserId,
     action: "workspace.member_removed",
-    resourceType: "workspace_user",
-    resourceId: membershipId,
-    changes: { userId: membership.user_id, roleId: membership.role_id },
+    actorUserId,
+    changes: { roleId: membership.role_id, userId: membership.user_id },
     requestId,
+    resourceId: membershipId,
+    resourceType: "workspace_user",
+    workspaceId,
   });
 
   await emitEvent({
-    workspaceId,
+    actorUserId,
     eventName: "workspace.member_removed",
     payload: { membershipId, userId: membership.user_id },
-    actorUserId,
     requestId,
+    workspaceId,
   });
 }
 
 export async function listWorkspaceRoles(workspaceId: string) {
   return getControlPlaneDb()
     .select({
+      description: role.description,
       id: role.id,
       label: role.label,
-      description: role.description,
       level: role.level,
     })
     .from(role)

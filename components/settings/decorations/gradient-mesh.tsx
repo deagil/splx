@@ -12,19 +12,19 @@ export function GradientMesh() {
       <div className="absolute inset-0 overflow-hidden rounded-lg bg-gradient-to-br from-muted/30 to-muted/10">
         {/* Blob 1 - Brand color, top-left origin */}
         <div
-          className="absolute -left-8 -top-8 h-24 w-24 rounded-full opacity-60 blur-2xl"
+          className="absolute -top-8 -left-8 h-24 w-24 rounded-full opacity-60 blur-2xl"
           style={{
-            background: "var(--brand)",
             animation: "meshBlob1 18s ease-in-out infinite",
+            background: "var(--brand)",
           }}
         />
 
         {/* Blob 2 - Highlight color, center-right origin */}
         <div
-          className="absolute -right-4 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full opacity-50 blur-2xl"
+          className="absolute top-1/2 -right-4 h-20 w-20 -translate-y-1/2 rounded-full opacity-50 blur-2xl"
           style={{
-            background: "var(--highlight)",
             animation: "meshBlob2 15s ease-in-out infinite",
+            background: "var(--highlight)",
           }}
         />
 
@@ -32,23 +32,23 @@ export function GradientMesh() {
         <div
           className="absolute bottom-0 left-1/3 h-16 w-32 rounded-full opacity-40 blur-xl"
           style={{
+            animation: "meshBlob3 20s ease-in-out infinite",
             background:
               "linear-gradient(135deg, var(--brand), var(--highlight))",
-            animation: "meshBlob3 20s ease-in-out infinite",
           }}
         />
 
         {/* Blob 4 - Subtle accent, top-right */}
         <div
-          className="absolute -right-6 -top-4 h-14 w-14 rounded-full opacity-30 blur-xl"
+          className="absolute -top-4 -right-6 h-14 w-14 rounded-full opacity-30 blur-xl"
           style={{
-            background: "var(--brand)",
             animation: "meshBlob4 12s ease-in-out infinite reverse",
+            background: "var(--brand)",
           }}
         />
       </div>
 
-      <style jsx global>{`
+      <style global jsx>{`
         @keyframes meshBlob1 {
           0%,
           100% {
@@ -122,4 +122,3 @@ export function GradientMesh() {
     </DecorationContainer>
   );
 }
-

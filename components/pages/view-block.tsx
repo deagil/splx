@@ -1,18 +1,18 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-import type { GridPosition } from "./types";
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import type { CSSProperties, ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import type { GridPosition } from "./types";
 
-export type ViewBlockProps = {
-  id: string;
-  type: string;
-  position: GridPosition;
+export interface ViewBlockProps {
   children: ReactNode;
-  isDragging?: boolean;
   dragDelta?: { x: number; y: number };
-};
+  id: string;
+  isDragging?: boolean;
+  position: GridPosition;
+  type: string;
+}
 
 export function ViewBlock({
   id,
@@ -20,7 +20,7 @@ export function ViewBlock({
   position,
   children,
   isDragging,
-  dragDelta
+  dragDelta,
 }: ViewBlockProps) {
   const columnStart = clamp(position.x + 1, 1, 12);
   const maxWidth = 12 - columnStart + 1;
@@ -36,18 +36,18 @@ export function ViewBlock({
 
   return (
     <motion.section
-      layout={!isDragging}
-      initial={false}
       aria-label={`${type} block ${id}`}
-      className={cn("flex h-full min-h-0 flex-col min-w-0")}
+      className={cn("flex h-full min-h-0 min-w-0 flex-col")}
+      initial={false}
+      layout={!isDragging}
       style={style}
       transition={{
-        type: "spring",
+        damping: 30,
         stiffness: 400,
-        damping: 30
+        type: "spring",
       }}
     >
-      <div className="flex flex-1 min-h-0 flex-col">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </motion.section>
   );
 }
@@ -58,4 +58,3 @@ function clamp(value: number, min: number, max: number) {
   }
   return Math.min(Math.max(value, min), max);
 }
-

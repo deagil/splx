@@ -2,11 +2,11 @@
 
 import { cn } from "@/lib/utils";
 
-type AIWizardLayoutProps = {
+interface AIWizardLayoutProps {
+  className?: string;
   conversationPanel: React.ReactNode;
   previewPanel: React.ReactNode;
-  className?: string;
-};
+}
 
 export function AIWizardLayout({
   conversationPanel,

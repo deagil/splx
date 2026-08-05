@@ -10,14 +10,14 @@ import {
 } from "@/lib/types/mentions";
 
 const textPartSchema = z.object({
-  type: z.enum(["text"]),
   text: z.string().min(1).max(2000),
+  type: z.enum(["text"]),
 });
 
 const filePartSchema = z.object({
-  type: z.enum(["file"]),
   mediaType: z.enum(["image/jpeg", "image/png"]),
   name: z.string().min(1).max(100),
+  type: z.enum(["file"]),
   url: z.string().url(),
 });
 
@@ -38,13 +38,13 @@ export const postRequestBodySchema = z.object({
   id: z.string().uuid(),
   message: z.object({
     id: z.string().uuid(),
-    role: z.enum(["user"]),
-    parts: z.array(partSchema),
     mentions: z.array(mentionSchema).optional(), // Allow mentions as optional field
+    parts: z.array(partSchema),
+    role: z.enum(["user"]),
   }),
+  personalizationEnabled: z.boolean().optional(),
   selectedChatModel: z.enum(["chat-model", "chat-model-reasoning"]),
   selectedVisibilityType: z.enum(["public", "private"]),
-  personalizationEnabled: z.boolean().optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

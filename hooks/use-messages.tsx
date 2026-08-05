@@ -30,12 +30,12 @@ export function useMessages({
   return {
     containerRef,
     endRef,
+    hasSentMessage,
     isAtBottom,
-    scrollToBottom,
+    isPinned,
     onViewportEnter,
     onViewportLeave,
-    hasSentMessage,
-    isPinned,
+    scrollToBottom,
     setIsPinned,
   };
 }

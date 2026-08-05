@@ -2,25 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { User } from "@/lib/types";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
-import { PlusIcon, TrashIcon } from "@/components/shared/icons";
-import { LoaderIcon } from "@/components/shared/icons";
-import { SidebarHistory, getChatHistoryPaginationKey } from "./sidebar-history";
-import { SidebarUserNav } from "./sidebar-user-nav";
-import { Button } from "@/components/ui/button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LoaderIcon, PlusIcon, TrashIcon } from "@/components/shared/icons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +17,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { User } from "@/lib/types";
+import { getChatHistoryPaginationKey, SidebarHistory } from "./sidebar-history";
+import { SidebarUserNav } from "./sidebar-user-nav";
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
@@ -44,6 +47,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
     });
 
     toast.promise(deletePromise, {
+      error: "Failed to delete all chats",
       loading: "Deleting all chats...",
       success: () => {
         mutate(unstable_serialize(getChatHistoryPaginationKey));
@@ -51,7 +55,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         setShowDeleteAllDialog(false);
         return "All chats deleted successfully";
       },
-      error: "Failed to delete all chats",
     });
   };
 
@@ -73,7 +76,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 </span>
               </Link>
               <div className="flex flex-row gap-1">
-                {user && (
+                {!!user && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -126,16 +129,21 @@ export function AppSidebar({ user }: { user: User | undefined }) {
             <SidebarHistory user={user} />
           </Suspense>
         </SidebarContent>
-        <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
+        <SidebarFooter>
+          {!!user && <SidebarUserNav user={user} />}
+        </SidebarFooter>
       </Sidebar>
 
-      <AlertDialog onOpenChange={setShowDeleteAllDialog} open={showDeleteAllDialog}>
+      <AlertDialog
+        onOpenChange={setShowDeleteAllDialog}
+        open={showDeleteAllDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all chats?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete all your
-              chats and remove them from our servers.
+              This action cannot be undone. This will permanently delete all
+              your chats and remove them from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

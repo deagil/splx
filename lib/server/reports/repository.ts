@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
 import type { TenantContext } from "@/lib/server/tenant/context";
+import { createClient } from "@/lib/supabase/server";
 import {
   type CreateReportInput,
   createReportSchema,
-  reportIdSchema,
   type ReportRecord,
+  reportIdSchema,
   reportRecordSchema,
 } from "./schema";
 
@@ -60,7 +60,7 @@ function normalizeReportRow(row: RawReportRow): ReportRecord {
 }
 
 export async function listReports(
-  tenant: TenantContext,
+  tenant: TenantContext
 ): Promise<ReportRecord[]> {
   const supabase = await getSupabaseClient();
   const { data, error } = await supabase
@@ -78,7 +78,7 @@ export async function listReports(
 
 export async function getReport(
   tenant: TenantContext,
-  reportId: string,
+  reportId: string
 ): Promise<ReportRecord | null> {
   const id = reportIdSchema.parse(reportId);
   const supabase = await getSupabaseClient();
@@ -102,7 +102,7 @@ export async function getReport(
 
 export async function createReport(
   tenant: TenantContext,
-  payload: unknown,
+  payload: unknown
 ): Promise<ReportRecord> {
   const input: CreateReportInput = createReportSchema.parse(payload);
   const supabase = await getSupabaseClient();
@@ -110,14 +110,14 @@ export async function createReport(
   const { data, error } = await supabase
     .from("reports")
     .insert({
-      id: input.id,
-      workspace_id: tenant.workspaceId,
-      title: input.title,
-      description: input.description ?? null,
-      sql: input.sql,
-      chart_type: input.chart_type ?? null,
       chart_config: input.chart_config ?? {},
+      chart_type: input.chart_type ?? null,
       created_by: tenant.userId,
+      description: input.description ?? null,
+      id: input.id,
+      sql: input.sql,
+      title: input.title,
+      workspace_id: tenant.workspaceId,
     })
     .select("*")
     .single();
@@ -128,15 +128,3 @@ export async function createReport(
 
   return normalizeReportRow(data as RawReportRow);
 }
-
-
-
-
-
-
-
-
-
-
-
-

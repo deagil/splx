@@ -3,28 +3,33 @@
   "version": "0.4.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
-    "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch",
-    "check": "tsc --noEmit && npm run lint",
-    "lint": "npx ultracite@latest check",
-    "format": "npx ultracite@latest fix",
+    "check": "ultracite check",
+    "db:check": "drizzle-kit check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "supabase migration up",
+    "db:pull": "drizzle-kit pull",
+    "db:push": "drizzle-kit push",
     "db:reset": "supabase db reset",
     "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push",
-    "db:pull": "drizzle-kit pull",
-    "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
+    "dev": "next dev --turbo",
+    "fix": "ultracite fix",
+    "format": "npx ultracite@latest fix",
+    "lint": "npx ultracite@latest check",
+    "ncu": "ncu",
+    "ncu:update": "ncu -u",
     "provision:workspace": "tsx scripts/provision-workspace.ts",
+    "start": "next start",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "ncu": "ncu",
-    "ncu:update": "ncu -u"
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch"
+  },
+  "overrides": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.41",
@@ -142,7 +147,7 @@
   "devDependencies": {
     "@ai-sdk/devtools": "1.0.10",
     "@ai-sdk/react": "^4.0.55",
-    "@biomejs/biome": "^2.5.7",
+    "@biomejs/biome": "^2.5.6",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
@@ -163,9 +168,5 @@
     "ultracite": "7.10.1",
     "vitest": "^3.2.7"
   },
-  "packageManager": "pnpm@11.20.0",
-  "overrides": {
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4"
-  }
+  "packageManager": "pnpm@11.20.0"
 }

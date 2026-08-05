@@ -8,14 +8,14 @@ import { basicSetup } from "codemirror";
 import { memo, useEffect, useRef } from "react";
 import type { Suggestion } from "@/lib/db/schema";
 
-type EditorProps = {
+interface EditorProps {
   content: string;
+  currentVersionIndex: number;
+  isCurrentVersion: boolean;
   onSaveContent: (updatedContent: string, debounce: boolean) => void;
   status: "streaming" | "idle";
-  isCurrentVersion: boolean;
-  currentVersionIndex: number;
   suggestions: Suggestion[];
-};
+}
 
 function PureCodeEditor({ content, onSaveContent, status }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,8 +29,8 @@ function PureCodeEditor({ content, onSaveContent, status }: EditorProps) {
       });
 
       editorRef.current = new EditorView({
-        state: startState,
         parent: containerRef.current,
+        state: startState,
       });
     }
 
@@ -77,12 +77,12 @@ function PureCodeEditor({ content, onSaveContent, status }: EditorProps) {
 
       if (status === "streaming" || currentContent !== content) {
         const transaction = editorRef.current.state.update({
+          annotations: [Transaction.remote.of(true)],
           changes: {
             from: 0,
-            to: currentContent.length,
             insert: content,
+            to: currentContent.length,
           },
-          annotations: [Transaction.remote.of(true)],
         });
 
         editorRef.current.dispatch(transaction);
@@ -91,10 +91,7 @@ function PureCodeEditor({ content, onSaveContent, status }: EditorProps) {
   }, [content, status]);
 
   return (
-    <div
-      className="not-prose relative w-full text-sm"
-      ref={containerRef}
-    />
+    <div className="not-prose relative w-full text-sm" ref={containerRef} />
   );
 }
 

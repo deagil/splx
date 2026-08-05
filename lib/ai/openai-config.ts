@@ -31,20 +31,20 @@ export const getDefaultOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
   // Parallel tool calls - enables faster tool execution
   parallelToolCalls: true,
 
-  // Store generation for OpenAI's platform (useful for distillation)
-  store: true,
-
   // Service tier - 'flex' for 50% cheaper processing with increased latency
   // 'priority' for faster processing (Enterprise access required)
   // 'auto' lets OpenAI choose (default)
   serviceTier: "auto",
 
-  // Text verbosity - controls response length
-  // 'low' for concise, 'medium' (default) for balanced, 'high' for verbose
-  textVerbosity: "medium",
+  // Store generation for OpenAI's platform (useful for distillation)
+  store: true,
 
   // Strict JSON schema validation
   strictJsonSchema: false,
+
+  // Text verbosity - controls response length
+  // 'low' for concise, 'medium' (default) for balanced, 'high' for verbose
+  textVerbosity: "medium",
 });
 
 /**
@@ -53,21 +53,22 @@ export const getDefaultOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
  * Use this for chat-model-reasoning to enable reasoning capabilities.
  * Set reasoningSummary to 'detailed' for full reasoning content visibility.
  */
-export const getReasoningOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
-  ...getDefaultOpenAIOptions(),
+export const getReasoningOpenAIOptions =
+  (): OpenAIResponsesProviderOptions => ({
+    ...getDefaultOpenAIOptions(),
 
-  // Reasoning effort - determines amount of reasoning performed
-  // 'minimal' | 'low' | 'medium' (default) | 'high'
-  reasoningEffort: "medium",
+    // Max tool calls - limit total tool calls across all tools
+    maxToolCalls: 5,
 
-  // Reasoning summary - enables reasoning output visibility
-  // 'auto' for condensed summary, 'detailed' for comprehensive reasoning
-  // 'detailed' is required to see the actual reasoning content streamed
-  reasoningSummary: "detailed",
+    // Reasoning effort - determines amount of reasoning performed
+    // 'minimal' | 'low' | 'medium' (default) | 'high'
+    reasoningEffort: "medium",
 
-  // Max tool calls - limit total tool calls across all tools
-  maxToolCalls: 5,
-});
+    // Reasoning summary - enables reasoning output visibility
+    // 'auto' for condensed summary, 'detailed' for comprehensive reasoning
+    // 'detailed' is required to see the actual reasoning content streamed
+    reasoningSummary: "detailed",
+  });
 
 /**
  * OpenAI provider options for title generation
@@ -77,11 +78,11 @@ export const getReasoningOpenAIOptions = (): OpenAIResponsesProviderOptions => (
 export const getTitleOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
   ...getDefaultOpenAIOptions(),
 
-  // Use low verbosity for shorter, more concise titles
-  textVerbosity: "low",
-
   // Disable tool calls for title generation
   parallelToolCalls: false,
+
+  // Use low verbosity for shorter, more concise titles
+  textVerbosity: "low",
 });
 
 /**
@@ -92,11 +93,11 @@ export const getTitleOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
 export const getArtifactOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
   ...getDefaultOpenAIOptions(),
 
-  // Use medium verbosity for balanced artifact content
-  textVerbosity: "medium",
-
   // Enable parallel tool calls for faster artifact generation
   parallelToolCalls: true,
+
+  // Use medium verbosity for balanced artifact content
+  textVerbosity: "medium",
 });
 
 /**
@@ -121,4 +122,3 @@ export const getArtifactOpenAIOptions = (): OpenAIResponsesProviderOptions => ({
  * - promptCacheKey: string - Cache key for manual prompt caching control
  * - safetyIdentifier: string - Stable identifier for abuse detection
  */
-

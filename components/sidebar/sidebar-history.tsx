@@ -2,8 +2,12 @@
 
 import { isToday, isYesterday, subMonths, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { User } from "@/lib/types";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import useSWRInfinite from "swr/infinite";
@@ -24,22 +28,22 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import type { Chat } from "@/lib/db/schema";
+import type { User } from "@/lib/types";
 import { fetcher } from "@/lib/utils";
-import { LoaderIcon } from "../shared/icons";
 import { ChatItem } from "./sidebar-history-item";
 
-type GroupedChats = {
+interface GroupedChats {
+  lastMonth: Chat[];
+  lastWeek: Chat[];
+  older: Chat[];
   today: Chat[];
   yesterday: Chat[];
-  lastWeek: Chat[];
-  lastMonth: Chat[];
-  older: Chat[];
-};
+}
 
-export type ChatHistory = {
+export interface ChatHistory {
   chats: Chat[];
   hasMore: boolean;
-};
+}
 
 const PAGE_SIZE = 20;
 
@@ -67,11 +71,11 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
       return groups;
     },
     {
+      lastMonth: [],
+      lastWeek: [],
+      older: [],
       today: [],
       yesterday: [],
-      lastWeek: [],
-      lastMonth: [],
-      older: [],
     } as GroupedChats
   );
 };
@@ -97,10 +101,10 @@ export function getChatHistoryPaginationKey(
   return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
 }
 
-export function SidebarHistory({ 
-  user, 
-  initialHistory 
-}: { 
+export function SidebarHistory({
+  user,
+  initialHistory,
+}: {
   user: User | undefined;
   initialHistory?: ChatHistory | null;
 }) {
@@ -109,11 +113,11 @@ export function SidebarHistory({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const isDashboardRoute = pathname === "/";
-  
+
   // Get chatId from URL params (main chat route) or search params (dashboard route)
-  const id = isDashboardRoute 
-    ? searchParams.get("chatId") 
-    : params.id as string | undefined;
+  const id = isDashboardRoute
+    ? searchParams.get("chatId")
+    : (params.id as string | undefined);
 
   const {
     data: paginatedChatHistories,
@@ -143,6 +147,7 @@ export function SidebarHistory({
     });
 
     toast.promise(deletePromise, {
+      error: "Failed to delete chat",
       loading: "Deleting chat...",
       success: () => {
         mutate((chatHistories) => {
@@ -156,7 +161,6 @@ export function SidebarHistory({
 
         return "Chat deleted successfully";
       },
-      error: "Failed to delete chat",
     });
 
     setShowDeleteDialog(false);
@@ -225,7 +229,7 @@ export function SidebarHistory({
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            {paginatedChatHistories &&
+            {!!paginatedChatHistories &&
               (() => {
                 const chatsFromHistory = paginatedChatHistories.flatMap(
                   (paginatedChatHistory) => paginatedChatHistory.chats

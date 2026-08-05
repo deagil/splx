@@ -4,7 +4,6 @@ import { listWorkflowRuns } from "@/server/repositories/workflows";
 
 export const GET = endpoint({
   auth: "required",
-  permission: "workflows.view",
   async handler({ user, query }) {
     const rawLimit = query.get("limit");
     const limit = rawLimit === null ? undefined : Number(rawLimit);
@@ -13,9 +12,9 @@ export const GET = endpoint({
     }
 
     const entries = await listWorkflowRuns(user.workspaceId, {
-      workflowId: query.get("workflowId") ?? undefined,
-      limit,
       before: query.get("before") ?? undefined,
+      limit,
+      workflowId: query.get("workflowId") ?? undefined,
     });
 
     return {
@@ -28,4 +27,5 @@ export const GET = endpoint({
       },
     };
   },
+  permission: "workflows.view",
 });

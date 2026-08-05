@@ -33,34 +33,34 @@ import {
  * detail view can be linked to and survives a refresh.
  */
 
-export type LogEntry = {
-  id: string;
+export interface LogEntry {
   createdAt: string;
+  id: string;
   [key: string]: unknown;
-};
+}
 
-export type LogColumn = {
-  key: string;
+export interface LogColumn {
+  className?: string;
   header: string;
+  key: string;
   /** Rendered in the table. Falls back to a plain string cell. */
   render?: (entry: LogEntry) => React.ReactNode;
-  className?: string;
-};
+}
 
-export type DetailField = {
+export interface DetailField {
   label: string;
   render: (entry: LogEntry) => React.ReactNode;
-};
+}
 
-type Props = {
-  /** API path, e.g. `/api/v1/audit-logs`. */
-  endpoint: string;
+interface Props {
   columns: LogColumn[];
   detailFields: DetailField[];
   /** Title of the detail sheet for a given entry. */
   detailTitle: (entry: LogEntry) => string;
   emptyMessage: string;
-};
+  /** API path, e.g. `/api/v1/audit-logs`. */
+  endpoint: string;
+}
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -77,12 +77,12 @@ export function formatTimestamp(value: string): string {
     return value;
   }
   return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    month: "short",
     second: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -143,10 +143,7 @@ export function ActivityLogView({
 
   const { data, error, isLoading, mutate } = useSWR(endpoint, fetcher);
 
-  const entries: LogEntry[] = useMemo(
-    () => data?.data?.entries ?? [],
-    [data]
-  );
+  const entries: LogEntry[] = useMemo(() => data?.data?.entries ?? [], [data]);
 
   const selected = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? null,
@@ -185,7 +182,12 @@ export function ActivityLogView({
             ? "Loading…"
             : `${entries.length} most recent, newest first`}
         </p>
-        <Button onClick={() => mutate()} size="sm" type="button" variant="outline">
+        <Button
+          onClick={() => mutate()}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           Refresh
         </Button>
       </div>
@@ -202,7 +204,7 @@ export function ActivityLogView({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading &&
+            {!!isLoading &&
               ["a", "b", "c", "d", "e"].map((key) => (
                 <TableRow key={key}>
                   {columns.map((column) => (

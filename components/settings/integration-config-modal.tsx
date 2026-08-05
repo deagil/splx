@@ -1,11 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Database, Sparkles } from "lucide-react";
-
-import type { AppMode } from "@/lib/app-mode";
-import type { Integration } from "@/lib/integrations/registry";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import type { ReactNode } from "react";
+import { OpenAIConfigForm } from "@/components/settings/integration-forms/openai-config-form";
+import { PostgresConfigForm } from "@/components/settings/integration-forms/postgres-config-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,18 +21,19 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { PostgresConfigForm } from "@/components/settings/integration-forms/postgres-config-form";
-import { OpenAIConfigForm } from "@/components/settings/integration-forms/openai-config-form";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import type { AppMode } from "@/lib/app-mode";
+import type { Integration } from "@/lib/integrations/registry";
 import { cn } from "@/lib/utils";
 
-type IntegrationConfigModalProps = {
+interface IntegrationConfigModalProps {
   integration: Integration | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  mode: AppMode;
   metadata?: Record<string, unknown>;
+  mode: AppMode;
+  onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-};
+  open: boolean;
+}
 
 export function IntegrationConfigModal({
   integration,
@@ -52,7 +51,7 @@ export function IntegrationConfigModal({
 
   const icon = getIntegrationIcon(integration.id);
   const title = `Configure ${integration.name}`;
-  const description = integration.description;
+  const { description } = integration;
 
   const handleSuccess = () => {
     onSuccess?.();
@@ -65,7 +64,7 @@ export function IntegrationConfigModal({
 
   if (isDesktop) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog onOpenChange={onOpenChange} open={open}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
@@ -87,10 +86,10 @@ export function IntegrationConfigModal({
           </DialogHeader>
           <ConfigFormContent
             integrationId={integration.id}
-            mode={mode}
             metadata={metadata}
-            onSuccess={handleSuccess}
+            mode={mode}
             onCancel={handleCancel}
+            onSuccess={handleSuccess}
           />
         </DialogContent>
       </Dialog>
@@ -98,7 +97,7 @@ export function IntegrationConfigModal({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer onOpenChange={onOpenChange} open={open}>
       <DrawerContent>
         <DrawerHeader className="text-left">
           <div className="flex items-center gap-3">
@@ -121,10 +120,10 @@ export function IntegrationConfigModal({
         <div className="px-4 pb-4">
           <ConfigFormContent
             integrationId={integration.id}
-            mode={mode}
             metadata={metadata}
-            onSuccess={handleSuccess}
+            mode={mode}
             onCancel={handleCancel}
+            onSuccess={handleSuccess}
           />
         </div>
         <DrawerFooter className="pt-2">
@@ -137,13 +136,13 @@ export function IntegrationConfigModal({
   );
 }
 
-type ConfigFormContentProps = {
+interface ConfigFormContentProps {
   integrationId: string;
-  mode: AppMode;
   metadata?: Record<string, unknown>;
-  onSuccess: () => void;
+  mode: AppMode;
   onCancel: () => void;
-};
+  onSuccess: () => void;
+}
 
 function ConfigFormContent({
   integrationId,
@@ -156,18 +155,18 @@ function ConfigFormContent({
     case "postgres":
       return (
         <PostgresConfigForm
-          mode={mode}
           metadata={metadata}
-          onSuccess={onSuccess}
+          mode={mode}
           onCancel={onCancel}
+          onSuccess={onSuccess}
         />
       );
     case "openai":
       return (
         <OpenAIConfigForm
           metadata={metadata}
-          onSuccess={onSuccess}
           onCancel={onCancel}
+          onSuccess={onSuccess}
         />
       );
     default:
@@ -189,21 +188,3 @@ function getIntegrationIcon(id: string): ReactNode {
       return null;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

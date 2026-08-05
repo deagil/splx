@@ -1,21 +1,17 @@
 "use server";
 
-import { z } from "zod";
-import { redirect } from "next/navigation";
-import { user } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import postgres from "postgres";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { z } from "zod";
+import { user } from "@/lib/db/schema";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 const profileSchema = z.object({
-  firstname: z.string().min(1, "First name is required"),
-  lastname: z.string().min(1, "Last name is required"),
-  email: z.string().email("Please provide a valid email"),
-  job_title: z.string().trim().max(200).optional(),
   ai_context: z.string().trim().max(2000).optional(),
   avatar_url: z
     .string()
@@ -23,6 +19,10 @@ const profileSchema = z.object({
     .url("Please provide a valid URL")
     .or(z.literal(""))
     .optional(),
+  email: z.string().email("Please provide a valid email"),
+  firstname: z.string().min(1, "First name is required"),
+  job_title: z.string().trim().max(200).optional(),
+  lastname: z.string().min(1, "Last name is required"),
   profile_pic_url: z
     .string()
     .trim()
@@ -31,14 +31,14 @@ const profileSchema = z.object({
     .optional(),
 });
 
-export type UpdateProfileState = {
-  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+export interface UpdateProfileState {
   message?: string;
-};
+  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+}
 
 export async function updateProfile(
   _: UpdateProfileState,
-  formData: FormData,
+  formData: FormData
 ): Promise<UpdateProfileState> {
   try {
     const authUser = await getAuthenticatedUser();
@@ -48,12 +48,12 @@ export async function updateProfile(
     }
 
     const validatedData = profileSchema.parse({
-      firstname: formData.get("firstname"),
-      lastname: formData.get("lastname"),
-      email: formData.get("email"),
-      job_title: formData.get("job_title"),
       ai_context: formData.get("ai_context"),
       avatar_url: formData.get("avatar_url"),
+      email: formData.get("email"),
+      firstname: formData.get("firstname"),
+      job_title: formData.get("job_title"),
+      lastname: formData.get("lastname"),
       profile_pic_url: formData.get("profile_pic_url"),
     });
 
@@ -77,13 +77,14 @@ export async function updateProfile(
         await db
           .update(user)
           .set({
-            firstname: validatedData.firstname,
-            lastname: validatedData.lastname,
-            email: validatedData.email,
-            job_title: normalizeNullable(validatedData.job_title),
-            avatar_url: normalizeNullable(validatedData.avatar_url) ??
-              normalizeNullable(validatedData.profile_pic_url),
             ai_context: normalizeNullable(validatedData.ai_context),
+            avatar_url:
+              normalizeNullable(validatedData.avatar_url) ??
+              normalizeNullable(validatedData.profile_pic_url),
+            email: validatedData.email,
+            firstname: validatedData.firstname,
+            job_title: normalizeNullable(validatedData.job_title),
+            lastname: validatedData.lastname,
           })
           .where(eq(user.id, authUser.id));
       } finally {
@@ -96,13 +97,14 @@ export async function updateProfile(
           db
             .update(user)
             .set({
-              firstname: validatedData.firstname,
-              lastname: validatedData.lastname,
-              email: validatedData.email,
-              job_title: normalizeNullable(validatedData.job_title),
-              avatar_url: normalizeNullable(validatedData.avatar_url) ??
-                normalizeNullable(validatedData.profile_pic_url),
               ai_context: normalizeNullable(validatedData.ai_context),
+              avatar_url:
+                normalizeNullable(validatedData.avatar_url) ??
+                normalizeNullable(validatedData.profile_pic_url),
+              email: validatedData.email,
+              firstname: validatedData.firstname,
+              job_title: normalizeNullable(validatedData.job_title),
+              lastname: validatedData.lastname,
             })
             .where(eq(user.id, authUser.id))
         );
@@ -115,8 +117,8 @@ export async function updateProfile(
     revalidatePath("/preferences");
 
     return {
-      status: "success",
       message: "Profile updated successfully",
+      status: "success",
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -127,9 +129,10 @@ export async function updateProfile(
         })
         .filter(Boolean);
       return {
-        status: "invalid_data",
-        message: messages.join("; ") ||
+        message:
+          messages.join("; ") ||
           "Please check the highlighted fields and try again.",
+        status: "invalid_data",
       };
     }
 
@@ -139,8 +142,8 @@ export async function updateProfile(
 
     console.error("Failed to update profile:", error);
     return {
-      status: "failed",
       message: "Failed to update profile",
+      status: "failed",
     };
   }
 }

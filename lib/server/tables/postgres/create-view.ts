@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { DbClient } from "@/lib/server/tenant/context";
-import type { VersioningConfig, FieldMetadata } from "../schema";
+import type { VersioningConfig } from "../schema";
 
 /**
  * Escapes SQL identifiers to prevent injection
@@ -23,13 +23,13 @@ export async function createPostgresView(
   const escapedBaseTable = escapeIdentifier(base_table);
 
   // Get all columns from base table
-  const baseColumnsResult = await db.execute(sql`
+  const baseColumnsResult = (await db.execute(sql`
     SELECT column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
       AND table_name = ${base_table}
     ORDER BY ordinal_position
-  `) as Array<{ column_name: string }>;
+  `)) as Array<{ column_name: string }>;
 
   const baseColumns = baseColumnsResult.map((row) => row.column_name);
 
@@ -87,15 +87,14 @@ export async function viewExists(
   db: DbClient,
   viewName: string
 ): Promise<boolean> {
-  const result = await db.execute(sql`
+  const result = (await db.execute(sql`
     SELECT EXISTS (
       SELECT 1
       FROM information_schema.views
       WHERE table_schema = 'public'
         AND table_name = ${viewName}
     )
-  `) as Array<{ exists: boolean }>;
+  `)) as Array<{ exists: boolean }>;
 
   return result[0]?.exists ?? false;
 }
-

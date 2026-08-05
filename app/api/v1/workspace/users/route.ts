@@ -8,8 +8,8 @@ import {
 } from "@/server/repositories/workspace-users";
 
 const patchSchema = z.object({
-  workspaceUserId: z.string().min(1),
   roleId: z.string().min(1),
+  workspaceUserId: z.string().min(1),
 });
 
 /**
@@ -20,23 +20,21 @@ const patchSchema = z.object({
  */
 export const GET = endpoint({
   auth: "required",
-  permission: "workspace.view",
   async handler({ user }) {
     const users = await listWorkspaceMembers(user.workspaceId);
     return { data: { users } };
   },
+  permission: "workspace.view",
 });
 
 export const PATCH = endpoint<z.infer<typeof patchSchema>>({
   auth: "required",
-  permission: "workspace.users",
-  schema: patchSchema,
   async handler({ user, body, requestId }) {
     await updateMemberRole(
       {
-        workspaceId: user.workspaceId,
         actorUserId: user.userId,
         requestId,
+        workspaceId: user.workspaceId,
       },
       body.workspaceUserId,
       body.roleId
@@ -44,11 +42,12 @@ export const PATCH = endpoint<z.infer<typeof patchSchema>>({
 
     return { data: { success: true } };
   },
+  permission: "workspace.users",
+  schema: patchSchema,
 });
 
 export const DELETE = endpoint({
   auth: "required",
-  permission: "workspace.users",
   async handler({ user, query, requestId }) {
     const membershipId = query.get("id");
     if (!membershipId) {
@@ -57,13 +56,14 @@ export const DELETE = endpoint({
 
     await removeMember(
       {
-        workspaceId: user.workspaceId,
         actorUserId: user.userId,
         requestId,
+        workspaceId: user.workspaceId,
       },
       membershipId
     );
 
     return { data: { success: true } };
   },
+  permission: "workspace.users",
 });

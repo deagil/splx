@@ -17,18 +17,18 @@ import { codeArtifact } from "@/artifacts/code/client";
 import { imageArtifact } from "@/artifacts/image/client";
 import { sheetArtifact } from "@/artifacts/sheet/client";
 import { textArtifact } from "@/artifacts/text/client";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useArtifact } from "@/hooks/use-artifact";
 import type { Document, Vote } from "@/lib/db/schema";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { fetcher } from "@/lib/utils";
+import { MultimodalInput } from "../input/multimodal-input";
+import { Toolbar } from "../shared/toolbar";
+import { VersionFooter } from "../shared/version-footer";
+import type { VisibilityType } from "../shared/visibility-selector";
 import { ArtifactActions } from "./artifact-actions";
 import { ArtifactCloseButton } from "./artifact-close-button";
 import { ArtifactMessages } from "./artifact-messages";
-import { MultimodalInput } from "../input/multimodal-input";
-import { Toolbar } from "../shared/toolbar";
-import { useSidebar } from "@/components/ui/sidebar";
-import { VersionFooter } from "../shared/version-footer";
-import type { VisibilityType } from "../shared/visibility-selector";
 
 export const artifactDefinitions = [
   textArtifact,
@@ -38,20 +38,20 @@ export const artifactDefinitions = [
 ];
 export type ArtifactKind = (typeof artifactDefinitions)[number]["kind"];
 
-export type UIArtifact = {
-  title: string;
-  documentId: string;
-  kind: ArtifactKind;
-  content: string;
-  isVisible: boolean;
-  status: "streaming" | "idle";
+export interface UIArtifact {
   boundingBox: {
     top: number;
     left: number;
     width: number;
     height: number;
   };
-};
+  content: string;
+  documentId: string;
+  isVisible: boolean;
+  kind: ArtifactKind;
+  status: "streaming" | "idle";
+  title: string;
+}
 
 function PureArtifact({
   addToolApprovalResponse,
@@ -146,19 +146,19 @@ function PureArtifact({
 
           const currentDocument = currentDocuments.at(-1);
 
-          if (!currentDocument || !currentDocument.content) {
+          if (!currentDocument?.content) {
             setIsContentDirty(false);
             return currentDocuments;
           }
 
           if (currentDocument.content !== updatedContent) {
             await fetch(`/api/document?id=${artifact.documentId}`, {
-              method: "POST",
               body: JSON.stringify({
-                title: artifact.title,
                 content: updatedContent,
                 kind: artifact.kind,
+                title: artifact.title,
               }),
+              method: "POST",
             });
 
             setIsContentDirty(false);
@@ -269,15 +269,15 @@ function PureArtifact({
   if (variant === "sidebar") {
     return (
       <AnimatePresence>
-        {artifact.isVisible && (
+        {!!artifact.isVisible && (
           <motion.div
             animate={{ opacity: 1, x: 0 }}
-            className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-xl border-l border-border bg-sidebar shadow-sm"
-            exit={{ opacity: 0, x: 20, transition: { duration: 0.2 } }}
+            className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-xl border-border border-l bg-sidebar shadow-sm"
+            exit={{ opacity: 0, transition: { duration: 0.2 }, x: 20 }}
             initial={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <div className="flex flex-col gap-2 border-b border-border p-2">
+            <div className="flex flex-col gap-2 border-border border-b p-2">
               <div className="flex flex-row items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="truncate font-medium">{artifact.title}</div>
@@ -337,7 +337,7 @@ function PureArtifact({
               </div>
 
               <AnimatePresence>
-                {isCurrentVersion && (
+                {!!isCurrentVersion && (
                   <Toolbar
                     artifactKind={artifact.kind}
                     isToolbarVisible={isToolbarVisible}
@@ -369,7 +369,7 @@ function PureArtifact({
   // Overlay variant (default): render full overlay with chat panel
   return (
     <AnimatePresence>
-      {artifact.isVisible && (
+      {!!artifact.isVisible && (
         <motion.div
           animate={{ opacity: 1 }}
           className="fixed top-0 left-0 z-50 flex h-dvh w-dvw flex-row bg-transparent"
@@ -379,15 +379,15 @@ function PureArtifact({
         >
           {!isMobile && (
             <motion.div
-              animate={{ width: windowWidth, right: 0 }}
+              animate={{ right: 0, width: windowWidth }}
               className="fixed h-dvh bg-background"
               exit={{
-                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
                 right: 0,
+                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
               }}
               initial={{
-                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
                 right: 0,
+                width: isSidebarOpen ? windowWidth - 256 : windowWidth,
               }}
             />
           )}
@@ -396,23 +396,23 @@ function PureArtifact({
             <motion.div
               animate={{
                 opacity: 1,
-                x: 0,
                 scale: 1,
                 transition: {
-                  delay: 0.1,
-                  type: "spring",
-                  stiffness: 300,
                   damping: 30,
+                  delay: 0.1,
+                  stiffness: 300,
+                  type: "spring",
                 },
+                x: 0,
               }}
               className="relative h-dvh w-[400px] shrink-0 bg-muted dark:bg-background"
               exit={{
                 opacity: 0,
-                x: 0,
                 scale: 1,
                 transition: { duration: 0 },
+                x: 0,
               }}
-              initial={{ opacity: 0, x: 10, scale: 1 }}
+              initial={{ opacity: 0, scale: 1, x: 10 }}
             >
               <AnimatePresence>
                 {!isCurrentVersion && (
@@ -463,36 +463,36 @@ function PureArtifact({
             animate={
               isMobile
                 ? {
+                    borderRadius: 0,
+                    height: windowHeight,
                     opacity: 1,
+                    transition: {
+                      damping: 30,
+                      delay: 0,
+                      duration: 0.8,
+                      stiffness: 300,
+                      type: "spring",
+                    },
+                    width: windowWidth ? windowWidth : "calc(100dvw)",
                     x: 0,
                     y: 0,
-                    height: windowHeight,
-                    width: windowWidth ? windowWidth : "calc(100dvw)",
-                    borderRadius: 0,
-                    transition: {
-                      delay: 0,
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 30,
-                      duration: 0.8,
-                    },
                   }
                 : {
-                    opacity: 1,
-                    x: 400,
-                    y: 0,
+                    borderRadius: 0,
                     height: windowHeight,
+                    opacity: 1,
+                    transition: {
+                      damping: 30,
+                      delay: 0,
+                      duration: 0.8,
+                      stiffness: 300,
+                      type: "spring",
+                    },
                     width: windowWidth
                       ? windowWidth - 400
                       : "calc(100dvw-400px)",
-                    borderRadius: 0,
-                    transition: {
-                      delay: 0,
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 30,
-                      duration: 0.8,
-                    },
+                    x: 400,
+                    y: 0,
                   }
             }
             className="fixed flex h-dvh flex-col overflow-y-scroll border-zinc-200 bg-background md:border-l dark:border-zinc-700 dark:bg-muted"
@@ -500,29 +500,29 @@ function PureArtifact({
               opacity: 0,
               scale: 0.5,
               transition: {
-                delay: 0.1,
-                type: "spring",
-                stiffness: 600,
                 damping: 30,
+                delay: 0.1,
+                stiffness: 600,
+                type: "spring",
               },
             }}
             initial={
               isMobile
                 ? {
+                    borderRadius: 50,
+                    height: artifact.boundingBox.height,
                     opacity: 1,
+                    width: artifact.boundingBox.width,
                     x: artifact.boundingBox.left,
                     y: artifact.boundingBox.top,
-                    height: artifact.boundingBox.height,
-                    width: artifact.boundingBox.width,
-                    borderRadius: 50,
                   }
                 : {
+                    borderRadius: 50,
+                    height: artifact.boundingBox.height,
                     opacity: 1,
+                    width: artifact.boundingBox.width,
                     x: artifact.boundingBox.left,
                     y: artifact.boundingBox.top,
-                    height: artifact.boundingBox.height,
-                    width: artifact.boundingBox.width,
-                    borderRadius: 50,
                   }
             }
           >
@@ -586,7 +586,7 @@ function PureArtifact({
               />
 
               <AnimatePresence>
-                {isCurrentVersion && (
+                {!!isCurrentVersion && (
                   <Toolbar
                     artifactKind={artifact.kind}
                     isToolbarVisible={isToolbarVisible}

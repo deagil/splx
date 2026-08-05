@@ -1,19 +1,26 @@
 "use client";
 
 import type { ChatAddToolApproveResponseFunction, UIToolInvocation } from "ai";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircleIcon, CheckCircleIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { updateDocument } from "@/lib/ai/tools/update-document";
 
-type ToolApprovalProps = {
-  invocation: UIToolInvocation<ReturnType<typeof updateDocument>>;
+interface ToolApprovalProps {
   addToolApprovalResponse: ChatAddToolApproveResponseFunction;
-};
+  invocation: UIToolInvocation<ReturnType<typeof updateDocument>>;
+}
 
 /**
  * Tool approval component for handling human-in-the-loop tool execution.
- * 
+ *
  * Displays approval UI when a tool requires user approval before execution.
  * Used for sensitive operations like document updates.
  */
@@ -28,8 +35,8 @@ export function ToolApproval({
   const handleApprove = () => {
     if (invocation.approval) {
       addToolApprovalResponse({
-        id: invocation.approval.id,
         approved: true,
+        id: invocation.approval.id,
       });
     }
   };
@@ -37,8 +44,8 @@ export function ToolApproval({
   const handleDeny = () => {
     if (invocation.approval) {
       addToolApprovalResponse({
-        id: invocation.approval.id,
         approved: false,
+        id: invocation.approval.id,
       });
     }
   };
@@ -57,18 +64,20 @@ export function ToolApproval({
       <CardContent>
         <div className="space-y-2">
           <div>
-            <span className="text-sm font-medium">Tool:</span>{" "}
-            <span className="text-sm text-muted-foreground">Update Document</span>
+            <span className="font-medium text-sm">Tool:</span>{" "}
+            <span className="text-muted-foreground text-sm">
+              Update Document
+            </span>
           </div>
           <div>
-            <span className="text-sm font-medium">Document ID:</span>{" "}
-            <span className="text-sm text-muted-foreground font-mono">
+            <span className="font-medium text-sm">Document ID:</span>{" "}
+            <span className="font-mono text-muted-foreground text-sm">
               {invocation.input.id}
             </span>
           </div>
           <div>
-            <span className="text-sm font-medium">Description:</span>{" "}
-            <span className="text-sm text-muted-foreground">
+            <span className="font-medium text-sm">Description:</span>{" "}
+            <span className="text-muted-foreground text-sm">
               {invocation.input.description}
             </span>
           </div>
@@ -76,19 +85,19 @@ export function ToolApproval({
       </CardContent>
       <CardFooter className="flex gap-2">
         <Button
+          className="flex-1"
           onClick={handleApprove}
           size="sm"
           variant="primary"
-          className="flex-1"
         >
           <CheckCircleIcon className="mr-2 size-4" />
           Approve
         </Button>
         <Button
+          className="flex-1"
           onClick={handleDeny}
           size="sm"
           variant="outline"
-          className="flex-1"
         >
           Deny
         </Button>
@@ -96,4 +105,3 @@ export function ToolApproval({
     </Card>
   );
 }
-

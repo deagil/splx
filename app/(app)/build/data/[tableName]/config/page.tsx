@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -13,12 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
-type TableConfig = {
-  id: string;
-  name: string;
-  description: string | null;
+interface TableConfig {
   config: {
     label_fields?: Array<{ field_name: string; display_name?: string }>;
     relationships?: unknown[];
@@ -26,11 +23,14 @@ type TableConfig = {
     rls_policy_templates?: unknown[];
     rls_policy_groups?: unknown[];
   };
-};
+  description: string | null;
+  id: string;
+  name: string;
+}
 
 export default function TableConfigPage() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const tableName = params.tableName as string;
 
   const [loading, setLoading] = useState(true);
@@ -38,8 +38,8 @@ export default function TableConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [tableConfig, setTableConfig] = useState<TableConfig | null>(null);
   const [formData, setFormData] = useState({
-    name: "",
     description: "",
+    name: "",
   });
 
   useEffect(() => {
@@ -56,8 +56,8 @@ export default function TableConfigPage() {
         const { table } = await response.json();
         setTableConfig(table);
         setFormData({
-          name: table.name,
           description: table.description || "",
+          name: table.name,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
@@ -78,15 +78,15 @@ export default function TableConfigPage() {
 
     try {
       const response = await fetch(`/api/tables/${tableName}`, {
-        method: "PATCH",
+        body: JSON.stringify({
+          description: formData.description || null,
+          name: formData.name,
+        }),
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description || null,
-        }),
+        method: "PATCH",
       });
 
       if (!response.ok) {
@@ -132,7 +132,7 @@ export default function TableConfigPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="container mx-auto max-w-4xl py-8">
       <Card>
         <CardHeader>
           <CardTitle>Configure Table: {tableConfig.name}</CardTitle>
@@ -141,7 +141,7 @@ export default function TableConfigPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="general" className="w-full">
+          <Tabs className="w-full" defaultValue="general">
             <TabsList>
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="fields">Fields</TabsTrigger>
@@ -149,10 +149,10 @@ export default function TableConfigPage() {
               <TabsTrigger value="policies">RLS Policies</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="general" className="space-y-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+            <TabsContent className="space-y-6" value="general">
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                {!!error && (
+                  <div className="rounded-md bg-destructive/15 p-3 text-destructive text-sm">
                     {error}
                   </div>
                 )}
@@ -161,11 +161,11 @@ export default function TableConfigPage() {
                   <Label htmlFor="name">Table Name</Label>
                   <Input
                     id="name"
+                    maxLength={120}
                     name="name"
-                    value={formData.name}
                     onChange={handleChange}
                     required
-                    maxLength={120}
+                    value={formData.name}
                   />
                 </div>
 
@@ -173,16 +173,16 @@ export default function TableConfigPage() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
                     maxLength={512}
+                    name="description"
+                    onChange={handleChange}
                     rows={3}
+                    value={formData.description}
                   />
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={saving}>
+                  <Button disabled={saving} type="submit">
                     {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
@@ -190,21 +190,21 @@ export default function TableConfigPage() {
             </TabsContent>
 
             <TabsContent value="fields">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 Field metadata configuration coming soon. You can configure
                 display names, validation rules, and visibility settings here.
               </div>
             </TabsContent>
 
             <TabsContent value="relationships">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 Relationship configuration coming soon. You can configure
                 foreign keys and label fields here.
               </div>
             </TabsContent>
 
             <TabsContent value="policies">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 RLS policy configuration coming soon. You can configure access
                 policies and templates here.
               </div>
@@ -215,4 +215,3 @@ export default function TableConfigPage() {
     </div>
   );
 }
-

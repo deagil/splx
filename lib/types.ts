@@ -9,10 +9,13 @@ import type { requestSuggestions } from "./ai/tools/request-suggestions";
 import type { searchPages } from "./ai/tools/search-pages";
 import type { updateDocument } from "./ai/tools/update-document";
 import type { Suggestion } from "./db/schema";
-import type { AppUsage } from "./usage";
 import type { MentionPart } from "./types/mentions";
+import type { AppUsage } from "./usage";
 
-export type DataPart = { type: "append-message"; message: string };
+export interface DataPart {
+  message: string;
+  type: "append-message";
+}
 
 export const messageMetadataSchema = z.object({
   createdAt: z.string(),
@@ -30,38 +33,38 @@ type queryUserTableTool = InferUITool<typeof queryUserTable>;
 type searchPagesTool = InferUITool<typeof searchPages>;
 type navigateToPageTool = InferUITool<ReturnType<typeof navigateToPage>>;
 
-export type ChatTools = {
-  getWeather: weatherTool;
+export interface ChatTools {
   createDocument: createDocumentTool;
-  updateDocument: updateDocumentTool;
-  requestSuggestions: requestSuggestionsTool;
-  queryUserTable: queryUserTableTool;
-  searchPages: searchPagesTool;
+  getWeather: weatherTool;
   navigateToPage: navigateToPageTool;
-};
+  queryUserTable: queryUserTableTool;
+  requestSuggestions: requestSuggestionsTool;
+  searchPages: searchPagesTool;
+  updateDocument: updateDocumentTool;
+}
 
-export type NavigationData = {
-  url: string;
+export interface NavigationData {
   pageId: string;
   pageName: string;
-};
+  url: string;
+}
 
-export type CustomUIDataTypes = {
-  textDelta: string;
-  imageDelta: string;
-  sheetDelta: string;
-  codeDelta: string;
-  suggestion: Suggestion;
+export interface CustomUIDataTypes {
   appendMessage: string;
-  id: string;
-  title: string;
-  kind: ArtifactKind;
   clear: null;
+  codeDelta: string;
   finish: null;
-  usage: AppUsage;
+  id: string;
+  imageDelta: string;
+  kind: ArtifactKind;
   mention: MentionPart;
   navigate: NavigationData;
-};
+  sheetDelta: string;
+  suggestion: Suggestion;
+  textDelta: string;
+  title: string;
+  usage: AppUsage;
+}
 
 export type ChatMessage = UIMessage<
   MessageMetadata,
@@ -69,17 +72,17 @@ export type ChatMessage = UIMessage<
   ChatTools
 >;
 
-export type Attachment = {
+export interface Attachment {
+  contentType: string;
   name: string;
   url: string;
-  contentType: string;
-};
+}
 
 export type UserType = "guest" | "regular";
 
 export interface User {
-  id: string;
   email: string | null;
+  id: string;
   name: string | null;
   type: UserType;
 }

@@ -12,30 +12,30 @@ const createPageSchema = z.record(z.string(), z.unknown());
 
 export const GET = endpoint({
   auth: "required",
-  permission: "pages.view",
   async handler({ user }) {
     const pages = await listPages(user.tenant);
     return { data: { pages } };
   },
+  permission: "pages.view",
 });
 
 export const POST = endpoint<Record<string, unknown>>({
   auth: "required",
-  permission: "pages.edit",
-  schema: createPageSchema,
   async handler({ user, body, requestId }) {
     const page = await createPage(user.tenant, body);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "pages.created",
-      resourceType: "page",
-      resourceId: (page as { id?: string }).id ?? null,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: (page as { id?: string }).id ?? null,
+      resourceType: "page",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { page }, status: 201 };
   },
+  permission: "pages.edit",
+  schema: createPageSchema,
 });

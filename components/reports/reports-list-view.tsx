@@ -1,25 +1,27 @@
 "use client";
 
-import useSWR from "swr";
+import { BarChart3, LineChart, PieChart, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { BarChart3, LineChart, PieChart, RefreshCw, Plus } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type ReportRecord = {
+interface ReportRecord {
+  chart_type: string | null;
+  description: string | null;
   id: string;
   title: string;
-  description: string | null;
-  chart_type: string | null;
   updated_at: string;
-};
+}
 
 const fetcher = async (url: string): Promise<ReportRecord[]> => {
   const response = await fetch(url, { credentials: "same-origin" });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: "Failed to load reports" }));
+    const errorData = await response
+      .json()
+      .catch(() => ({ error: "Failed to load reports" }));
     throw new Error(errorData.error || "Failed to load reports");
   }
 
@@ -34,15 +36,24 @@ const fetcher = async (url: string): Promise<ReportRecord[]> => {
 };
 
 const chartIcon = (type?: string | null) => {
-  if (!type) return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
+  if (!type) {
+    return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
+  }
   const normalized = type.toLowerCase();
-  if (normalized.includes("line")) return <LineChart className="h-4 w-4 text-muted-foreground" />;
-  if (normalized.includes("pie")) return <PieChart className="h-4 w-4 text-muted-foreground" />;
+  if (normalized.includes("line")) {
+    return <LineChart className="h-4 w-4 text-muted-foreground" />;
+  }
+  if (normalized.includes("pie")) {
+    return <PieChart className="h-4 w-4 text-muted-foreground" />;
+  }
   return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
 };
 
 export function ReportsListView() {
-  const { data, error, isLoading, mutate } = useSWR<ReportRecord[]>("/api/reports", fetcher);
+  const { data, error, isLoading, mutate } = useSWR<ReportRecord[]>(
+    "/api/reports",
+    fetcher
+  );
 
   const handleRefresh = async () => {
     await mutate();
@@ -50,7 +61,7 @@ export function ReportsListView() {
 
   if (error) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-destructive">
+      <div className="rounded-md border border-border/60 border-dashed p-8 text-center text-destructive text-sm">
         <p className="font-semibold">Failed to load reports</p>
         <p className="mt-1 text-muted-foreground">{error.message}</p>
       </div>
@@ -66,7 +77,7 @@ export function ReportsListView() {
         </div>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Card key={index} className="border">
+            <Card className="border" key={index}>
               <CardContent className="space-y-3 p-4">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="h-3 w-full" />
@@ -84,11 +95,13 @@ export function ReportsListView() {
 
   if (data.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 bg-background p-12 text-center">
+      <div className="rounded-md border border-border/60 border-dashed bg-background p-12 text-center">
         <BarChart3 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
         <p className="mb-2 font-semibold text-foreground">No reports yet</p>
-        <p className="mb-4 text-muted-foreground">Create your first report with the builder.</p>
-        <Button variant="primary" size="sm" asChild>
+        <p className="mb-4 text-muted-foreground">
+          Create your first report with the builder.
+        </p>
+        <Button asChild size="sm" variant="primary">
           <Link href="/data/reports/builder">
             <Plus className="mr-2 h-4 w-4" />
             Create Report
@@ -101,17 +114,23 @@ export function ReportsListView() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <span className="font-medium text-foreground">
             {data.length} {data.length === 1 ? "report" : "reports"}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <Button
+            className="gap-2"
+            onClick={handleRefresh}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
-          <Button variant="primary" size="sm" asChild>
+          <Button asChild size="sm" variant="primary">
             <Link href="/data/reports/builder">
               <Plus className="mr-2 h-4 w-4" />
               New Report
@@ -122,25 +141,35 @@ export function ReportsListView() {
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {data.map((report) => (
-          <Card key={report.id} className="border">
+          <Card className="border" key={report.id}>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <Link href={`/data/reports/${report.id}`} className="font-semibold hover:underline">
+                  <Link
+                    className="font-semibold hover:underline"
+                    href={`/data/reports/${report.id}`}
+                  >
                     {report.title}
                   </Link>
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5">{report.id}</p>
+                  <p className="mt-0.5 font-mono text-muted-foreground text-xs">
+                    {report.id}
+                  </p>
                 </div>
                 {chartIcon(report.chart_type)}
               </div>
-              <p className="line-clamp-2 text-sm text-muted-foreground">
+              <p className="line-clamp-2 text-muted-foreground text-sm">
                 {report.description ?? "No description provided."}
               </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center justify-between text-muted-foreground text-xs">
                 <span className="font-medium">
-                  {report.chart_type ? `Chart: ${report.chart_type}` : "Chart: auto"}
+                  {report.chart_type
+                    ? `Chart: ${report.chart_type}`
+                    : "Chart: auto"}
                 </span>
-                <Link href={`/data/reports/${report.id}`} className="text-primary hover:underline">
+                <Link
+                  className="text-primary hover:underline"
+                  href={`/data/reports/${report.id}`}
+                >
                   View
                 </Link>
               </div>
@@ -151,7 +180,3 @@ export function ReportsListView() {
     </div>
   );
 }
-
-
-
-

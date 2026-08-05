@@ -29,10 +29,10 @@ export async function systemTenantContext(
   }
 
   return {
-    mode: row.mode === "hosted" ? "hosted" : getAppMode(),
-    workspaceId: row.id,
-    userId: actorUserId ?? "00000000-0000-0000-0000-000000000000",
-    roles: [],
     connectionId: null,
+    mode: row.mode === "hosted" ? "hosted" : getAppMode(),
+    roles: [],
+    userId: actorUserId ?? "00000000-0000-0000-0000-000000000000",
+    workspaceId: row.id,
   };
 }

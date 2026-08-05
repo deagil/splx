@@ -1,16 +1,6 @@
 import Link from "next/link";
-import { memo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useChatVisibility } from "@/hooks/use-chat-visibility";
-import type { Chat } from "@/lib/db/schema";
-import {
-  CheckCircleFillIcon,
-  GlobeIcon,
-  LockIcon,
-  MoreHorizontalIcon,
-  ShareIcon,
-  TrashIcon,
-} from "../shared/icons";
+import { memo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +16,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useChatVisibility } from "@/hooks/use-chat-visibility";
+import type { Chat } from "@/lib/db/schema";
+import {
+  CheckCircleFillIcon,
+  GlobeIcon,
+  LockIcon,
+  MoreHorizontalIcon,
+  ShareIcon,
+  TrashIcon,
+} from "../shared/icons";
 
 const PureChatItem = ({
   chat,
@@ -42,7 +42,7 @@ const PureChatItem = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDashboardRoute = pathname === "/";
-  
+
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
     initialVisibilityType: chat.visibility,
@@ -61,7 +61,10 @@ const PureChatItem = ({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={isDashboardRoute ? "#" : `?chatId=${chat.id}`} onClick={handleClick}>
+        <Link
+          href={isDashboardRoute ? "#" : `?chatId=${chat.id}`}
+          onClick={handleClick}
+        >
           <span>{chat.title}</span>
         </Link>
       </SidebarMenuButton>

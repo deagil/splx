@@ -3,12 +3,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { useWindowSize } from "usehooks-ts";
-
+import { Button } from "@/components/ui/button";
 import type { UISuggestion } from "@/lib/editor/suggestions";
 import { cn } from "@/lib/utils";
 import type { ArtifactKind } from "../artifact/artifact";
 import { CrossIcon, MessageIcon } from "./icons";
-import { Button } from "@/components/ui/button";
 
 export const Suggestion = ({
   suggestion,
@@ -27,11 +26,11 @@ export const Suggestion = ({
       {isExpanded ? (
         <motion.div
           animate={{ opacity: 1, y: -20 }}
-          className="-right-12 md:-right-16 absolute z-50 flex w-56 flex-col gap-3 rounded-2xl border bg-background p-3 font-sans text-sm shadow-xl"
+          className="absolute -right-12 z-50 flex w-56 flex-col gap-3 rounded-2xl border bg-background p-3 font-sans text-sm shadow-xl md:-right-16"
           exit={{ opacity: 0, y: -10 }}
           initial={{ opacity: 0, y: -10 }}
           key={suggestion.id}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          transition={{ damping: 30, stiffness: 500, type: "spring" }}
           whileHover={{ scale: 1.05 }}
         >
           <div className="flex flex-row items-center justify-between">
@@ -61,7 +60,7 @@ export const Suggestion = ({
       ) : (
         <motion.div
           className={cn("cursor-pointer p-1 text-muted-foreground", {
-            "-right-8 absolute": artifactKind === "text",
+            "absolute -right-8": artifactKind === "text",
             "sticky top-0 right-4": artifactKind === "code",
           })}
           onClick={() => {

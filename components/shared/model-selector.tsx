@@ -1,6 +1,5 @@
 "use client";
 
-import type { User } from "@/lib/types";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import { chatModels } from "@/lib/ai/models";
+import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CheckCircleFillIcon, ChevronDownIcon } from "./icons";
 

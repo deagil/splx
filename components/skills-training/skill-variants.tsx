@@ -1,16 +1,16 @@
 "use client";
 
 import {
-  ConversationVariants,
   type ConversationOption,
+  ConversationVariants,
 } from "@/components/conversational-builder/steps";
 import type { SkillOption } from "@/lib/ai/skills-ui-schema";
 
-type SkillVariantsProps = {
+interface SkillVariantsProps {
   message: string;
-  options?: SkillOption[];
   onSelect: (value: string) => void;
-};
+  options?: SkillOption[];
+}
 
 export function SkillVariants({
   message,
@@ -20,9 +20,8 @@ export function SkillVariants({
   return (
     <ConversationVariants
       message={message}
-      options={options as ConversationOption[]}
       onSelect={onSelect}
+      options={options as ConversationOption[]}
     />
   );
 }
-

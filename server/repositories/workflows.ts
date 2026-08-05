@@ -1,8 +1,8 @@
 import { and, desc, eq, lt } from "drizzle-orm";
 import {
+  type WorkflowStepConfig,
   workflow,
   workflowRun,
-  type WorkflowStepConfig,
 } from "@/lib/db/schema";
 import { ApiError } from "@/server/api/responses";
 import { getControlPlaneDb } from "@/server/lib/db";
@@ -11,45 +11,45 @@ import { getAction } from "@/server/workflows/actions";
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
 
-export type WorkflowRecord = {
-  id: string;
-  workspaceId: string;
-  name: string;
+export interface WorkflowRecord {
+  createdAt: Date;
+  createdBy: string | null;
   description: string | null;
   enabled: boolean;
-  triggerType: string;
   eventName: string | null;
-  steps: WorkflowStepConfig[];
-  createdBy: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type WorkflowRunRecord = {
   id: string;
+  name: string;
+  steps: WorkflowStepConfig[];
+  triggerType: string;
+  updatedAt: Date;
   workspaceId: string;
-  workflowId: string;
+}
+
+export interface WorkflowRunRecord {
+  error: string | null;
+  finishedAt: Date | null;
+  id: string;
   scheduleId: string | null;
+  startedAt: Date;
   status: string;
   steps: unknown[];
-  error: string | null;
-  startedAt: Date;
-  finishedAt: Date | null;
-};
+  workflowId: string;
+  workspaceId: string;
+}
 
 function mapWorkflow(row: typeof workflow.$inferSelect): WorkflowRecord {
   return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    name: row.name,
+    createdAt: row.created_at,
+    createdBy: row.created_by,
     description: row.description,
     enabled: row.enabled,
-    triggerType: row.trigger_type,
     eventName: row.event_name,
+    id: row.id,
+    name: row.name,
     steps: row.steps ?? [],
-    createdBy: row.created_by,
-    createdAt: row.created_at,
+    triggerType: row.trigger_type,
     updatedAt: row.updated_at,
+    workspaceId: row.workspace_id,
   };
 }
 
@@ -90,32 +90,34 @@ function validateSteps(steps: unknown): WorkflowStepConfig[] {
         action.schema.parse(input);
       }
     } catch (error) {
-      throw new ApiError(
+      const err = new ApiError(
         400,
         `steps[${index}] input invalid: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
+      err.cause = error;
+      throw err;
     }
 
     validated.push({
-      type: record.type,
-      label: typeof record.label === "string" ? record.label : undefined,
       input,
+      label: typeof record.label === "string" ? record.label : undefined,
+      type: record.type,
     });
   }
 
   return validated;
 }
 
-export type CreateWorkflowInput = {
-  name: string;
+export interface CreateWorkflowInput {
   description?: string | null;
   enabled?: boolean;
-  triggerType: "event" | "manual";
   eventName?: string | null;
+  name: string;
   steps?: unknown;
-};
+  triggerType: "event" | "manual";
+}
 
 export type UpdateWorkflowInput = Partial<CreateWorkflowInput>;
 
@@ -141,7 +143,7 @@ export async function getWorkflow(
     .where(and(eq(workflow.id, id), eq(workflow.workspace_id, workspaceId)))
     .limit(1);
 
-  const row = rows[0];
+  const [row] = rows;
   return row ? mapWorkflow(row) : null;
 }
 
@@ -165,14 +167,14 @@ export async function createWorkflow(
   const [row] = await getControlPlaneDb()
     .insert(workflow)
     .values({
-      workspace_id: workspaceId,
-      name: input.name.trim(),
+      created_by: actorUserId,
       description: input.description ?? null,
       enabled: input.enabled ?? false,
-      trigger_type: input.triggerType,
       event_name: input.triggerType === "event" ? input.eventName : null,
+      name: input.name.trim(),
       steps,
-      created_by: actorUserId,
+      trigger_type: input.triggerType,
+      workspace_id: workspaceId,
     })
     .returning();
 
@@ -195,7 +197,7 @@ export async function updateWorkflow(
 
   const triggerType = input.triggerType ?? existing.triggerType;
   const eventName =
-    input.eventName !== undefined ? input.eventName : existing.eventName;
+    input.eventName === undefined ? existing.eventName : input.eventName;
 
   if (triggerType === "event" && !eventName) {
     throw new ApiError(400, "eventName is required for event triggers");
@@ -205,20 +207,20 @@ export async function updateWorkflow(
   }
 
   const steps =
-    input.steps !== undefined ? validateSteps(input.steps) : existing.steps;
+    input.steps === undefined ? existing.steps : validateSteps(input.steps);
 
   const [row] = await getControlPlaneDb()
     .update(workflow)
     .set({
-      name: input.name?.trim() ?? existing.name,
       description:
-        input.description !== undefined
-          ? input.description
-          : existing.description,
+        input.description === undefined
+          ? existing.description
+          : input.description,
       enabled: input.enabled ?? existing.enabled,
-      trigger_type: triggerType,
       event_name: triggerType === "event" ? eventName : null,
+      name: input.name?.trim() ?? existing.name,
       steps,
+      trigger_type: triggerType,
       updated_at: new Date(),
     })
     .where(and(eq(workflow.id, id), eq(workflow.workspace_id, workspaceId)))
@@ -245,7 +247,10 @@ export async function listWorkflowRuns(
 ): Promise<WorkflowRunRecord[]> {
   const limit = options.limit ?? DEFAULT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    throw new ApiError(400, `limit must be an integer between 1 and ${MAX_LIMIT}`);
+    throw new ApiError(
+      400,
+      `limit must be an integer between 1 and ${MAX_LIMIT}`
+    );
   }
 
   let before: Date | null = null;
@@ -272,14 +277,14 @@ export async function listWorkflowRuns(
     .limit(limit);
 
   return rows.map((row) => ({
+    error: row.error,
+    finishedAt: row.finished_at,
     id: row.id,
-    workspaceId: row.workspace_id,
-    workflowId: row.workflow_id,
     scheduleId: row.schedule_id,
+    startedAt: row.started_at,
     status: row.status,
     steps: row.steps ?? [],
-    error: row.error,
-    startedAt: row.started_at,
-    finishedAt: row.finished_at,
+    workflowId: row.workflow_id,
+    workspaceId: row.workspace_id,
   }));
 }

@@ -1,20 +1,20 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Sparkles } from "lucide-react";
 
-export type WizardOption = {
+export interface WizardOption {
   label: string;
   value: string;
-};
+}
 
-type BaseStepProps = {
+interface BaseStepProps {
   message: string;
   options?: WizardOption[];
-};
+}
 
 type QuestionStepProps = BaseStepProps & {
   type: "question";
@@ -54,10 +54,10 @@ export function WizardStepRenderer<T>(props: WizardStepProps<T>) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={type + message}
-        initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -20 }}
+        initial={{ opacity: 0, x: 20 }}
+        key={type + message}
         transition={{ duration: 0.2 }}
       >
         {type === "question" && <QuestionStep {...props} />}
@@ -73,16 +73,16 @@ function QuestionStep({ message, options = [], onSelect }: QuestionStepProps) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm font-medium">{message}</p>
+        <p className="font-medium text-sm">{message}</p>
       </div>
       {options.length > 0 && (
         <div className="flex flex-col gap-2">
           {options.map((option, index) => (
             <Button
-              key={index}
-              variant="outline"
               className="w-full justify-start text-left"
+              key={index}
               onClick={() => onSelect(option.value)}
+              variant="outline"
             >
               {option.label}
             </Button>
@@ -104,16 +104,16 @@ function VariantsStep({ message, options = [], onSelect }: VariantsStepProps) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm font-medium">{message}</p>
+        <p className="font-medium text-sm">{message}</p>
       </div>
       {options.length > 0 && (
         <div className="flex flex-col gap-2">
           {options.map((option, index) => (
             <Button
-              key={index}
-              variant={selectedIndex === index ? "primary" : "outline"}
               className="w-full justify-between"
+              key={index}
               onClick={() => handleSelect(option.value, index)}
+              variant={selectedIndex === index ? "primary" : "outline"}
             >
               <span className="flex-1 text-left">{option.label}</span>
               {selectedIndex === index && <Check className="ml-2 h-4 w-4" />}
@@ -139,16 +139,16 @@ function ClarificationStep({ message, onSubmit }: ClarificationStepProps) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm font-medium">{message}</p>
+        <p className="font-medium text-sm">{message}</p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form className="space-y-3" onSubmit={handleSubmit}>
         <Textarea
-          value={response}
+          className="min-h-[100px] resize-none"
           onChange={(e) => setResponse(e.target.value)}
           placeholder="Type your response here..."
-          className="min-h-[100px] resize-none"
+          value={response}
         />
-        <Button type="submit" className="w-full" disabled={!response.trim()}>
+        <Button className="w-full" disabled={!response.trim()} type="submit">
           Submit
         </Button>
       </form>
@@ -169,7 +169,7 @@ function FinalStep<T>({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-gradient-to-br from-primary/5 via-primary/2 to-primary/5 p-4">
-        <p className="text-sm font-medium">{message}</p>
+        <p className="font-medium text-sm">{message}</p>
       </div>
 
       {/* Custom preview content */}
@@ -179,22 +179,18 @@ function FinalStep<T>({
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        {onImprove && (
+        {!!onImprove && (
           <Button
-            variant="outline"
             className="flex-1"
-            onClick={onImprove}
             disabled={isSaving}
+            onClick={onImprove}
+            variant="outline"
           >
             <Sparkles className="mr-2 h-3 w-3" />
             {improveLabel}
           </Button>
         )}
-        <Button
-          className="flex-1"
-          onClick={onSave}
-          disabled={isSaving}
-        >
+        <Button className="flex-1" disabled={isSaving} onClick={onSave}>
           {isSaving ? (
             "Saving..."
           ) : (

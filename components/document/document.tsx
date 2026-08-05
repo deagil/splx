@@ -2,7 +2,12 @@ import { memo } from "react";
 import { toast } from "sonner";
 import { useArtifact } from "@/hooks/use-artifact";
 import type { ArtifactKind } from "../artifact/artifact";
-import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon } from "../shared/icons";
+import {
+  FileIcon,
+  LoaderIcon,
+  MessageIcon,
+  PencilEditIcon,
+} from "../shared/icons";
 
 const getActionText = (
   type: "create" | "update" | "request-suggestions",
@@ -22,11 +27,11 @@ const getActionText = (
   }
 };
 
-type DocumentToolResultProps = {
-  type: "create" | "update" | "request-suggestions";
-  result: { id: string; title: string; kind: ArtifactKind };
+interface DocumentToolResultProps {
   isReadonly: boolean;
-};
+  result: { id: string; title: string; kind: ArtifactKind };
+  type: "create" | "update" | "request-suggestions";
+}
 
 function PureDocumentToolResult({
   type,
@@ -49,20 +54,20 @@ function PureDocumentToolResult({
         const rect = event.currentTarget.getBoundingClientRect();
 
         const boundingBox = {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
           height: rect.height,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
         };
 
         setArtifact((currentArtifact) => ({
-          documentId: result.id,
-          kind: result.kind,
-          content: currentArtifact.content,
-          title: result.title,
-          isVisible: true,
-          status: "idle",
           boundingBox,
+          content: currentArtifact.content,
+          documentId: result.id,
+          isVisible: true,
+          kind: result.kind,
+          status: "idle",
+          title: result.title,
         }));
       }}
       type="button"
@@ -85,14 +90,14 @@ function PureDocumentToolResult({
 
 export const DocumentToolResult = memo(PureDocumentToolResult, () => true);
 
-type DocumentToolCallProps = {
-  type: "create" | "update" | "request-suggestions";
+interface DocumentToolCallProps {
   args:
     | { title: string; kind: ArtifactKind } // for create
     | { id: string; description: string } // for update
     | { documentId: string }; // for request-suggestions
   isReadonly: boolean;
-};
+  type: "create" | "update" | "request-suggestions";
+}
 
 function PureDocumentToolCall({
   type,
@@ -115,16 +120,16 @@ function PureDocumentToolCall({
         const rect = event.currentTarget.getBoundingClientRect();
 
         const boundingBox = {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
           height: rect.height,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
         };
 
         setArtifact((currentArtifact) => ({
           ...currentArtifact,
-          isVisible: true,
           boundingBox,
+          isVisible: true,
         }));
       }}
       type="button"

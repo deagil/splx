@@ -9,19 +9,19 @@ import { writeAuditLog } from "@/server/lib/audit";
  */
 export const POST = endpoint({
   auth: "required",
-  permission: "tables.edit",
   async handler({ user, requestId }) {
     const result = await syncTablesForTenant(user.tenant);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "tables.synced",
-      resourceType: "table",
+      actorUserId: user.userId,
       changes: { synced: result.synced, total: result.total },
       requestId,
+      resourceType: "table",
+      workspaceId: user.workspaceId,
     });
 
     return { data: result };
   },
+  permission: "tables.edit",
 });

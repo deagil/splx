@@ -1,64 +1,64 @@
 // Content block types for release notes
 
-export type TextBlock = {
-  type: 'text'
-  content: string
-  variant?: 'paragraph' | 'lead' | 'muted'
+export interface TextBlock {
+  content: string;
+  type: "text";
+  variant?: "paragraph" | "lead" | "muted";
 }
 
-export type HeadingBlock = {
-  type: 'heading'
-  level: 2 | 3
-  content: string
+export interface HeadingBlock {
+  content: string;
+  level: 2 | 3;
+  type: "heading";
 }
 
-export type ListBlock = {
-  type: 'list'
-  items: string[]
+export interface ListBlock {
+  items: string[];
+  type: "list";
 }
 
-export type MediaBlock = {
-  type: 'media'
-  mediaType: 'image' | 'gif' | 'video'
-  src: string
-  alt?: string
-  caption?: string
-  browserFrame?: boolean
+export interface MediaBlock {
+  alt?: string;
+  browserFrame?: boolean;
+  caption?: string;
+  mediaType: "image" | "gif" | "video";
+  src: string;
+  type: "media";
 }
 
-export type ContentBlock = TextBlock | HeadingBlock | ListBlock | MediaBlock
+export type ContentBlock = TextBlock | HeadingBlock | ListBlock | MediaBlock;
 
 // Author info for floating video player
-export type ReleaseAuthor = {
-  name: string
-  role: string
-  avatarSrc?: string
-  videoUrl?: string
-  videoDuration?: string
+export interface ReleaseAuthor {
+  avatarSrc?: string;
+  name: string;
+  role: string;
+  videoDuration?: string;
+  videoUrl?: string;
 }
 
 // Main release note type
-export type ReleaseNote = {
-  // Metadata
-  slug: string
-  issueNumber: string
-  appVersion: string
-  title: string
-  subtitle?: string
-  publicationName?: string
-  date: string // ISO date string
-  location?: string
-
-  // Preview card (for past issues grid)
-  previewImage: string
-
-  // Content sections
-  sections: ContentBlock[]
+export interface ReleaseNote {
+  appVersion: string;
 
   // Author (optional, for floating video)
-  author?: ReleaseAuthor
+  author?: ReleaseAuthor;
+  date: string; // ISO date string
+  emailPreviewText?: string;
 
   // Email-specific
-  emailSubject?: string
-  emailPreviewText?: string
+  emailSubject?: string;
+  issueNumber: string;
+  location?: string;
+
+  // Preview card (for past issues grid)
+  previewImage: string;
+  publicationName?: string;
+
+  // Content sections
+  sections: ContentBlock[];
+  // Metadata
+  slug: string;
+  subtitle?: string;
+  title: string;
 }

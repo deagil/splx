@@ -7,24 +7,23 @@ import { workspaceApp } from "@/lib/db/schema";
 import { readLocalEnv, upsertLocalEnv } from "@/lib/server/local-env";
 import type { TenantContext } from "@/lib/server/tenant/context";
 
+const leadingSlashRegex = /^\//;
+
 export const workspaceAppTypeSchema = z.enum(["postgres", "openai"]);
 export type WorkspaceAppType = z.infer<typeof workspaceAppTypeSchema>;
 
-const sslModeSchema = z.enum(["prefer", "require", "disable"]).default("prefer");
+const sslModeSchema = z
+  .enum(["prefer", "require", "disable"])
+  .default("prefer");
 
 const postgresConfigSchema = z.object({
-  host: z.string().min(1, "Host is required"),
-  port: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(65535)
-    .default(5432),
   database: z.string().min(1, "Database name is required"),
-  username: z.string().min(1, "Username is required"),
+  host: z.string().min(1, "Host is required"),
   password: z.string().optional(),
+  port: z.coerce.number().int().min(1).max(65_535).default(5432),
   schema: z.string().optional(),
   sslMode: sslModeSchema,
+  username: z.string().min(1, "Username is required"),
 });
 
 const openAiConfigSchema = z.object({
@@ -35,14 +34,14 @@ const openAiConfigSchema = z.object({
 export type PostgresConfigInput = z.infer<typeof postgresConfigSchema>;
 export type OpenAiConfigInput = z.infer<typeof openAiConfigSchema>;
 
-export type ConnectedAppSummary = {
-  id?: string;
-  type: WorkspaceAppType;
+export interface ConnectedAppSummary {
   configured: boolean;
-  source: "database" | "env";
-  updatedAt?: string;
+  id?: string;
   metadata?: Record<string, unknown>;
-};
+  source: "database" | "env";
+  type: WorkspaceAppType;
+  updatedAt?: string;
+}
 
 type WorkspaceAppRow = typeof workspaceApp.$inferSelect;
 
@@ -66,29 +65,29 @@ export async function savePostgresWorkspaceApp(
 
   if (tenant.mode === "local") {
     await upsertLocalEnv({
-      POSTGRES_URL: connectionString,
       DATABASE_URL: connectionString,
+      POSTGRES_URL: connectionString,
     });
     return {
-      type: "postgres",
       configured: true,
-      source: "env",
-      updatedAt: new Date().toISOString(),
       metadata: buildPostgresMetadataFromInput(input),
+      source: "env",
+      type: "postgres",
+      updatedAt: new Date().toISOString(),
     };
   }
 
   const metadata = {
     ...buildPostgresMetadataFromInput(input),
-    updatedBy: tenant.userId,
     updatedAt: new Date().toISOString(),
+    updatedBy: tenant.userId,
   };
 
   await upsertWorkspaceApp({
-    workspaceId: tenant.workspaceId,
-    type: "postgres",
     credentialRef: connectionString,
     metadata,
+    type: "postgres",
+    workspaceId: tenant.workspaceId,
   });
 
   return getHostedWorkspaceAppSummary(tenant.workspaceId, "postgres");
@@ -104,31 +103,31 @@ export async function saveOpenAiWorkspaceApp(
   if (tenant.mode === "local") {
     await upsertLocalEnv({ OPENAI_API_KEY: sanitizedKey });
     return {
-      type: "openai",
       configured: true,
-      source: "env",
-      updatedAt: new Date().toISOString(),
       metadata: {
-        provider: "openai",
         maskedKey: maskSecret(sanitizedKey),
         organization: input.organization ?? null,
+        provider: "openai",
       },
+      source: "env",
+      type: "openai",
+      updatedAt: new Date().toISOString(),
     };
   }
 
   const metadata = {
-    provider: "openai",
-    organization: input.organization ?? null,
     maskedKey: maskSecret(sanitizedKey),
-    updatedBy: tenant.userId,
+    organization: input.organization ?? null,
+    provider: "openai",
     updatedAt: new Date().toISOString(),
+    updatedBy: tenant.userId,
   };
 
   await upsertWorkspaceApp({
-    workspaceId: tenant.workspaceId,
-    type: "openai",
     credentialRef: sanitizedKey,
     metadata,
+    type: "openai",
+    workspaceId: tenant.workspaceId,
   });
 
   return getHostedWorkspaceAppSummary(tenant.workspaceId, "openai");
@@ -141,19 +140,19 @@ async function getHostedWorkspaceAppSummary(
   const record = await findWorkspaceApp(workspaceId, type);
   if (!record) {
     return {
-      type,
       configured: false,
       source: "database",
+      type,
     };
   }
 
   return {
-    id: record.id,
-    type,
     configured: true,
-    source: "database",
-    updatedAt: serializeDate(record.updated_at),
+    id: record.id,
     metadata: record.metadata ?? {},
+    source: "database",
+    type,
+    updatedAt: serializeDate(record.updated_at),
   };
 }
 
@@ -165,20 +164,20 @@ async function getLocalWorkspaceAppSummary(
     const connectionString = env.POSTGRES_URL ?? env.DATABASE_URL;
     if (!connectionString) {
       return {
-        type,
         configured: false,
         source: "env",
+        type,
       };
     }
 
     return {
-      type,
       configured: true,
-      source: "env",
       metadata: {
         ...buildPostgresMetadataFromConnectionString(connectionString),
         connectionString,
       },
+      source: "env",
+      type,
     };
   }
 
@@ -186,20 +185,20 @@ async function getLocalWorkspaceAppSummary(
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) {
     return {
-      type,
       configured: false,
       source: "env",
+      type,
     };
   }
 
   return {
-    type,
     configured: true,
-    source: "env",
     metadata: {
-      provider: "openai",
       maskedKey: maskSecret(apiKey),
+      provider: "openai",
     },
+    source: "env",
+    type,
   };
 }
 
@@ -255,10 +254,10 @@ async function upsertWorkspaceApp(options: {
     }
 
     await db.insert(workspaceApp).values({
-      workspace_id: options.workspaceId,
-      type: options.type,
       credential_ref: options.credentialRef,
       metadata: options.metadata,
+      type: options.type,
+      workspace_id: options.workspaceId,
     });
   });
 }
@@ -278,13 +277,13 @@ function buildPostgresMetadataFromInput(
   input: PostgresConfigInput
 ): Record<string, unknown> {
   return {
-    variant: "postgres",
+    database: input.database,
     host: input.host,
     port: input.port,
-    database: input.database,
-    username: input.username,
     schema: input.schema ?? null,
     sslMode: input.sslMode,
+    username: input.username,
+    variant: "postgres",
   };
 }
 
@@ -295,12 +294,12 @@ function buildPostgresMetadataFromConnectionString(
     const url = new URL(connectionString);
     const schema = url.searchParams.get("schema");
     return {
-      variant: "postgres",
+      database: url.pathname.replace(leadingSlashRegex, ""),
       host: url.hostname,
       port: url.port ? Number(url.port) : undefined,
-      database: url.pathname.replace(/^\//, ""),
-      username: decodeURIComponent(url.username),
       schema: schema ?? null,
+      username: decodeURIComponent(url.username),
+      variant: "postgres",
     };
   } catch {
     return {
@@ -319,9 +318,11 @@ function maskSecret(secret: string): string {
   return `${prefix}****${suffix}`;
 }
 
-function serializeDate(value: Date | string | null | undefined): string | undefined {
+function serializeDate(
+  value: Date | string | null | undefined
+): string | undefined {
   if (!value) {
-    return undefined;
+    return;
   }
 
   if (value instanceof Date) {
@@ -331,7 +332,9 @@ function serializeDate(value: Date | string | null | undefined): string | undefi
   return new Date(value).toISOString();
 }
 
-async function withDb<T>(callback: (db: ReturnType<typeof drizzle>) => Promise<T>): Promise<T> {
+async function withDb<T>(
+  callback: (db: ReturnType<typeof drizzle>) => Promise<T>
+): Promise<T> {
   const sql = postgres(process.env.POSTGRES_URL!);
   const db = drizzle(sql);
 
@@ -341,5 +344,3 @@ async function withDb<T>(callback: (db: ReturnType<typeof drizzle>) => Promise<T
     await sql.end({ timeout: 5 });
   }
 }
-
-

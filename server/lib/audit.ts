@@ -1,17 +1,17 @@
 import { auditLog } from "@/lib/db/schema";
 import { getControlPlaneDb } from "./db";
 
-export type AuditEntry = {
-  workspaceId: string;
-  actorUserId?: string | null;
+export interface AuditEntry {
   /** Verb in dot notation, e.g. `data.created`, `pages.updated`. */
   action: string;
-  /** Logical resource — for row CRUD this is the table config id. */
-  resourceType: string;
-  resourceId?: string | null;
+  actorUserId?: string | null;
   changes?: Record<string, unknown>;
   requestId?: string | null;
-};
+  resourceId?: string | null;
+  /** Logical resource — for row CRUD this is the table config id. */
+  resourceType: string;
+  workspaceId: string;
+}
 
 /**
  * Appends a row to `audit_logs` in the main database.
@@ -25,21 +25,21 @@ export async function writeAuditLog(entry: AuditEntry): Promise<void> {
     await getControlPlaneDb()
       .insert(auditLog)
       .values({
-        workspace_id: entry.workspaceId,
-        actor_user_id: entry.actorUserId ?? null,
         action: entry.action,
-        resource_type: entry.resourceType,
-        resource_id: entry.resourceId ?? null,
+        actor_user_id: entry.actorUserId ?? null,
         changes: entry.changes ?? {},
         request_id: entry.requestId ?? null,
+        resource_id: entry.resourceId ?? null,
+        resource_type: entry.resourceType,
+        workspace_id: entry.workspaceId,
       });
   } catch (error) {
     console.error("[audit] failed to write audit log", {
       action: entry.action,
-      resourceType: entry.resourceType,
-      resourceId: entry.resourceId,
-      requestId: entry.requestId,
       error: error instanceof Error ? error.message : String(error),
+      requestId: entry.requestId,
+      resourceId: entry.resourceId,
+      resourceType: entry.resourceType,
     });
   }
 }

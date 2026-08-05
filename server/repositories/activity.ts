@@ -19,42 +19,45 @@ import { getControlPlaneDb } from "@/server/lib/db";
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
 
-export type AuditLogEntry = {
-  id: string;
+export interface AuditLogEntry {
   action: string;
-  resourceType: string;
-  resourceId: string | null;
-  changes: Record<string, unknown>;
-  requestId: string | null;
-  createdAt: Date;
-  actorUserId: string | null;
   actorEmail: string | null;
   actorName: string | null;
-};
-
-export type EventEntry = {
+  actorUserId: string | null;
+  changes: Record<string, unknown>;
+  createdAt: Date;
   id: string;
-  eventName: string;
-  payload: Record<string, unknown>;
   requestId: string | null;
+  resourceId: string | null;
+  resourceType: string;
+}
+
+export interface EventEntry {
+  actorEmail: string | null;
+  actorUserId: string | null;
   causedByRunId: string | null;
   createdAt: Date;
-  actorUserId: string | null;
-  actorEmail: string | null;
-};
+  eventName: string;
+  id: string;
+  payload: Record<string, unknown>;
+  requestId: string | null;
+}
 
-export type ListOptions = {
-  limit?: number;
+export interface ListOptions {
   /** Keyset cursor: return rows strictly older than this timestamp. */
   before?: string;
-};
+  limit?: number;
+}
 
 function parseLimit(limit: number | undefined): number {
   if (limit === undefined) {
     return DEFAULT_LIMIT;
   }
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    throw new ApiError(400, `limit must be an integer between 1 and ${MAX_LIMIT}`);
+    throw new ApiError(
+      400,
+      `limit must be an integer between 1 and ${MAX_LIMIT}`
+    );
   }
   return limit;
 }
@@ -94,17 +97,17 @@ export async function listAuditLogs(
 
   const rows = await getControlPlaneDb()
     .select({
-      id: auditLog.id,
       action: auditLog.action,
-      resourceType: auditLog.resource_type,
-      resourceId: auditLog.resource_id,
-      changes: auditLog.changes,
-      requestId: auditLog.request_id,
-      createdAt: auditLog.created_at,
-      actorUserId: auditLog.actor_user_id,
       actorEmail: user.email,
       actorFirstname: user.firstname,
       actorLastname: user.lastname,
+      actorUserId: auditLog.actor_user_id,
+      changes: auditLog.changes,
+      createdAt: auditLog.created_at,
+      id: auditLog.id,
+      requestId: auditLog.request_id,
+      resourceId: auditLog.resource_id,
+      resourceType: auditLog.resource_type,
     })
     .from(auditLog)
     .leftJoin(user, eq(user.id, auditLog.actor_user_id))
@@ -113,16 +116,16 @@ export async function listAuditLogs(
     .limit(limit);
 
   return rows.map((row) => ({
-    id: row.id,
     action: row.action,
-    resourceType: row.resourceType,
-    resourceId: row.resourceId,
-    changes: (row.changes ?? {}) as Record<string, unknown>,
-    requestId: row.requestId,
-    createdAt: row.createdAt,
-    actorUserId: row.actorUserId,
     actorEmail: row.actorEmail,
     actorName: actorName(row.actorFirstname, row.actorLastname),
+    actorUserId: row.actorUserId,
+    changes: (row.changes ?? {}) as Record<string, unknown>,
+    createdAt: row.createdAt,
+    id: row.id,
+    requestId: row.requestId,
+    resourceId: row.resourceId,
+    resourceType: row.resourceType,
   }));
 }
 
@@ -142,14 +145,14 @@ export async function listEvents(
 
   const rows = await getControlPlaneDb()
     .select({
-      id: eventLog.id,
-      eventName: eventLog.event_name,
-      payload: eventLog.payload,
-      requestId: eventLog.request_id,
+      actorEmail: user.email,
+      actorUserId: eventLog.actor_user_id,
       causedByRunId: eventLog.caused_by_run_id,
       createdAt: eventLog.created_at,
-      actorUserId: eventLog.actor_user_id,
-      actorEmail: user.email,
+      eventName: eventLog.event_name,
+      id: eventLog.id,
+      payload: eventLog.payload,
+      requestId: eventLog.request_id,
     })
     .from(eventLog)
     .leftJoin(user, eq(user.id, eventLog.actor_user_id))
@@ -158,14 +161,14 @@ export async function listEvents(
     .limit(limit);
 
   return rows.map((row) => ({
-    id: row.id,
-    eventName: row.eventName,
-    payload: (row.payload ?? {}) as Record<string, unknown>,
-    requestId: row.requestId,
+    actorEmail: row.actorEmail,
+    actorUserId: row.actorUserId,
     causedByRunId: row.causedByRunId,
     createdAt: row.createdAt,
-    actorUserId: row.actorUserId,
-    actorEmail: row.actorEmail,
+    eventName: row.eventName,
+    id: row.id,
+    payload: (row.payload ?? {}) as Record<string, unknown>,
+    requestId: row.requestId,
   }));
 }
 
@@ -176,39 +179,39 @@ export async function getAuditLog(
 ): Promise<AuditLogEntry | null> {
   const rows = await getControlPlaneDb()
     .select({
-      id: auditLog.id,
       action: auditLog.action,
-      resourceType: auditLog.resource_type,
-      resourceId: auditLog.resource_id,
-      changes: auditLog.changes,
-      requestId: auditLog.request_id,
-      createdAt: auditLog.created_at,
-      actorUserId: auditLog.actor_user_id,
       actorEmail: user.email,
       actorFirstname: user.firstname,
       actorLastname: user.lastname,
+      actorUserId: auditLog.actor_user_id,
+      changes: auditLog.changes,
+      createdAt: auditLog.created_at,
+      id: auditLog.id,
+      requestId: auditLog.request_id,
+      resourceId: auditLog.resource_id,
+      resourceType: auditLog.resource_type,
     })
     .from(auditLog)
     .leftJoin(user, eq(user.id, auditLog.actor_user_id))
     .where(and(eq(auditLog.id, id), eq(auditLog.workspace_id, workspaceId)))
     .limit(1);
 
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return null;
   }
 
   return {
-    id: row.id,
     action: row.action,
-    resourceType: row.resourceType,
-    resourceId: row.resourceId,
-    changes: (row.changes ?? {}) as Record<string, unknown>,
-    requestId: row.requestId,
-    createdAt: row.createdAt,
-    actorUserId: row.actorUserId,
     actorEmail: row.actorEmail,
     actorName: actorName(row.actorFirstname, row.actorLastname),
+    actorUserId: row.actorUserId,
+    changes: (row.changes ?? {}) as Record<string, unknown>,
+    createdAt: row.createdAt,
+    id: row.id,
+    requestId: row.requestId,
+    resourceId: row.resourceId,
+    resourceType: row.resourceType,
   };
 }
 
@@ -218,35 +221,35 @@ export async function getEvent(
 ): Promise<EventEntry | null> {
   const rows = await getControlPlaneDb()
     .select({
-      id: eventLog.id,
-      eventName: eventLog.event_name,
-      payload: eventLog.payload,
-      requestId: eventLog.request_id,
+      actorEmail: user.email,
+      actorUserId: eventLog.actor_user_id,
       causedByRunId: eventLog.caused_by_run_id,
       createdAt: eventLog.created_at,
-      actorUserId: eventLog.actor_user_id,
-      actorEmail: user.email,
+      eventName: eventLog.event_name,
+      id: eventLog.id,
+      payload: eventLog.payload,
+      requestId: eventLog.request_id,
     })
     .from(eventLog)
     .leftJoin(user, eq(user.id, eventLog.actor_user_id))
     .where(and(eq(eventLog.id, id), eq(eventLog.workspace_id, workspaceId)))
     .limit(1);
 
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return null;
   }
 
   return {
-    id: row.id,
-    eventName: row.eventName,
-    payload: (row.payload ?? {}) as Record<string, unknown>,
-    requestId: row.requestId,
+    actorEmail: row.actorEmail,
+    actorUserId: row.actorUserId,
     causedByRunId: row.causedByRunId,
     createdAt: row.createdAt,
-    actorUserId: row.actorUserId,
-    actorEmail: row.actorEmail,
+    eventName: row.eventName,
+    id: row.id,
+    payload: (row.payload ?? {}) as Record<string, unknown>,
+    requestId: row.requestId,
   };
 }
 
-export const __testing = { parseLimit, parseBefore, actorName };
+export const __testing = { actorName, parseBefore, parseLimit };

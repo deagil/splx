@@ -10,90 +10,90 @@ import { getResponseChunksByPrompt } from "@/tests/prompts/utils";
  */
 const usage = {
   inputTokens: {
-    total: 10,
-    noCache: 10,
     cacheRead: 0,
     cacheWrite: 0,
+    noCache: 10,
+    total: 10,
   },
   outputTokens: {
-    total: 20,
-    text: 20,
     reasoning: 0,
+    text: 20,
+    total: 20,
   },
 };
 
 export const chatModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    finishReason: { unified: "stop" as const, raw: undefined },
+    content: [{ text: "Hello, world!", type: "text" as const }],
+    finishReason: { raw: undefined, unified: "stop" as const },
     usage,
-    content: [{ type: "text" as const, text: "Hello, world!" }],
     warnings: [],
   }),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
-      initialDelayInMs: 1000,
       chunks: getResponseChunksByPrompt(prompt),
+      initialDelayInMs: 1000,
     }),
   }),
 });
 
 export const reasoningModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    finishReason: { unified: "stop" as const, raw: undefined },
+    content: [{ text: "Hello, world!", type: "text" as const }],
+    finishReason: { raw: undefined, unified: "stop" as const },
     usage,
-    content: [{ type: "text" as const, text: "Hello, world!" }],
     warnings: [],
   }),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
-      initialDelayInMs: 1000,
       chunks: getResponseChunksByPrompt(prompt, true),
+      initialDelayInMs: 1000,
     }),
   }),
 });
 
 export const titleModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    finishReason: { unified: "stop" as const, raw: undefined },
+    content: [{ text: "This is a test title", type: "text" as const }],
+    finishReason: { raw: undefined, unified: "stop" as const },
     usage,
-    content: [{ type: "text" as const, text: "This is a test title" }],
     warnings: [],
   }),
   doStream: async () => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
-      initialDelayInMs: 1000,
       chunks: [
         { id: "1", type: "text-start" as const },
-        { id: "1", type: "text-delta" as const, delta: "This is a test title" },
+        { delta: "This is a test title", id: "1", type: "text-delta" as const },
         { id: "1", type: "text-end" as const },
         {
+          finishReason: { raw: undefined, unified: "stop" as const },
           type: "finish" as const,
-          finishReason: { unified: "stop" as const, raw: undefined },
           usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
+            inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+            outputTokens: { reasoning: 0, text: 10, total: 10 },
           },
         },
       ],
+      initialDelayInMs: 1000,
     }),
   }),
 });
 
 export const artifactModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    finishReason: { unified: "stop" as const, raw: undefined },
+    content: [{ text: "Hello, world!", type: "text" as const }],
+    finishReason: { raw: undefined, unified: "stop" as const },
     usage,
-    content: [{ type: "text" as const, text: "Hello, world!" }],
     warnings: [],
   }),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 50,
-      initialDelayInMs: 100,
       chunks: getResponseChunksByPrompt(prompt),
+      initialDelayInMs: 100,
     }),
   }),
 });

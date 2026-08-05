@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { assertPublicUrl } from "@/server/lib/safe-url";
+import { evaluateCondition } from "./actions/condition";
+import { backoffMs, MAX_WORKFLOW_DEPTH, nextRunAfter } from "./constants";
 import {
   resolvePath,
   resolveTemplateRecord,
   resolveTemplateValue,
 } from "./template";
-import { backoffMs, nextRunAfter, MAX_WORKFLOW_DEPTH } from "./constants";
-import { evaluateCondition } from "./actions/condition";
-import { assertPublicUrl } from "@/server/lib/safe-url";
+
+const nonPublicUrlRegex = /non-public|Refusing/;
 
 describe("template resolver", () => {
   const context = {
@@ -70,7 +72,7 @@ describe("condition action", () => {
 describe("http action uses shared SSRF guard", () => {
   it("rejects private hosts", async () => {
     await expect(assertPublicUrl("http://127.0.0.1/")).rejects.toThrow(
-      /non-public|Refusing/
+      nonPublicUrlRegex
     );
   });
 });
@@ -85,9 +87,7 @@ describe("backoff and depth", () => {
 
   it("computes a future run_after", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
-    expect(nextRunAfter(1, now).toISOString()).toBe(
-      "2026-01-01T00:00:30.000Z"
-    );
+    expect(nextRunAfter(1, now).toISOString()).toBe("2026-01-01T00:00:30.000Z");
   });
 
   it("exposes the depth cap", () => {

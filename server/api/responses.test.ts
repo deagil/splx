@@ -16,7 +16,9 @@ describe("handleError", () => {
   it('maps Error("Forbidden") to 403', async () => {
     const response = handleError(new Error("Forbidden"));
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({ error: "Forbidden" });
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Forbidden",
+    });
   });
 
   it("maps tenant resolution failures to 403 rather than 500", async () => {
@@ -92,9 +94,12 @@ describe("success", () => {
   });
 
   it("includes meta only when provided", async () => {
-    const withMeta = await success({ records: [] }, {
-      meta: { pagination: { total: 0 } },
-    }).json();
+    const withMeta = await success(
+      { records: [] },
+      {
+        meta: { pagination: { total: 0 } },
+      }
+    ).json();
     expect(withMeta.meta).toEqual({ pagination: { total: 0 } });
 
     const withoutMeta = await success({ records: [] }).json();

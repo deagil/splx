@@ -3,6 +3,11 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
+import {
+  formatRelative,
+  formatTimestamp,
+  JsonBlock,
+} from "@/components/build/activity-log-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,33 +28,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  formatRelative,
-  formatTimestamp,
-  JsonBlock,
-} from "@/components/build/activity-log-view";
 
-type Workflow = {
-  id: string;
-  name: string;
+interface Workflow {
+  createdAt: string;
   description: string | null;
   enabled: boolean;
-  triggerType: string;
   eventName: string | null;
-  steps: unknown[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-type WorkflowRun = {
   id: string;
-  workflowId: string;
-  status: string;
-  error: string | null;
+  name: string;
   steps: unknown[];
-  startedAt: string;
+  triggerType: string;
+  updatedAt: string;
+}
+
+interface WorkflowRun {
+  error: string | null;
   finishedAt: string | null;
-};
+  id: string;
+  startedAt: string;
+  status: string;
+  steps: unknown[];
+  workflowId: string;
+}
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -139,20 +139,20 @@ export function WorkflowsView() {
       let steps: unknown[];
       try {
         steps = JSON.parse(stepsJson);
-      } catch {
-        throw new Error("Steps must be valid JSON");
+      } catch (parseError) {
+        throw new Error("Steps must be valid JSON", { cause: parseError });
       }
 
       const response = await fetch("/api/v1/workflows", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          name,
-          triggerType,
-          eventName: triggerType === "event" ? eventName : null,
-          steps,
           enabled: false,
+          eventName: triggerType === "event" ? eventName : null,
+          name,
+          steps,
+          triggerType,
         }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
       const body = await response.json();
       if (!response.ok) {
@@ -180,14 +180,14 @@ export function WorkflowsView() {
       let steps: unknown[];
       try {
         steps = JSON.parse(editStepsJson);
-      } catch {
-        throw new Error("Steps must be valid JSON");
+      } catch (parseError) {
+        throw new Error("Steps must be valid JSON", { cause: parseError });
       }
 
       const response = await fetch(`/api/v1/workflows/${selected.id}`, {
-        method: "PATCH",
+        body: JSON.stringify({ enabled: editEnabled, steps }),
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ steps, enabled: editEnabled }),
+        method: "PATCH",
       });
       const body = await response.json();
       if (!response.ok) {
@@ -207,9 +207,9 @@ export function WorkflowsView() {
     }
     setEditError(null);
     const response = await fetch(`/api/v1/workflows/${selected.id}/run`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const body = await response.json();
     if (!response.ok) {
@@ -450,7 +450,9 @@ export function WorkflowsView() {
                 <div>
                   <p className="mb-2 font-medium text-sm">Recent runs</p>
                   {runs.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No runs yet.</p>
+                    <p className="text-muted-foreground text-sm">
+                      No runs yet.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {runs.map((run) => (

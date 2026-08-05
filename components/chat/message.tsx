@@ -1,16 +1,33 @@
 "use client";
-import type { ChatAddToolApproveResponseFunction } from "ai";
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import equal from "fast-deep-equal";
-import { motion, AnimatePresence } from "framer-motion";
-import { memo, useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  AlertCircleIcon,
+  DatabaseIcon,
+  FileTextIcon,
+  NavigationIcon,
+  SearchIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
+import { memo, useEffect, useState } from "react";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
+import type { MentionMetadata } from "@/lib/types/mentions";
 import { cn, sanitizeText } from "@/lib/utils";
-import { useDataStream } from "../shared/data-stream-provider";
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+  ChainOfThoughtSearchResult,
+  ChainOfThoughtSearchResults,
+  ChainOfThoughtStep,
+} from "../ai-elements/chain-of-thought";
+import { Shimmer } from "../ai-elements/shimmer";
 import { DocumentToolResult } from "../document/document";
 import { DocumentPreview } from "../document/document-preview";
+import { Loader } from "../elements/loader";
 import { MessageContent } from "../elements/message";
 import { Response } from "../elements/response";
 import {
@@ -20,33 +37,15 @@ import {
   ToolInput,
   ToolOutput,
 } from "../elements/tool";
+import { PreviewAttachment } from "../input/preview-attachment";
+import { useDataStream } from "../shared/data-stream-provider";
 import { SparklesIcon } from "../shared/icons";
+import { Weather } from "../shared/weather";
 import { MessageActions } from "./message-actions";
+import { MessageContext } from "./message-context";
 import { MessageEditor } from "./message-editor";
 import { MessageReasoning } from "./message-reasoning";
-import { PreviewAttachment } from "../input/preview-attachment";
-import { Weather } from "../shared/weather";
-import { Loader } from "../elements/loader";
-import { Shimmer } from "../ai-elements/shimmer";
-import type { MentionMetadata } from "@/lib/types/mentions";
-import { MessageContext } from "./message-context";
 import { ToolApproval } from "./tool-approval";
-import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtHeader,
-  ChainOfThoughtSearchResult,
-  ChainOfThoughtSearchResults,
-  ChainOfThoughtStep,
-} from "../ai-elements/chain-of-thought";
-import {
-  AlertCircleIcon,
-  CheckCircleIcon,
-  DatabaseIcon,
-  FileTextIcon,
-  NavigationIcon,
-  SearchIcon,
-} from "lucide-react";
 
 // ============================================================================
 // Typing Indicator - Shows when waiting for first token in stream
@@ -54,17 +53,17 @@ import {
 
 const TypingDot = memo(({ delay }: { delay: number }) => (
   <motion.span
+    animate={{
+      opacity: [0.4, 1, 0.4],
+      y: [0, -3, 0],
+    }}
     className="inline-block size-1.5 rounded-full bg-current"
     initial={{ opacity: 0.4, y: 0 }}
-    animate={{ 
-      opacity: [0.4, 1, 0.4],
-      y: [0, -3, 0]
-    }}
     transition={{
-      duration: 0.6,
-      repeat: Number.POSITIVE_INFINITY,
       delay,
+      duration: 0.6,
       ease: "easeInOut",
+      repeat: Number.POSITIVE_INFINITY,
     }}
   />
 ));
@@ -77,12 +76,12 @@ TypingDot.displayName = "TypingDot";
  */
 export const TypingIndicator = memo(() => (
   <motion.div
-    className="flex items-center gap-1 text-muted-foreground py-2"
-    initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.15 }}
+    className="flex items-center gap-1 py-2 text-muted-foreground"
     data-testid="typing-indicator"
+    exit={{ opacity: 0 }}
+    initial={{ opacity: 0 }}
+    transition={{ duration: 0.15 }}
   >
     <TypingDot delay={0} />
     <TypingDot delay={0.15} />
@@ -117,7 +116,7 @@ function getMentionIcon(type: MentionMetadata["type"]): string {
 /**
  * Render text with mentions as inline elements with icons
  */
-function renderTextWithMentions(
+function _renderTextWithMentions(
   text: string,
   mentions?: MentionMetadata[]
 ): ReactNode {
@@ -135,7 +134,7 @@ function renderTextWithMentions(
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   const mentionPattern = /@(\w+(?:\s+\w+)*)/g;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = mentionPattern.exec(text)) !== null) {
     const beforeMatch = text.slice(lastIndex, match.index);
@@ -143,16 +142,18 @@ function renderTextWithMentions(
       parts.push(beforeMatch);
     }
 
-    const mentionLabel = match[1];
+    const [, mentionLabel] = match;
     const mention = mentionMap.get(mentionLabel);
-    
+
     if (mention) {
       parts.push(
         <span
+          className="inline-flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 align-baseline font-medium text-foreground text-sm"
           key={`mention-${match.index}`}
-          className="inline-flex items-center gap-1 align-baseline rounded bg-muted/50 px-1.5 py-0.5 text-sm font-medium text-foreground"
         >
-          <span className="text-xs leading-none">{getMentionIcon(mention.type)}</span>
+          <span className="text-xs leading-none">
+            {getMentionIcon(mention.type)}
+          </span>
           <span>{match[0]}</span>
         </span>
       );
@@ -160,7 +161,7 @@ function renderTextWithMentions(
       parts.push(match[0]);
     }
 
-    lastIndex = mentionPattern.lastIndex;
+    ({ lastIndex } = mentionPattern);
   }
 
   const remaining = text.slice(lastIndex);
@@ -202,38 +203,44 @@ const PurePreviewMessage = ({
   // These are custom fields added when the message was sent
   const messageAny = message as any;
   const messageMentions: MentionMetadata[] | undefined = messageAny.mentions;
-  const messageSkill: { id: string; name: string; command: string; prompt?: string } | undefined = messageAny.skill;
-  
+  const messageSkill:
+    | { id: string; name: string; command: string; prompt?: string }
+    | undefined = messageAny.skill;
+
   // Check if message has any context attached
-  const hasContext = (messageMentions && messageMentions.length > 0) || messageSkill;
+  const hasContext =
+    (messageMentions && messageMentions.length > 0) || messageSkill;
 
   useDataStream();
 
   // Collect all web search tool calls from the message parts
   // These are parts where the AI used the web_search tool to search the internet or fetch URLs
-  const webSearchToolCalls = message.parts?.filter(
-    (part) => (part as any).type === "tool-web_search"
-  ) || [];
+  const webSearchToolCalls =
+    message.parts?.filter((part) => (part as any).type === "tool-web_search") ||
+    [];
 
   // Collect all data tool calls (queryUserTable, searchPages, navigateToPage)
   // These are the custom tools for querying data and navigating pages
-  const dataToolCalls = message.parts?.filter((part) => {
-    const partType = (part as any).type;
-    return (
-      partType === "tool-queryUserTable" ||
-      partType === "tool-searchPages" ||
-      partType === "tool-navigateToPage"
-    );
-  }) || [];
+  const dataToolCalls =
+    message.parts?.filter((part) => {
+      const partType = (part as any).type;
+      return (
+        partType === "tool-queryUserTable" ||
+        partType === "tool-searchPages" ||
+        partType === "tool-navigateToPage"
+      );
+    }) || [];
 
   // Show Chain of Thought component when:
   // 1. There are web search tool calls present (AI performed web searches)
   // 2. The message is from the assistant (not the user)
   // This groups all web search steps together in a collapsible, visual format
-  const shouldShowChainOfThought = webSearchToolCalls.length > 0 && message.role === "assistant";
+  const shouldShowChainOfThought =
+    webSearchToolCalls.length > 0 && message.role === "assistant";
 
   // Show Data Tools Chain of Thought when data tools are used
-  const shouldShowDataToolsChainOfThought = dataToolCalls.length > 0 && message.role === "assistant";
+  const shouldShowDataToolsChainOfThought =
+    dataToolCalls.length > 0 && message.role === "assistant";
 
   return (
     <motion.div
@@ -241,22 +248,23 @@ const PurePreviewMessage = ({
       className="group/message w-full"
       data-role={message.role}
       data-testid={`message-${message.role}`}
-      exit={{ 
-        opacity: 0, 
-        transition: { duration: 0.1 } 
+      exit={{
+        opacity: 0,
+        transition: { duration: 0.1 },
       }}
-      initial={{ 
-        opacity: 0, 
-        y: message.role === "user" ? 8 : 0
+      initial={{
+        opacity: 0,
+        y: message.role === "user" ? 8 : 0,
       }}
-      transition={{ 
-        duration: 0.15, 
-        ease: "easeOut"
+      transition={{
+        duration: 0.15,
+        ease: "easeOut",
       }}
     >
       <div
         className={cn("flex w-full items-start", {
-          "justify-end gap-2 md:gap-3": message.role === "user" && mode !== "edit",
+          "justify-end gap-2 md:gap-3":
+            message.role === "user" && mode !== "edit",
           "justify-start": message.role === "assistant",
         })}
       >
@@ -265,15 +273,18 @@ const PurePreviewMessage = ({
             "gap-2 md:gap-4": message.parts?.some(
               (p) => p.type === "text" && p.text?.trim()
             ),
-            "min-h-96": message.role === "assistant" && requiresScrollPadding && !isLoading,
+            "max-w-[calc(100%-2.5rem)] sm:max-w-[min(fit-content,80%)]":
+              message.role === "user" && mode !== "edit",
+            "min-h-96":
+              message.role === "assistant" &&
+              requiresScrollPadding &&
+              !isLoading,
             "w-full":
               (message.role === "assistant" &&
                 message.parts?.some(
                   (p) => p.type === "text" && p.text?.trim()
                 )) ||
               mode === "edit",
-            "max-w-[calc(100%-2.5rem)] sm:max-w-[min(fit-content,80%)]":
-              message.role === "user" && mode !== "edit",
           })}
         >
           {attachmentsFromMessage.length > 0 && (
@@ -284,8 +295,8 @@ const PurePreviewMessage = ({
               {attachmentsFromMessage.map((attachment) => (
                 <PreviewAttachment
                   attachment={{
-                    name: attachment.filename ?? "file",
                     contentType: attachment.mediaType,
+                    name: attachment.filename ?? "file",
                     url: attachment.url,
                   }}
                   key={attachment.url}
@@ -297,44 +308,41 @@ const PurePreviewMessage = ({
           {/* Context attached to user message (skill, mentions) */}
           {message.role === "user" && hasContext && (
             <div className="flex justify-end">
-              <MessageContext
-                skill={messageSkill}
-                mentions={messageMentions}
-              />
+              <MessageContext mentions={messageMentions} skill={messageSkill} />
             </div>
           )}
 
-          {shouldShowChainOfThought && (
-            <ChainOfThought defaultOpen={true} className="mb-4">
-              <ChainOfThoughtHeader>
-                Searching online
-              </ChainOfThoughtHeader>
+          {!!shouldShowChainOfThought && (
+            <ChainOfThought className="mb-4" defaultOpen={true}>
+              <ChainOfThoughtHeader>Searching online</ChainOfThoughtHeader>
               <ChainOfThoughtContent>
                 {webSearchToolCalls.map((part, idx) => {
                   const partAny = part as any;
                   const output = partAny.output as any;
-                  
+
                   // OpenAI's web search tool returns an 'action' object that describes what the AI did:
                   // - "search": Performed a general web search query (e.g., "What is React?")
                   // - "openPage": Opened/fetched a specific URL (e.g., when user provides a URL directly)
                   // - "find": Searched for specific text/pattern within an already-loaded page
                   const action = output?.action;
-                  
+
                   // Sources are URLs or APIs that were used/cited in the search
                   // These appear as badges below each step
                   const sources = output?.sources || [];
-                  
+
                   // Default label - used as fallback if action type is unknown or missing
                   let stepLabel = "Searching the web";
                   let stepDescription: string | undefined;
-                  
+
                   // Determine the label and description based on the action type
                   if (action) {
                     if (action.type === "search") {
                       // Condition: AI performed a general web search query
                       // Shows when: User asks a question that requires web search (e.g., "What happened in SF last week?")
                       // Label: Displays the actual search query if available, otherwise generic "Performing web search"
-                      stepLabel = action.query ? `Searching: "${action.query}"` : "Performing web search";
+                      stepLabel = action.query
+                        ? `Searching: "${action.query}"`
+                        : "Performing web search";
                     } else if (action.type === "openPage") {
                       // Condition: AI opened/fetched a specific URL
                       // Shows when: User provides a URL directly (e.g., "What's on this page: https://example.com")
@@ -354,24 +362,25 @@ const PurePreviewMessage = ({
                   }
 
                   // Determine if this is the last step (for potential future use)
-                  const isLast = idx === webSearchToolCalls.length - 1;
-                  
+                  const _isLast = idx === webSearchToolCalls.length - 1;
+
                   // Determine the visual status of this step:
                   // - "complete": Tool call finished, output is available
                   // - "active": Tool call is in progress, input received but waiting for output
                   // - "pending": Tool call hasn't started yet
-                  const status = partAny.state === "output-available" 
-                    ? "complete" 
-                    : partAny.state === "input-available" 
-                    ? "active" 
-                    : "pending";
+                  const status =
+                    partAny.state === "output-available"
+                      ? "complete"
+                      : partAny.state === "input-available"
+                        ? "active"
+                        : "pending";
 
                   return (
                     <ChainOfThoughtStep
-                      key={partAny.toolCallId}
-                      icon={SearchIcon}
-                      label={stepLabel}
                       description={stepDescription || undefined}
+                      icon={SearchIcon}
+                      key={partAny.toolCallId}
+                      label={stepLabel}
                       status={status}
                     >
                       {/* 
@@ -384,25 +393,37 @@ const PurePreviewMessage = ({
                       */}
                       {sources.length > 0 && (
                         <ChainOfThoughtSearchResults>
-                          {sources.map((source: { type: string; url?: string; name?: string }, sourceIdx: number) => (
-                            <ChainOfThoughtSearchResult key={sourceIdx} asChild>
-                              <a
-                                href={source.url}
-                                rel="noreferrer"
-                                target="_blank"
+                          {sources.map(
+                            (
+                              source: {
+                                type: string;
+                                url?: string;
+                                name?: string;
+                              },
+                              sourceIdx: number
+                            ) => (
+                              <ChainOfThoughtSearchResult
+                                asChild
+                                key={sourceIdx}
                               >
-                                {/* 
+                                <a
+                                  href={source.url}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  {/* 
                                   Display format:
                                   - For URL sources: Show hostname (e.g., "example.com")
                                   - For API sources: Show the API name
                                   - Fallback: "Source" if neither is available
                                 */}
-                                {source.type === "url" && source.url
-                                  ? new URL(source.url).hostname
-                                  : source.name || "Source"}
-                              </a>
-                            </ChainOfThoughtSearchResult>
-                          ))}
+                                  {source.type === "url" && source.url
+                                    ? new URL(source.url).hostname
+                                    : source.name || "Source"}
+                                </a>
+                              </ChainOfThoughtSearchResult>
+                            )
+                          )}
                         </ChainOfThoughtSearchResults>
                       )}
                     </ChainOfThoughtStep>
@@ -413,43 +434,55 @@ const PurePreviewMessage = ({
           )}
 
           {/* Data Tools Chain of Thought - shows queryUserTable, searchPages, navigateToPage steps */}
-          {shouldShowDataToolsChainOfThought && (
-            <ChainOfThought defaultOpen={true} className="mb-4">
+          {!!shouldShowDataToolsChainOfThought && (
+            <ChainOfThought className="mb-4" defaultOpen={true}>
               <ChainOfThoughtHeader>
                 Processing data request
               </ChainOfThoughtHeader>
               <ChainOfThoughtContent>
-                {dataToolCalls.map((part, idx) => {
+                {dataToolCalls.map((part, _idx) => {
                   const partAny = part as any;
                   const partType = partAny.type as string;
-                  const input = partAny.input as Record<string, unknown> | undefined;
-                  const output = partAny.output as Record<string, unknown> | undefined;
+                  const input = partAny.input as
+                    | Record<string, unknown>
+                    | undefined;
+                  const output = partAny.output as
+                    | Record<string, unknown>
+                    | undefined;
                   const isError = partAny.state === "output-error";
 
                   // Determine icon, label, and description based on tool type
                   let Icon = DatabaseIcon;
                   let stepLabel = "Processing...";
                   let stepDescription: string | undefined;
-                  let resultSummary: string | undefined;
+                  let _resultSummary: string | undefined;
 
                   if (partType === "tool-queryUserTable") {
                     Icon = DatabaseIcon;
                     const tableName = input?.tableName as string | undefined;
-                    const filters = input?.filters as Array<{ column: string; value: string }> | undefined;
+                    const filters = input?.filters as
+                      | Array<{ column: string; value: string }>
+                      | undefined;
 
                     if (isError) {
                       stepLabel = `Query failed: ${tableName || "table"}`;
-                      stepDescription = output?.message as string || "An error occurred while querying the table.";
+                      stepDescription =
+                        (output?.message as string) ||
+                        "An error occurred while querying the table.";
                     } else if (partAny.state === "output-available" && output) {
                       const rowCount = (output.rows as unknown[])?.length ?? 0;
-                      const totalRows = (output.pagination as { totalRows?: number })?.totalRows ?? rowCount;
+                      const totalRows =
+                        (output.pagination as { totalRows?: number })
+                          ?.totalRows ?? rowCount;
                       stepLabel = `Queried ${tableName}`;
                       stepDescription = `Found ${totalRows} record${totalRows === 1 ? "" : "s"}`;
                       if (filters && filters.length > 0) {
                         stepDescription += ` with ${filters.length} filter${filters.length === 1 ? "" : "s"}`;
                       }
                     } else {
-                      stepLabel = tableName ? `Querying ${tableName}...` : "Querying table...";
+                      stepLabel = tableName
+                        ? `Querying ${tableName}...`
+                        : "Querying table...";
                       if (filters && filters.length > 0) {
                         stepDescription = `Applying ${filters.length} filter${filters.length === 1 ? "" : "s"}`;
                       }
@@ -460,13 +493,20 @@ const PurePreviewMessage = ({
 
                     if (isError) {
                       stepLabel = "Page search failed";
-                      stepDescription = output?.message as string || "An error occurred while searching pages.";
+                      stepDescription =
+                        (output?.message as string) ||
+                        "An error occurred while searching pages.";
                     } else if (partAny.state === "output-available" && output) {
-                      const pageCount = (output.pages as unknown[])?.length ?? 0;
-                      stepLabel = query ? `Searched for "${query}"` : "Listed pages";
+                      const pageCount =
+                        (output.pages as unknown[])?.length ?? 0;
+                      stepLabel = query
+                        ? `Searched for "${query}"`
+                        : "Listed pages";
                       stepDescription = `Found ${pageCount} page${pageCount === 1 ? "" : "s"}`;
                     } else {
-                      stepLabel = query ? `Searching for "${query}"...` : "Searching pages...";
+                      stepLabel = query
+                        ? `Searching for "${query}"...`
+                        : "Searching pages...";
                     }
                   } else if (partType === "tool-navigateToPage") {
                     Icon = NavigationIcon;
@@ -475,10 +515,14 @@ const PurePreviewMessage = ({
 
                     if (isError) {
                       stepLabel = "Navigation failed";
-                      stepDescription = output?.message as string || "Could not navigate to the page.";
+                      stepDescription =
+                        (output?.message as string) ||
+                        "Could not navigate to the page.";
                     } else if (partAny.state === "output-available" && output) {
                       const found = output.found as boolean;
-                      const outputPageName = output.pageName as string | undefined;
+                      const outputPageName = output.pageName as
+                        | string
+                        | undefined;
                       const navigated = output.navigated as boolean;
 
                       if (found && navigated) {
@@ -486,7 +530,9 @@ const PurePreviewMessage = ({
                         stepDescription = output.url as string | undefined;
                       } else if (found && !navigated) {
                         stepLabel = `Found ${outputPageName || "page"}`;
-                        stepDescription = output.warning as string || "Page found but navigation pending.";
+                        stepDescription =
+                          (output.warning as string) ||
+                          "Page found but navigation pending.";
                       } else {
                         stepLabel = "Page not found";
                         stepDescription = output.message as string;
@@ -495,8 +541,8 @@ const PurePreviewMessage = ({
                       stepLabel = pageName
                         ? `Navigating to "${pageName}"...`
                         : pageId
-                        ? `Loading page ${pageId}...`
-                        : "Navigating...";
+                          ? `Loading page ${pageId}...`
+                          : "Navigating...";
                     }
                   }
 
@@ -512,23 +558,27 @@ const PurePreviewMessage = ({
 
                   return (
                     <ChainOfThoughtStep
-                      key={partAny.toolCallId}
-                      icon={isError ? AlertCircleIcon : Icon}
-                      label={stepLabel}
-                      description={stepDescription}
-                      status={status}
                       className={isError ? "text-destructive" : undefined}
+                      description={stepDescription}
+                      icon={isError ? AlertCircleIcon : Icon}
+                      key={partAny.toolCallId}
+                      label={stepLabel}
+                      status={status}
                     >
                       {/* Show result details for successful queries */}
                       {partType === "tool-queryUserTable" &&
                         !isError &&
                         partAny.state === "output-available" &&
                         output && (
-                          <div className="mt-2 text-xs text-muted-foreground">
+                          <div className="mt-2 text-muted-foreground text-xs">
                             {((output.rows as unknown[])?.length ?? 0) > 0 && (
                               <span>
-                                Columns: {((output.columns as string[]) || []).slice(0, 5).join(", ")}
-                                {((output.columns as string[])?.length ?? 0) > 5 && "..."}
+                                Columns:{" "}
+                                {((output.columns as string[]) || [])
+                                  .slice(0, 5)
+                                  .join(", ")}
+                                {((output.columns as string[])?.length ?? 0) >
+                                  5 && "..."}
                               </span>
                             )}
                           </div>
@@ -540,7 +590,12 @@ const PurePreviewMessage = ({
                         partAny.state === "output-available" &&
                         output && (
                           <ChainOfThoughtSearchResults className="mt-2">
-                            {((output.pages as Array<{ name: string; id: string }>) || [])
+                            {(
+                              (output.pages as Array<{
+                                name: string;
+                                id: string;
+                              }>) || []
+                            )
                               .slice(0, 3)
                               .map((page) => (
                                 <ChainOfThoughtSearchResult key={page.id}>
@@ -548,8 +603,10 @@ const PurePreviewMessage = ({
                                 </ChainOfThoughtSearchResult>
                               ))}
                             {((output.pages as unknown[])?.length ?? 0) > 3 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{((output.pages as unknown[])?.length ?? 0) - 3} more
+                              <span className="text-muted-foreground text-xs">
+                                +
+                                {((output.pages as unknown[])?.length ?? 0) - 3}{" "}
+                                more
                               </span>
                             )}
                           </ChainOfThoughtSearchResults>
@@ -564,18 +621,23 @@ const PurePreviewMessage = ({
           {/* Unified reasoning section - combines all reasoning parts into one */}
           {(() => {
             // Collect all reasoning parts and combine their text
-            const reasoningParts = message.parts?.filter(p => p.type === "reasoning") || [];
+            const reasoningParts =
+              message.parts?.filter((p) => p.type === "reasoning") || [];
             const combinedReasoning = reasoningParts
-              .map(p => (p as any).text || "")
+              .map((p) => (p as any).text || "")
               .filter(Boolean)
               .join("\n\n");
-            
-            if (!combinedReasoning.trim()) return null;
-            
+
+            if (!combinedReasoning.trim()) {
+              return null;
+            }
+
             // Check if reasoning is still streaming (no text parts yet or still loading)
-            const hasTextPart = message.parts?.some(p => p.type === "text" && (p as any).text?.trim());
+            const hasTextPart = message.parts?.some(
+              (p) => p.type === "text" && (p as any).text?.trim()
+            );
             const isReasoningStreaming = isLoading && !hasTextPart;
-            
+
             return (
               <MessageReasoning
                 hasTextStarted={hasTextPart || false}
@@ -596,11 +658,12 @@ const PurePreviewMessage = ({
               (p) => p.type === "text" && (p as { text?: string }).text?.trim()
             );
             const hasReasoningContent = message.parts?.some(
-              (p) => p.type === "reasoning" && (p as { text?: string }).text?.trim()
+              (p) =>
+                p.type === "reasoning" && (p as { text?: string }).text?.trim()
             );
-            const showTypingIndicator = 
-              isLoading && 
-              message.role === "assistant" && 
+            const showTypingIndicator =
+              isLoading &&
+              message.role === "assistant" &&
               !hasTextContent &&
               !hasReasoningContent;
 
@@ -624,7 +687,10 @@ const PurePreviewMessage = ({
             }
 
             // Skip web search tool calls if we're showing them in Chain of Thought
-            if ((type as string) === "tool-web_search" && shouldShowChainOfThought) {
+            if (
+              (type as string) === "tool-web_search" &&
+              shouldShowChainOfThought
+            ) {
               return null;
             }
 
@@ -642,8 +708,8 @@ const PurePreviewMessage = ({
               if (mode === "view") {
                 // Check if this text part is actively streaming
                 // (it's the last text part and the message is still loading)
-                const isTextStreaming = 
-                  isLoading && 
+                const isTextStreaming =
+                  isLoading &&
                   message.role === "assistant" &&
                   partIndex === message.parts.length - 1;
 
@@ -651,10 +717,10 @@ const PurePreviewMessage = ({
                   <div key={key}>
                     <MessageContent
                       className={cn({
-                        "w-fit break-words rounded-2xl px-3 py-2 text-right text-white":
-                          message.role === "user",
                         "bg-transparent px-0 py-0 text-left":
                           message.role === "assistant",
+                        "w-fit break-words rounded-2xl px-3 py-2 text-right text-white":
+                          message.role === "user",
                       })}
                       data-testid="message-content"
                       style={
@@ -743,9 +809,9 @@ const PurePreviewMessage = ({
               if (part.state === "approval-requested") {
                 return (
                   <ToolApproval
-                    key={toolCallId}
-                    invocation={part as any}
                     addToolApprovalResponse={addToolApprovalResponse}
+                    invocation={part as any}
+                    key={toolCallId}
                   />
                 );
               }
@@ -826,35 +892,30 @@ const PurePreviewMessage = ({
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              {partAny.output && typeof partAny.output === "object" && "action" in partAny.output && (
-                                <div className="space-y-1">
-                                  <h5 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-                                    Action
-                                  </h5>
-                                  <div className="rounded-md bg-muted/50 p-2 text-xs">
-                                    {partAny.output.action.type === "search" && (
-                                      <div>
-                                        <span className="font-medium">Search:</span>{" "}
-                                        {partAny.output.action.query || "No query"}
-                                      </div>
-                                    )}
-                                    {partAny.output.action.type === "openPage" && (
-                                      <div>
-                                        <span className="font-medium">Opened:</span>{" "}
-                                        <a
-                                          className="text-primary hover:underline"
-                                          href={partAny.output.action.url}
-                                          rel="noreferrer"
-                                          target="_blank"
-                                        >
-                                          {partAny.output.action.url}
-                                        </a>
-                                      </div>
-                                    )}
-                                    {partAny.output.action.type === "find" && (
-                                      <div className="space-y-1">
+                              {partAny.output &&
+                                typeof partAny.output === "object" &&
+                                "action" in partAny.output && (
+                                  <div className="space-y-1">
+                                    <h5 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                                      Action
+                                    </h5>
+                                    <div className="rounded-md bg-muted/50 p-2 text-xs">
+                                      {partAny.output.action.type ===
+                                        "search" && (
                                         <div>
-                                          <span className="font-medium">Finding in:</span>{" "}
+                                          <span className="font-medium">
+                                            Search:
+                                          </span>{" "}
+                                          {partAny.output.action.query ||
+                                            "No query"}
+                                        </div>
+                                      )}
+                                      {partAny.output.action.type ===
+                                        "openPage" && (
+                                        <div>
+                                          <span className="font-medium">
+                                            Opened:
+                                          </span>{" "}
                                           <a
                                             className="text-primary hover:underline"
                                             href={partAny.output.action.url}
@@ -864,42 +925,82 @@ const PurePreviewMessage = ({
                                             {partAny.output.action.url}
                                           </a>
                                         </div>
-                                        <div>
-                                          <span className="font-medium">Pattern:</span>{" "}
-                                          {partAny.output.action.pattern}
+                                      )}
+                                      {partAny.output.action.type ===
+                                        "find" && (
+                                        <div className="space-y-1">
+                                          <div>
+                                            <span className="font-medium">
+                                              Finding in:
+                                            </span>{" "}
+                                            <a
+                                              className="text-primary hover:underline"
+                                              href={partAny.output.action.url}
+                                              rel="noreferrer"
+                                              target="_blank"
+                                            >
+                                              {partAny.output.action.url}
+                                            </a>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium">
+                                              Pattern:
+                                            </span>{" "}
+                                            {partAny.output.action.pattern}
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              {partAny.output && typeof partAny.output === "object" && "sources" in partAny.output && Array.isArray(partAny.output.sources) && partAny.output.sources.length > 0 && (
-                                <div className="space-y-1">
-                                  <h5 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-                                    Sources
-                                  </h5>
-                                  <div className="flex flex-col gap-1">
-                                    {partAny.output.sources.map((source: { type: string; url?: string; name?: string }, idx: number) => (
-                                      <a
-                                        key={idx}
-                                        className="text-primary hover:underline text-xs"
-                                        href={source.url}
-                                        rel="noreferrer"
-                                        target="_blank"
-                                      >
-                                        {source.type === "url" && source.url ? (
-                                          <>
-                                            <span className="font-medium">{new URL(source.url).hostname}</span>
-                                            <span className="text-muted-foreground ml-1">({source.url})</span>
-                                          </>
-                                        ) : (
-                                          <span>{source.name || "Unknown source"}</span>
-                                        )}
-                                      </a>
-                                    ))}
+                                )}
+                              {partAny.output &&
+                                typeof partAny.output === "object" &&
+                                "sources" in partAny.output &&
+                                Array.isArray(partAny.output.sources) &&
+                                partAny.output.sources.length > 0 && (
+                                  <div className="space-y-1">
+                                    <h5 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                                      Sources
+                                    </h5>
+                                    <div className="flex flex-col gap-1">
+                                      {partAny.output.sources.map(
+                                        (
+                                          source: {
+                                            type: string;
+                                            url?: string;
+                                            name?: string;
+                                          },
+                                          idx: number
+                                        ) => (
+                                          <a
+                                            className="text-primary text-xs hover:underline"
+                                            href={source.url}
+                                            key={idx}
+                                            rel="noreferrer"
+                                            target="_blank"
+                                          >
+                                            {source.type === "url" &&
+                                            source.url ? (
+                                              <>
+                                                <span className="font-medium">
+                                                  {new URL(source.url).hostname}
+                                                </span>
+                                                <span className="ml-1 text-muted-foreground">
+                                                  ({source.url})
+                                                </span>
+                                              </>
+                                            ) : (
+                                              <span>
+                                                {source.name ||
+                                                  "Unknown source"}
+                                              </span>
+                                            )}
+                                          </a>
+                                        )
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
                             </div>
                           )
                         }
@@ -958,30 +1059,33 @@ export const PreviewMessage = memo(
 // Makes the UI feel snappy by showing appropriate feedback
 // ============================================================================
 
-type ThinkingPhase = 
+type ThinkingPhase =
   | "reading-article"
   | "gathering-context"
   | "processing"
   | "thinking";
 
-type ThinkingMessageProps = {
+interface ThinkingMessageProps {
+  /** Number of attachments */
+  attachmentCount?: number;
+  /** Whether message has attachments */
+  hasAttachments?: boolean;
   /** Whether message has mentions that need enrichment */
   hasMentions?: boolean;
   /** Whether message has URL mentions specifically */
   hasUrlMentions?: boolean;
-  /** Whether message has attachments */
-  hasAttachments?: boolean;
-  /** Number of attachments */
-  attachmentCount?: number;
   /** Number of URL mentions */
   urlCount?: number;
-};
+}
 
 /** Get contextual label for current processing phase */
-function getPhaseLabel(phase: ThinkingPhase, props: ThinkingMessageProps): string {
+function getPhaseLabel(
+  phase: ThinkingPhase,
+  props: ThinkingMessageProps
+): string {
   switch (phase) {
     case "reading-article":
-      return props.urlCount && props.urlCount > 1 
+      return props.urlCount && props.urlCount > 1
         ? `Reading ${props.urlCount} articles...`
         : "Reading article...";
     case "gathering-context":
@@ -1001,180 +1105,199 @@ function getPhaseLabel(phase: ThinkingPhase, props: ThinkingMessageProps): strin
 }
 
 /** Animated step indicator with spinner or checkmark */
-const StepIndicator = memo(({ 
-  label, 
-  isComplete,
-  isActive 
-}: { 
-  label: string; 
-  isComplete: boolean;
-  isActive: boolean;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 6 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
-    transition={{ duration: 0.15, ease: "easeOut" }}
-    className={cn(
-      "flex items-center gap-2 text-sm",
-      isComplete ? "text-muted-foreground" : "text-foreground"
-    )}
-  >
-    {isActive && !isComplete && (
-      <Loader size={14} className="text-primary" />
-    )}
-    {isComplete && (
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 25 }}
-      >
-        <svg
-          className="size-3.5 text-emerald-500"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+const StepIndicator = memo(
+  ({
+    label,
+    isComplete,
+    isActive,
+  }: {
+    label: string;
+    isComplete: boolean;
+    isActive: boolean;
+  }) => (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "flex items-center gap-2 text-sm",
+        isComplete ? "text-muted-foreground" : "text-foreground"
+      )}
+      exit={{ opacity: 0, transition: { duration: 0.1 }, y: -4 }}
+      initial={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+    >
+      {isActive && !isComplete && <Loader className="text-primary" size={14} />}
+      {!!isComplete && (
+        <motion.div
+          animate={{ scale: 1 }}
+          initial={{ scale: 0 }}
+          transition={{ damping: 25, stiffness: 500, type: "spring" }}
         >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      </motion.div>
-    )}
-    <span className={cn(
-      "transition-colors duration-150",
-      isActive && !isComplete && "font-medium"
-    )}>
-      {label}
-    </span>
-  </motion.div>
-));
+          <svg
+            className="size-3.5 text-emerald-500"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3"
+            viewBox="0 0 24 24"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </motion.div>
+      )}
+      <span
+        className={cn(
+          "transition-colors duration-150",
+          isActive && !isComplete && "font-medium"
+        )}
+      >
+        {label}
+      </span>
+    </motion.div>
+  )
+);
 
 StepIndicator.displayName = "StepIndicator";
 
-export const ThinkingMessage = memo(({
-  hasMentions = false,
-  hasUrlMentions = false,
-  hasAttachments = false,
-  attachmentCount = 0,
-  urlCount = 0,
-}: ThinkingMessageProps) => {
-  const role = "assistant";
-  const [completedPhases, setCompletedPhases] = useState<ThinkingPhase[]>([]);
-  const [currentPhase, setCurrentPhase] = useState<ThinkingPhase | null>(null);
+export const ThinkingMessage = memo(
+  ({
+    hasMentions = false,
+    hasUrlMentions = false,
+    hasAttachments = false,
+    attachmentCount = 0,
+    urlCount = 0,
+  }: ThinkingMessageProps) => {
+    const role = "assistant";
+    const [completedPhases, setCompletedPhases] = useState<ThinkingPhase[]>([]);
+    const [currentPhase, setCurrentPhase] = useState<ThinkingPhase | null>(
+      null
+    );
 
-  // Determine phases based on message context
-  useEffect(() => {
-    const phases: ThinkingPhase[] = [];
-    
-    // Build phase sequence based on what's in the message
-    if (hasUrlMentions) {
-      phases.push("reading-article");
-    }
-    if (hasMentions && !hasUrlMentions) {
-      phases.push("gathering-context");
-    }
-    if (hasAttachments) {
-      phases.push("gathering-context");
-    }
-    // Always end with thinking
-    phases.push("thinking");
+    // Determine phases based on message context
+    useEffect(() => {
+      const phases: ThinkingPhase[] = [];
 
-    // Start with first phase
-    if (phases.length > 0) {
-      setCurrentPhase(phases[0]);
-    }
-
-    // Progress through phases with realistic timing
-    let phaseIndex = 0;
-    const progressPhase = () => {
-      if (phaseIndex < phases.length - 1) {
-        // Mark current as complete, move to next
-        setCompletedPhases(prev => [...prev, phases[phaseIndex]]);
-        phaseIndex++;
-        setCurrentPhase(phases[phaseIndex]);
+      // Build phase sequence based on what's in the message
+      if (hasUrlMentions) {
+        phases.push("reading-article");
       }
+      if (hasMentions && !hasUrlMentions) {
+        phases.push("gathering-context");
+      }
+      if (hasAttachments) {
+        phases.push("gathering-context");
+      }
+      // Always end with thinking
+      phases.push("thinking");
+
+      // Start with first phase
+      if (phases.length > 0) {
+        setCurrentPhase(phases[0]);
+      }
+
+      // Progress through phases with realistic timing
+      let phaseIndex = 0;
+      const progressPhase = () => {
+        if (phaseIndex < phases.length - 1) {
+          // Mark current as complete, move to next
+          setCompletedPhases((prev) => [...prev, phases[phaseIndex]]);
+          phaseIndex += 1;
+          setCurrentPhase(phases[phaseIndex]);
+        }
+      };
+
+      // Timing based on phase type (feels natural)
+      const timers: NodeJS.Timeout[] = [];
+      let elapsed = 0;
+
+      for (let i = 0; i < phases.length - 1; i += 1) {
+        const phase = phases[i];
+        // URL reading feels longer (even though it's pre-fetched, user expects it)
+        const duration =
+          phase === "reading-article"
+            ? 800
+            : phase === "gathering-context"
+              ? 500
+              : 300;
+        elapsed += duration;
+        timers.push(setTimeout(progressPhase, elapsed));
+      }
+
+      return () => {
+        for (const timer of timers) {
+          clearTimeout(timer);
+        }
+      };
+    }, [hasMentions, hasUrlMentions, hasAttachments]);
+
+    const props = {
+      attachmentCount,
+      hasAttachments,
+      hasMentions,
+      hasUrlMentions,
+      urlCount,
     };
 
-    // Timing based on phase type (feels natural)
-    const timers: NodeJS.Timeout[] = [];
-    let elapsed = 0;
-    
-    for (let i = 0; i < phases.length - 1; i++) {
-      const phase = phases[i];
-      // URL reading feels longer (even though it's pre-fetched, user expects it)
-      const duration = phase === "reading-article" ? 800 : 
-                       phase === "gathering-context" ? 500 : 300;
-      elapsed += duration;
-      timers.push(setTimeout(progressPhase, elapsed));
-    }
+    return (
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        className="group/message w-full"
+        data-role={role}
+        data-testid="message-assistant-loading"
+        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+        initial={{ opacity: 0, y: 4 }}
+        transition={{ duration: 0.15 }}
+      >
+        <div className="flex items-start justify-start gap-3">
+          <motion.div
+            animate={{ opacity: 1, scale: 1 }}
+            className="-mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border"
+            initial={{ opacity: 0, scale: 0.8 }}
+            transition={{ damping: 25, stiffness: 400, type: "spring" }}
+          >
+            <SparklesIcon size={14} />
+          </motion.div>
 
-    return () => {
-      for (const timer of timers) {
-        clearTimeout(timer);
-      }
-    };
-  }, [hasMentions, hasUrlMentions, hasAttachments]);
+          <div className="flex flex-col gap-1.5 pt-1">
+            <AnimatePresence mode="popLayout">
+              {/* Show completed phases */}
+              {completedPhases.map((phase) => (
+                <StepIndicator
+                  isActive={false}
+                  isComplete={true}
+                  key={phase}
+                  label={getPhaseLabel(phase, props)}
+                />
+              ))}
 
-  const props = { hasMentions, hasUrlMentions, hasAttachments, attachmentCount, urlCount };
-
-  return (
-    <motion.div
-      className="group/message w-full"
-      data-role={role}
-      data-testid="message-assistant-loading"
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: { duration: 0.1 } }}
-      transition={{ duration: 0.15 }}
-    >
-      <div className="flex items-start justify-start gap-3">
-        <motion.div
-          className="-mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
-        >
-          <SparklesIcon size={14} />
-        </motion.div>
-
-        <div className="flex flex-col gap-1.5 pt-1">
-          <AnimatePresence mode="popLayout">
-            {/* Show completed phases */}
-            {completedPhases.map((phase) => (
-              <StepIndicator
-                key={phase}
-                label={getPhaseLabel(phase, props)}
-                isComplete={true}
-                isActive={false}
-              />
-            ))}
-            
-            {/* Show current active phase */}
-            {currentPhase && (
-              <motion.div
-                key={currentPhase}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex items-center gap-2 text-sm text-foreground"
-              >
-                <Loader size={14} className="text-primary" />
-                {currentPhase === "thinking" ? (
-                  <Shimmer duration={1.5}>{getPhaseLabel(currentPhase, props)}</Shimmer>
-                ) : (
-                  <span className="font-medium">{getPhaseLabel(currentPhase, props)}</span>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              {/* Show current active phase */}
+              {!!currentPhase && (
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 text-foreground text-sm"
+                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, y: 4 }}
+                  key={currentPhase}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Loader className="text-primary" size={14} />
+                  {currentPhase === "thinking" ? (
+                    <Shimmer duration={1.5}>
+                      {getPhaseLabel(currentPhase, props)}
+                    </Shimmer>
+                  ) : (
+                    <span className="font-medium">
+                      {getPhaseLabel(currentPhase, props)}
+                    </span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
-    </motion.div>
-  );
-});
+      </motion.div>
+    );
+  }
+);
 
 ThinkingMessage.displayName = "ThinkingMessage";
-

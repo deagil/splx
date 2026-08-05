@@ -3,15 +3,17 @@ import { getResourceStore } from "@/lib/server/tenant/resource-store";
 import { endpoint } from "@/server/api/endpoint";
 import { ApiError } from "@/server/api/responses";
 
-type Params = { tableName: string };
+interface Params {
+  tableName: string;
+}
 
-type ColumnInfo = {
+interface ColumnInfo {
+  character_maximum_length: number | null;
+  column_default: string | null;
   column_name: string;
   data_type: string;
   is_nullable: string;
-  column_default: string | null;
-  character_maximum_length: number | null;
-};
+}
 
 /**
  * Column list for a table, used by the data grid to build its editor.
@@ -21,7 +23,6 @@ type ColumnInfo = {
  */
 export const GET = endpoint<undefined, Params, { columns: ColumnInfo[] }>({
   auth: "required",
-  permission: "data.view",
   async handler({ user, params }) {
     const store = await getResourceStore(user.tenant);
 
@@ -41,11 +42,11 @@ export const GET = endpoint<undefined, Params, { columns: ColumnInfo[] }>({
         `)) as ColumnInfo[];
 
         return rows.map((row) => ({
+          character_maximum_length: row.character_maximum_length,
+          column_default: row.column_default,
           column_name: row.column_name,
           data_type: row.data_type,
           is_nullable: row.is_nullable,
-          column_default: row.column_default,
-          character_maximum_length: row.character_maximum_length,
         }));
       });
 
@@ -58,4 +59,5 @@ export const GET = endpoint<undefined, Params, { columns: ColumnInfo[] }>({
       await store.dispose();
     }
   },
+  permission: "data.view",
 });

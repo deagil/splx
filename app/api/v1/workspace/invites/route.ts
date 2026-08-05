@@ -19,31 +19,30 @@ const createInviteSchema = z.object({
  */
 export const GET = endpoint({
   auth: "required",
-  permission: "workspace.view",
   async handler({ user }) {
     const invites = await listPendingInvites(user.workspaceId);
     return { data: { invites } };
   },
+  permission: "workspace.view",
 });
 
 export const POST = endpoint<z.infer<typeof createInviteSchema>>({
   auth: "required",
-  permission: "workspace.invites",
-  schema: createInviteSchema,
   async handler({ user, body, requestId }) {
     const invite = await createInvite(
-      { workspaceId: user.workspaceId, actorUserId: user.userId, requestId },
+      { actorUserId: user.userId, requestId, workspaceId: user.workspaceId },
       body.email,
       body.roleId
     );
 
     return { data: { invite }, status: 201 };
   },
+  permission: "workspace.invites",
+  schema: createInviteSchema,
 });
 
 export const DELETE = endpoint({
   auth: "required",
-  permission: "workspace.invites",
   async handler({ user, query, requestId }) {
     const inviteId = query.get("id");
     if (!inviteId) {
@@ -51,10 +50,11 @@ export const DELETE = endpoint({
     }
 
     await revokeInvite(
-      { workspaceId: user.workspaceId, actorUserId: user.userId, requestId },
+      { actorUserId: user.userId, requestId, workspaceId: user.workspaceId },
       inviteId
     );
 
     return { data: { success: true } };
   },
+  permission: "workspace.invites",
 });

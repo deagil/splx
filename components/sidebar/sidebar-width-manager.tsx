@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useArtifactSelector } from "@/hooks/use-artifact";
-import { useSidebar } from "@/components/ui/sidebar";
-import { useScreenSize } from "@/hooks/use-screen-size";
 import {
   REM_TO_PX,
-  SIDEBAR_WIDTH_REGULAR_CHANGED_EVENT,
   resolveRegularDesktopWidthPx,
+  SIDEBAR_WIDTH_REGULAR_CHANGED_EVENT,
   setSidebarWidthPx,
 } from "@/components/sidebar/chat-sidebar-resize";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useArtifactSelector } from "@/hooks/use-artifact";
+import { useScreenSize } from "@/hooks/use-screen-size";
 
 const CHAT_WIDTH_REM = 30;
 const ARTIFACT_WIDTH_REM = 30;

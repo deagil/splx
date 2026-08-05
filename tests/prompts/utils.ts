@@ -21,7 +21,7 @@ export function compareMessages(
     return false;
   }
 
-  for (let i = 0; i < firstMessage.content.length; i++) {
+  for (let i = 0; i < firstMessage.content.length; i += 1) {
     const item1 = firstMessage.content[i];
     const item2 = secondMessage.content[i];
 
@@ -52,9 +52,9 @@ const textToDeltas = (text: string): LanguageModelV3StreamPart[] => {
   const id = generateId();
 
   const deltas = text.split(" ").map((char) => ({
+    delta: `${char} `,
     id,
     type: "text-delta" as const,
-    delta: `${char} `,
   }));
 
   return [{ id, type: "text-start" }, ...deltas, { id, type: "text-end" }];
@@ -64,9 +64,9 @@ const reasoningToDeltas = (text: string): LanguageModelV3StreamPart[] => {
   const id = generateId();
 
   const deltas = text.split(" ").map((char) => ({
+    delta: `${char} `,
     id,
     type: "reasoning-delta" as const,
-    delta: `${char} `,
   }));
 
   return [
@@ -92,11 +92,11 @@ export const getResponseChunksByPrompt = (
         ...reasoningToDeltas("The sky is blue because of rayleigh scattering!"),
         ...textToDeltas("It's just blue duh!"),
         {
+          finishReason: { raw: undefined, unified: "stop" as const },
           type: "finish",
-          finishReason: { unified: "stop" as const, raw: undefined },
           usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
+            inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+            outputTokens: { reasoning: 0, text: 10, total: 10 },
           },
         },
       ];
@@ -109,11 +109,11 @@ export const getResponseChunksByPrompt = (
         ),
         ...textToDeltas("It's just green duh!"),
         {
+          finishReason: { raw: undefined, unified: "stop" as const },
           type: "finish",
-          finishReason: { unified: "stop" as const, raw: undefined },
           usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
+            inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+            outputTokens: { reasoning: 0, text: 10, total: 10 },
           },
         },
       ];
@@ -124,12 +124,12 @@ export const getResponseChunksByPrompt = (
     return [
       ...textToDeltas("You're welcome!"),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -138,12 +138,12 @@ export const getResponseChunksByPrompt = (
     return [
       ...textToDeltas("It's just green duh!"),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -152,12 +152,12 @@ export const getResponseChunksByPrompt = (
     return [
       ...textToDeltas("It's just blue duh!"),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -167,12 +167,12 @@ export const getResponseChunksByPrompt = (
       ...textToDeltas("With Next.js, you can ship fast!"),
 
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -181,12 +181,12 @@ export const getResponseChunksByPrompt = (
     return [
       ...textToDeltas("This painting is by Monet!"),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -197,38 +197,38 @@ export const getResponseChunksByPrompt = (
     return [
       {
         id: toolCallId,
-        type: "tool-input-start",
         toolName: "createDocument",
+        type: "tool-input-start",
       },
       {
+        delta: JSON.stringify({
+          kind: "text",
+          title: "Essay about Silicon Valley",
+        }),
         id: toolCallId,
         type: "tool-input-delta",
-        delta: JSON.stringify({
-          title: "Essay about Silicon Valley",
-          kind: "text",
-        }),
       },
       {
         id: toolCallId,
         type: "tool-input-end",
       },
       {
-        toolCallId,
-        type: "tool-result",
-        toolName: "createDocument",
         result: {
           id: "doc_123",
-          title: "Essay about Silicon Valley",
           kind: "text",
+          title: "Essay about Silicon Valley",
         },
+        toolCallId,
+        toolName: "createDocument",
+        type: "tool-result",
       },
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -255,12 +255,12 @@ Despite its remarkable success, Silicon Valley faces significant challenges incl
 As we move forward, Silicon Valley continues to reinvent itself. While some predict its decline due to remote work trends and competition from other tech hubs, the region's adaptability and innovative spirit suggest it will remain influential in shaping our technological future for decades to come.
 `),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -271,12 +271,12 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
     return [
       ...textToDeltas("A document was created and is now visible to the user."),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -284,18 +284,18 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
   if (compareMessages(recentMessage, TEST_PROMPTS.GET_WEATHER_CALL)) {
     return [
       {
-        type: "tool-call",
+        input: JSON.stringify({ latitude: 37.7749, longitude: -122.4194 }),
         toolCallId: "call_456",
         toolName: "getWeather",
-        input: JSON.stringify({ latitude: 37.7749, longitude: -122.4194 }),
+        type: "tool-call",
       },
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
@@ -304,15 +304,15 @@ As we move forward, Silicon Valley continues to reinvent itself. While some pred
     return [
       ...textToDeltas("The current temperature in San Francisco is 17°C."),
       {
+        finishReason: { raw: undefined, unified: "stop" as const },
         type: "finish",
-        finishReason: { unified: "stop" as const, raw: undefined },
         usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 10, text: 10, reasoning: 0 },
-          },
+          inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 3, total: 3 },
+          outputTokens: { reasoning: 0, text: 10, total: 10 },
+        },
       },
     ];
   }
 
-  return [{ id: "6", type: "text-delta", delta: "Unknown test prompt!" }];
+  return [{ delta: "Unknown test prompt!", id: "6", type: "text-delta" }];
 };

@@ -3,56 +3,58 @@ import { eventType } from "@/lib/db/schema";
 import { ApiError } from "@/server/api/responses";
 import { getControlPlaneDb } from "@/server/lib/db";
 
+const eventTypeNameRegex = /^[a-zA-Z][a-zA-Z0-9_.*-]*$/;
+
 const SYSTEM_EVENT_TYPES: Array<{ name: string; description: string }> = [
   {
-    name: "workflow.run.succeeded",
     description: "A workflow run completed successfully",
+    name: "workflow.run.succeeded",
   },
   {
-    name: "workflow.run.failed",
     description:
       "A workflow run failed after exhausting retries or on a permanent error",
+    name: "workflow.run.failed",
   },
   {
-    name: "db.*.created",
     description:
       "Pattern: a row was created in a data table (actual events use db.<table>.created)",
+    name: "db.*.created",
   },
   {
-    name: "db.*.updated",
     description:
       "Pattern: a row was updated in a data table (actual events use db.<table>.updated)",
+    name: "db.*.updated",
   },
   {
-    name: "db.*.deleted",
     description:
       "Pattern: a row was deleted from a data table (actual events use db.<table>.deleted)",
+    name: "db.*.deleted",
   },
 ];
 
-export type EventTypeRecord = {
-  id: string;
-  workspaceId: string;
-  name: string;
-  description: string | null;
-  payloadSchema: Record<string, unknown>;
-  isSystem: boolean;
-  createdBy: string | null;
+export interface EventTypeRecord {
   createdAt: Date;
+  createdBy: string | null;
+  description: string | null;
+  id: string;
+  isSystem: boolean;
+  name: string;
+  payloadSchema: Record<string, unknown>;
   updatedAt: Date;
-};
+  workspaceId: string;
+}
 
 function mapRow(row: typeof eventType.$inferSelect): EventTypeRecord {
   return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    name: row.name,
-    description: row.description,
-    payloadSchema: (row.payload_schema ?? {}) as Record<string, unknown>,
-    isSystem: row.is_system,
-    createdBy: row.created_by,
     createdAt: row.created_at,
+    createdBy: row.created_by,
+    description: row.description,
+    id: row.id,
+    isSystem: row.is_system,
+    name: row.name,
+    payloadSchema: (row.payload_schema ?? {}) as Record<string, unknown>,
     updatedAt: row.updated_at,
+    workspaceId: row.workspace_id,
   };
 }
 
@@ -62,11 +64,11 @@ async function ensureSystemTypes(workspaceId: string): Promise<void> {
     await db
       .insert(eventType)
       .values({
-        workspace_id: workspaceId,
-        name: entry.name,
         description: entry.description,
         is_system: true,
+        name: entry.name,
         payload_schema: {},
+        workspace_id: workspaceId,
       })
       .onConflictDoNothing({
         target: [eventType.workspace_id, eventType.name],
@@ -101,7 +103,7 @@ export async function createEventType(
   if (!name) {
     throw new ApiError(400, "name is required");
   }
-  if (!/^[a-zA-Z][a-zA-Z0-9_.*-]*$/.test(name)) {
+  if (!eventTypeNameRegex.test(name)) {
     throw new ApiError(
       400,
       "name must start with a letter and use letters, numbers, ., _, -, or *"
@@ -112,12 +114,12 @@ export async function createEventType(
     const [row] = await getControlPlaneDb()
       .insert(eventType)
       .values({
-        workspace_id: workspaceId,
-        name,
-        description: input.description ?? null,
-        payload_schema: input.payloadSchema ?? {},
-        is_system: false,
         created_by: actorUserId,
+        description: input.description ?? null,
+        is_system: false,
+        name,
+        payload_schema: input.payloadSchema ?? {},
+        workspace_id: workspaceId,
       })
       .returning();
 
@@ -131,7 +133,12 @@ export async function createEventType(
       error instanceof Error &&
       error.message.includes("event_types_workspace_name_uniq")
     ) {
-      throw new ApiError(409, "An event type with that name already exists");
+      const err = new ApiError(
+        409,
+        "An event type with that name already exists"
+      );
+      err.cause = error;
+      throw err;
     }
     throw error;
   }
@@ -159,13 +166,13 @@ export async function updateEventType(
     .update(eventType)
     .set({
       description:
-        input.description !== undefined
-          ? input.description
-          : existing.description,
+        input.description === undefined
+          ? existing.description
+          : input.description,
       payload_schema:
-        input.payloadSchema !== undefined
-          ? input.payloadSchema
-          : existing.payload_schema,
+        input.payloadSchema === undefined
+          ? existing.payload_schema
+          : input.payloadSchema,
       updated_at: new Date(),
     })
     .where(and(eq(eventType.id, id), eq(eventType.workspace_id, workspaceId)))

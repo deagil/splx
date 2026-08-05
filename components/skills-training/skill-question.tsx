@@ -1,25 +1,27 @@
 "use client";
 
 import {
-  ConversationQuestion,
   type ConversationOption,
+  ConversationQuestion,
 } from "@/components/conversational-builder/steps";
 import type { SkillOption } from "@/lib/ai/skills-ui-schema";
 
-type SkillQuestionProps = {
+interface SkillQuestionProps {
   message: string;
-  options?: SkillOption[];
   onSelect: (value: string) => void;
-};
+  options?: SkillOption[];
+}
 
-export function SkillQuestion({ message, options = [], onSelect }: SkillQuestionProps) {
+export function SkillQuestion({
+  message,
+  options = [],
+  onSelect,
+}: SkillQuestionProps) {
   return (
     <ConversationQuestion
       message={message}
-      options={options as ConversationOption[]}
       onSelect={onSelect}
+      options={options as ConversationOption[]}
     />
   );
 }
-
-

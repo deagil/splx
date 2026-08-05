@@ -1,26 +1,34 @@
 "use client";
 
+import { AnimatePresence } from "framer-motion";
+import { ExpandIcon, Settings2Icon, Trash2Icon } from "lucide-react";
 import {
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
 } from "react";
-import { ExpandIcon, PanelsTopLeftIcon, Settings2Icon, Trash2Icon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { PageBlockDraft, PageDraft, RecordBlockDraft, ListBlockDraft, ReportBlockDraft, TriggerBlockDraft } from "./types";
-import { LIST_DISPLAY_FORMATS, RECORD_DISPLAY_MODES, REPORT_CHART_TYPES } from "./types";
-import { ViewBlock } from "./view-block";
-import { ListBlockView, RecordBlockView, ReportBlockView, TriggerBlockView } from "./blocks";
 import {
   CheckboxField,
   Field,
@@ -29,28 +37,47 @@ import {
   ReportBlockForm,
   TriggerBlockForm,
 } from "./block-forms";
-import { useTableMetadata, useReports } from "./hooks";
+import {
+  ListBlockView,
+  RecordBlockView,
+  ReportBlockView,
+  TriggerBlockView,
+} from "./blocks";
+import { useReports, useTableMetadata } from "./hooks";
 import { reorderBlocks } from "./layout-engine";
-import { motion, AnimatePresence } from "framer-motion";
+import type {
+  ListBlockDraft,
+  PageBlockDraft,
+  PageDraft,
+  RecordBlockDraft,
+  ReportBlockDraft,
+  TriggerBlockDraft,
+} from "./types";
+import { RECORD_DISPLAY_MODES, REPORT_CHART_TYPES } from "./types";
+import { ViewBlock } from "./view-block";
 
 const GRID_COLUMNS = 12;
 const GRID_ROW_HEIGHT = 110;
 const MIN_WIDTH = 2;
 const MIN_HEIGHT = 2;
 
-export type PageGridEditorProps = {
+export interface PageGridEditorProps {
   draft: PageDraft;
-  urlParams: Record<string, string>;
   onDraftChange: (next: PageDraft) => void;
-};
+  urlParams: Record<string, string>;
+}
 
-export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEditorProps) {
+export function PageGridEditor({
+  draft,
+  urlParams,
+  onDraftChange,
+}: PageGridEditorProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [activeSettingsId, setActiveSettingsId] = useState<string | null>(null);
   const [dataTables, setDataTables] = useState<string[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
   const { reports, isLoading: reportsLoading } = useReports();
-  
+
   // DRAG STATE (Lifted from EditableBlock)
   const dragState = useRef<{
     type: "drag" | "resize";
@@ -80,7 +107,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
         "linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.14) 1px, transparent 1px)",
       backgroundSize: "calc(100% / 12) 100%, 100% 110px",
     }),
-    [],
+    []
   );
 
   useEffect(() => {
@@ -88,7 +115,9 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
     const loadTables = async () => {
       setTablesLoading(true);
       try {
-        const response = await fetch("/api/tables?type=data", { signal: controller.signal });
+        const response = await fetch("/api/tables?type=data", {
+          signal: controller.signal,
+        });
         if (!response.ok) {
           return;
         }
@@ -110,7 +139,10 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
     return () => controller.abort();
   }, []);
 
-  const handlePositionChange = (id: string, position: PageBlockDraft["position"]) => {
+  const handlePositionChange = (
+    id: string,
+    position: PageBlockDraft["position"]
+  ) => {
     onDraftChange({
       ...draft,
       blocks: draft.blocks.map((block) =>
@@ -119,7 +151,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
               ...block,
               position,
             }
-          : block,
+          : block
       ),
     });
   };
@@ -144,17 +176,17 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
   // ----- GLOBAL DRAG HANDLERS -----
 
   const handlePointerUp = () => {
-    const current = dragState.current;
+    const { current } = dragState;
     if (current?.type === "drag") {
       // Check validation and commit if valid
       if (current.latestValid && current.latestLayout) {
-         onDraftChange({
-            ...draft,
-            blocks: current.latestLayout,
-         });
+        onDraftChange({
+          ...draft,
+          blocks: current.latestLayout,
+        });
       }
     }
-    
+
     dragState.current = null;
     setDragPreview(null);
     window.removeEventListener("pointermove", handlePointerMove);
@@ -162,7 +194,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
   };
 
   const handlePointerMove = (event: PointerEvent) => {
-    const current = dragState.current;
+    const { current } = dragState;
     if (!current || !gridRef.current) {
       return;
     }
@@ -170,7 +202,7 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
     event.preventDefault();
     const rect = gridRef.current.getBoundingClientRect();
     const colWidth = rect.width / GRID_COLUMNS;
-    
+
     // Pixel deltas
     const rawDeltaX = event.clientX - current.startX;
     const rawDeltaY = event.clientY - current.startY;
@@ -180,9 +212,13 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
     const rowDelta = Math.round(rawDeltaY / GRID_ROW_HEIGHT);
 
     if (current.type === "drag") {
-      const nextX = clamp(current.startPos.x + colDelta, 0, GRID_COLUMNS - current.startPos.width);
+      const nextX = clamp(
+        current.startPos.x + colDelta,
+        0,
+        GRID_COLUMNS - current.startPos.width
+      );
       const nextY = Math.max(0, current.startPos.y + rowDelta);
-      
+
       const targetPos = {
         ...current.startPos,
         x: nextX,
@@ -195,14 +231,17 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
       const newLayout = reorderBlocks(draft.blocks, current.blockId, targetPos);
 
       // VALIDATION: Check for out-of-bounds
-      const colRaw = Math.round((current.startPos.x * colWidth + rawDeltaX) / colWidth);
-      const isOutOfBounds = colRaw < 0 || colRaw + current.startPos.width > GRID_COLUMNS;
-      
+      const colRaw = Math.round(
+        (current.startPos.x * colWidth + rawDeltaX) / colWidth
+      );
+      const isOutOfBounds =
+        colRaw < 0 || colRaw + current.startPos.width > GRID_COLUMNS;
+
       const isValid = !isOutOfBounds;
       const error = isOutOfBounds ? "Cannot place here: Out of bounds" : null;
 
       // console.log(`[Drag] Delta: (${rawDeltaX}, ${rawDeltaY}) | Grid: (${colDelta}, ${rowDelta}) | Valid: ${isValid}`);
-      
+
       // Update Ref for synchronous access in pointerUp
       current.latestLayout = newLayout;
       current.latestValid = isValid;
@@ -211,52 +250,62 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
         blockId: current.blockId,
         deltaX: rawDeltaX,
         deltaY: rawDeltaY,
-        layoutBlocks: newLayout,
+        error,
         isValid,
-        error
+        layoutBlocks: newLayout,
       });
       return;
     }
 
     // RESIZE (Direct update - stays simple/snappy for now as discussed)
     const maxWidth = GRID_COLUMNS - current.startPos.x;
-    const nextWidth = clamp(current.startPos.width + colDelta, MIN_WIDTH, maxWidth);
+    const nextWidth = clamp(
+      current.startPos.width + colDelta,
+      MIN_WIDTH,
+      maxWidth
+    );
     const nextHeight = Math.max(MIN_HEIGHT, current.startPos.height + rowDelta);
     handlePositionChange(current.blockId, {
       ...current.startPos,
-      width: nextWidth,
       height: nextHeight,
+      width: nextWidth,
     });
   };
 
-  const startDrag = (event: ReactPointerEvent, blockId: string, position: PageBlockDraft["position"], type: "drag" | "resize") => {
+  const startDrag = (
+    event: ReactPointerEvent,
+    blockId: string,
+    position: PageBlockDraft["position"],
+    type: "drag" | "resize"
+  ) => {
     event.preventDefault();
     const target = event.currentTarget as HTMLElement;
     // Attempt to find the main block element. ViewBlock renders a section.
-    const blockElement = target.closest('section') || target.parentElement?.parentElement; 
+    const blockElement =
+      target.closest("section") || target.parentElement?.parentElement;
     const startRect = blockElement?.getBoundingClientRect();
 
     dragState.current = {
-      type,
       blockId,
-      startX: event.clientX,
-      startY: event.clientY,
       startPos: position,
       startRect: startRect || undefined,
+      startX: event.clientX,
+      startY: event.clientY,
+      type,
     };
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
-    
+
     // Initial preview state if dragging
     if (type === "drag") {
-       setDragPreview({
-          blockId,
-          deltaX: 0,
-          deltaY: 0,
-          layoutBlocks: draft.blocks,
-          isValid: true,
-          error: null,
-       });
+      setDragPreview({
+        blockId,
+        deltaX: 0,
+        deltaY: 0,
+        error: null,
+        isValid: true,
+        layoutBlocks: draft.blocks,
+      });
     }
   };
 
@@ -264,104 +313,123 @@ export function PageGridEditor({ draft, urlParams, onDraftChange }: PageGridEdit
   const blocksToRender = dragPreview ? dragPreview.layoutBlocks : draft.blocks;
 
   return (
-    <>
-      <TooltipProvider delayDuration={80}>
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-2 rounded-2xl border border-border/70 bg-muted/40"
-            style={gridBackgroundStyle}
-          />
-          <div
-            ref={gridRef}
-            className="relative z-10 grid grid-cols-12 gap-4 p-2 md:p-3"
-            style={{ gridAutoRows: `${GRID_ROW_HEIGHT}px` }}
-          >
-            {/* Instead of complex positioning, let's use the layoutBlocks loop for the 'Hole' and specific render for Ghost. */}
-            <AnimatePresence>
+    <TooltipProvider delayDuration={80}>
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-2 rounded-2xl border border-border/70 bg-muted/40"
+          style={gridBackgroundStyle}
+        />
+        <div
+          className="relative z-10 grid grid-cols-12 gap-4 p-2 md:p-3"
+          ref={gridRef}
+          style={{ gridAutoRows: `${GRID_ROW_HEIGHT}px` }}
+        >
+          {/* Instead of complex positioning, let's use the layoutBlocks loop for the 'Hole' and specific render for Ghost. */}
+          <AnimatePresence>
             {blocksToRender.map((block) => {
               const isDragging = dragPreview?.blockId === block.id;
-              
+
               return (
                 <EditableBlock
-                  key={block.id}
                   block={block}
-                  gridRef={gridRef}
-                  urlParams={urlParams}
                   dataTables={dataTables}
-                  tablesLoading={tablesLoading}
-                  reports={reports}
-                  onToggleSettings={() =>
-                    setActiveSettingsId((current) => (current === block.id ? null : block.id))
-                  }
+                  gridRef={gridRef}
+                  isDragging={isDragging}
                   isSettingsOpen={activeSettingsId === block.id}
+                  key={block.id}
+                  onBlockChange={(next) => handleBlockChange(block.id, next)}
                   onRemove={() => {
                     handleRemoveBlock(block.id);
-                    setActiveSettingsId((current) => (current === block.id ? null : current));
+                    setActiveSettingsId((current) =>
+                      current === block.id ? null : current
+                    );
                   }}
-                  onBlockChange={(next) => handleBlockChange(block.id, next)}
-                  onStartDrag={(e, type) => startDrag(e, block.id, block.position, type)}
-                  isDragging={isDragging}
+                  onStartDrag={(e, type) =>
+                    startDrag(e, block.id, block.position, type)
+                  }
+                  onToggleSettings={() =>
+                    setActiveSettingsId((current) =>
+                      current === block.id ? null : block.id
+                    )
+                  }
+                  reports={reports}
+                  tablesLoading={tablesLoading}
+                  urlParams={urlParams}
                 >
                   {renderBlock(block, urlParams)}
                 </EditableBlock>
-            )})}
-            </AnimatePresence>
-            
-            {/* FLOATING GHOST - Rendered OUTSIDE the grid flow */}
-            {dragPreview && (
-                <FloatingGhost 
-                    // We need the original block data
-                    block={draft.blocks.find(b => b.id === dragPreview.blockId)!}
-                    urlParams={urlParams}
-                    startX={dragState.current?.startX || 0}
-                    startY={dragState.current?.startY || 0}
-                    deltaX={dragPreview.deltaX}
-                    deltaY={dragPreview.deltaY}
-                    initialRect={dragState.current?.startRect} 
-                    isValid={dragPreview.isValid}
-                    error={dragPreview.error}
-                />
-            )}
-          </div>
+              );
+            })}
+          </AnimatePresence>
+
+          {/* FLOATING GHOST - Rendered OUTSIDE the grid flow */}
+          {!!dragPreview && (
+            <FloatingGhost
+              // We need the original block data
+              block={draft.blocks.find((b) => b.id === dragPreview.blockId)!}
+              deltaX={dragPreview.deltaX}
+              deltaY={dragPreview.deltaY}
+              error={dragPreview.error}
+              initialRect={dragState.current?.startRect}
+              isValid={dragPreview.isValid}
+              startX={dragState.current?.startX || 0}
+              startY={dragState.current?.startY || 0}
+              urlParams={urlParams}
+            />
+          )}
         </div>
-      </TooltipProvider>
-    </>
+      </div>
+    </TooltipProvider>
   );
 }
 
 // Helper component for the floating ghost
-function FloatingGhost({ block, urlParams, startX, startY, deltaX, deltaY, initialRect, isValid = true, error }: any) {
-    if (!initialRect) return null;
-    return (
-        <div 
-            className="fixed z-50 pointer-events-none shadow-2xl transition-colors duration-200"
-            style={{
-                left: initialRect.left,
-                top: initialRect.top,
-                width: initialRect.width,
-                height: initialRect.height,
-                transform: `translate(${deltaX}px, ${deltaY}px)`,
-            }}
-        >
-             {/* Error Label */}
-             {!isValid && error && (
-                <div className="absolute -top-8 left-0 flex items-center bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded shadow-sm animate-in fade-in zoom-in slide-in-from-bottom-2">
-                   {error}
-                </div>
-             )}
-
-             <div className={cn(
-                "h-full w-full rounded-lg border overflow-hidden",
-                isValid 
-                  ? "bg-background border-primary/50 opacity-90" 
-                  : "bg-red-500/10 border-red-500 border-2 opacity-100"
-             )}>
-                 {/* We re-render content or just an image? Re-rendering is fine. */}
-                 {renderBlock(block, urlParams)}
-             </div>
+function FloatingGhost({
+  block,
+  urlParams,
+  startX,
+  startY,
+  deltaX,
+  deltaY,
+  initialRect,
+  isValid = true,
+  error,
+}: any) {
+  if (!initialRect) {
+    return null;
+  }
+  return (
+    <div
+      className="pointer-events-none fixed z-50 shadow-2xl transition-colors duration-200"
+      style={{
+        height: initialRect.height,
+        left: initialRect.left,
+        top: initialRect.top,
+        transform: `translate(${deltaX}px, ${deltaY}px)`,
+        width: initialRect.width,
+      }}
+    >
+      {/* Error Label */}
+      {!isValid && error && (
+        <div className="fade-in zoom-in slide-in-from-bottom-2 absolute -top-8 left-0 flex animate-in items-center rounded bg-destructive px-2 py-1 font-bold text-destructive-foreground text-xs shadow-sm">
+          {error}
         </div>
-    );
+      )}
+
+      <div
+        className={cn(
+          "h-full w-full overflow-hidden rounded-lg border",
+          isValid
+            ? "border-primary/50 bg-background opacity-90"
+            : "border-2 border-red-500 bg-red-500/10 opacity-100"
+        )}
+      >
+        {/* We re-render content or just an image? Re-rendering is fine. */}
+        {renderBlock(block, urlParams)}
+      </div>
+    </div>
+  );
 }
 
 function EditableBlock({
@@ -404,7 +472,12 @@ function EditableBlock({
   const renderAdvancedSettings = () => {
     switch (block.type) {
       case "list":
-        return <ListBlockForm block={block as ListBlockDraft} onChange={(next) => onBlockChange(next)} />;
+        return (
+          <ListBlockForm
+            block={block as ListBlockDraft}
+            onChange={(next) => onBlockChange(next)}
+          />
+        );
       case "record":
         return (
           <RecordBlockForm
@@ -415,9 +488,20 @@ function EditableBlock({
           />
         );
       case "report":
-        return <ReportBlockForm block={block as ReportBlockDraft} onChange={(next) => onBlockChange(next)} reports={reports} />;
+        return (
+          <ReportBlockForm
+            block={block as ReportBlockDraft}
+            onChange={(next) => onBlockChange(next)}
+            reports={reports}
+          />
+        );
       case "trigger":
-        return <TriggerBlockForm block={block as TriggerBlockDraft} onChange={(next) => onBlockChange(next)} />;
+        return (
+          <TriggerBlockForm
+            block={block as TriggerBlockDraft}
+            onChange={(next) => onBlockChange(next)}
+          />
+        );
       default:
         return null;
     }
@@ -444,15 +528,18 @@ function EditableBlock({
             <Field>
               <Label htmlFor={`quick-list-table-${listBlock.id}`}>Table</Label>
               <Select
-                value={listBlock.tableName}
-                onValueChange={(value) => update({ tableName: value })}
                 disabled={tablesLoading}
+                onValueChange={(value) => update({ tableName: value })}
+                value={listBlock.tableName}
               >
                 <SelectTrigger id={`quick-list-table-${listBlock.id}`}>
                   <SelectValue placeholder="Select a table" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(dataTables.length ? dataTables : [listBlock.tableName].filter(Boolean)).map((name: string) => (
+                  {(dataTables.length
+                    ? dataTables
+                    : [listBlock.tableName].filter(Boolean)
+                  ).map((name: string) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>
@@ -461,24 +548,26 @@ function EditableBlock({
               </Select>
             </Field>
             <Field>
-              <Label htmlFor={`quick-list-format-${listBlock.id}`}>Display</Label>
+              <Label htmlFor={`quick-list-format-${listBlock.id}`}>
+                Display
+              </Label>
               <FormatToggle
                 idPrefix={`quick-list-format-${listBlock.id}`}
-                value={listBlock.display.format}
                 onChange={(value) => updateDisplay({ format: value })}
+                value={listBlock.display.format}
               />
             </Field>
             <div className="grid gap-3 md:grid-cols-2">
               <CheckboxField
+                checked={listBlock.display.showActions}
                 id={`quick-list-actions-${listBlock.id}`}
                 label="Show row actions"
-                checked={listBlock.display.showActions}
                 onChange={(checked) => updateDisplay({ showActions: checked })}
               />
               <CheckboxField
+                checked={listBlock.display.enableSearch ?? true}
                 id={`quick-list-search-${listBlock.id}`}
                 label="Enable search"
-                checked={listBlock.display.enableSearch ?? true}
                 onChange={(checked) => updateDisplay({ enableSearch: checked })}
               />
             </div>
@@ -512,11 +601,13 @@ function EditableBlock({
         return (
           <div className="space-y-4">
             <Field>
-              <Label htmlFor={`quick-report-id-${reportBlock.id}`}>Report</Label>
+              <Label htmlFor={`quick-report-id-${reportBlock.id}`}>
+                Report
+              </Label>
               <Select
-                value={reportBlock.reportId}
-                onValueChange={(value) => update({ reportId: value })}
                 disabled={!reports?.length}
+                onValueChange={(value) => update({ reportId: value })}
+                value={reportBlock.reportId}
               >
                 <SelectTrigger id={`quick-report-id-${reportBlock.id}`}>
                   <SelectValue placeholder="Select a report" />
@@ -531,21 +622,29 @@ function EditableBlock({
               </Select>
             </Field>
             <Field>
-              <Label htmlFor={`quick-report-title-${reportBlock.id}`}>Title</Label>
+              <Label htmlFor={`quick-report-title-${reportBlock.id}`}>
+                Title
+              </Label>
               <Input
                 id={`quick-report-title-${reportBlock.id}`}
-                value={reportBlock.display.title}
-                onChange={(event) => updateDisplay({ title: event.target.value })}
+                onChange={(event) =>
+                  updateDisplay({ title: event.target.value })
+                }
                 placeholder="Sales summary"
+                value={reportBlock.display.title}
               />
             </Field>
             <Field>
-              <Label htmlFor={`quick-report-chart-${reportBlock.id}`}>Chart type</Label>
+              <Label htmlFor={`quick-report-chart-${reportBlock.id}`}>
+                Chart type
+              </Label>
               <Select
-                value={reportBlock.display.chartType}
                 onValueChange={(value) =>
-                  updateDisplay({ chartType: value as typeof reportBlock.display.chartType })
+                  updateDisplay({
+                    chartType: value as typeof reportBlock.display.chartType,
+                  })
                 }
+                value={reportBlock.display.chartType}
               >
                 <SelectTrigger id={`quick-report-chart-${reportBlock.id}`}>
                   <SelectValue placeholder="Chart type" />
@@ -575,28 +674,38 @@ function EditableBlock({
         return (
           <div className="space-y-4">
             <Field>
-              <Label htmlFor={`quick-trigger-label-${triggerBlock.id}`}>Button label</Label>
+              <Label htmlFor={`quick-trigger-label-${triggerBlock.id}`}>
+                Button label
+              </Label>
               <Input
                 id={`quick-trigger-label-${triggerBlock.id}`}
-                value={triggerBlock.display.buttonText}
-                onChange={(event) => updateDisplay({ buttonText: event.target.value })}
+                onChange={(event) =>
+                  updateDisplay({ buttonText: event.target.value })
+                }
                 placeholder="Run action"
+                value={triggerBlock.display.buttonText}
               />
             </Field>
             <CheckboxField
+              checked={triggerBlock.display.requireConfirmation}
               id={`quick-trigger-confirm-${triggerBlock.id}`}
               label="Require confirmation"
-              checked={triggerBlock.display.requireConfirmation}
-              onChange={(checked) => updateDisplay({ requireConfirmation: checked })}
+              onChange={(checked) =>
+                updateDisplay({ requireConfirmation: checked })
+              }
             />
             {triggerBlock.display.requireConfirmation ? (
               <Field>
-                <Label htmlFor={`quick-trigger-message-${triggerBlock.id}`}>Confirmation message</Label>
+                <Label htmlFor={`quick-trigger-message-${triggerBlock.id}`}>
+                  Confirmation message
+                </Label>
                 <Textarea
                   id={`quick-trigger-message-${triggerBlock.id}`}
-                  value={triggerBlock.display.confirmationText}
-                  onChange={(event) => updateDisplay({ confirmationText: event.target.value })}
+                  onChange={(event) =>
+                    updateDisplay({ confirmationText: event.target.value })
+                  }
                   rows={3}
+                  value={triggerBlock.display.confirmationText}
                 />
               </Field>
             ) : null}
@@ -611,22 +720,25 @@ function EditableBlock({
   const actionButtons = (
     <>
       <Button
-        type="button"
-        variant="ghost"
-        size="sm"
         className="h-8 px-2 text-xs"
         onClick={() => setShowAdvanced((current) => !current)}
+        size="sm"
+        type="button"
+        variant="ghost"
       >
         {showAdvanced ? "Simple" : "Advanced"}
       </Button>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onToggleSettings}
-            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8")}
             aria-label="Close settings"
+            className={cn(
+              buttonVariants({ size: "icon", variant: "outline" }),
+              "h-8 w-8"
+            )}
+            onClick={onToggleSettings}
+            onPointerDown={(event) => event.stopPropagation()}
+            type="button"
           >
             <Settings2Icon className="h-4 w-4" />
           </button>
@@ -636,11 +748,14 @@ function EditableBlock({
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onRemove}
-            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 text-red-500")}
             aria-label="Remove block"
+            className={cn(
+              buttonVariants({ size: "icon", variant: "ghost" }),
+              "h-8 w-8 text-red-500"
+            )}
+            onClick={onRemove}
+            onPointerDown={(event) => event.stopPropagation()}
+            type="button"
           >
             <Trash2Icon className="h-4 w-4" />
           </button>
@@ -651,13 +766,17 @@ function EditableBlock({
   );
 
   const settingsOverlay = (
-    <div className="absolute inset-0 z-20 flex flex-col rounded-lg border border-border bg-background/95 shadow-lg shadow-black/10 backdrop-blur-sm">
+    <div className="absolute inset-0 z-20 flex flex-col rounded-lg border border-border bg-background/95 shadow-black/10 shadow-lg backdrop-blur-sm">
       <div className="flex min-h-[44px] items-center gap-3 bg-background/90 px-3 py-2 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] uppercase tracking-wide">{block.type}</span>
+        <div className="flex items-center gap-2 font-medium text-muted-foreground text-xs">
+          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] uppercase tracking-wide">
+            {block.type}
+          </span>
           <span className="text-foreground">{block.id}</span>
         </div>
-        <div className="ms-auto flex items-center justify-end gap-2">{actionButtons}</div>
+        <div className="ms-auto flex items-center justify-end gap-2">
+          {actionButtons}
+        </div>
       </div>
       <div className="flex-1 overflow-auto px-4 py-4 md:px-5 md:py-5">
         {showAdvanced ? renderAdvancedSettings() : renderSimpleSettings()}
@@ -666,29 +785,34 @@ function EditableBlock({
   );
 
   const vignette = (
-    <div className="pointer-events-none absolute bottom-1 right-1 z-10 h-14 w-14 rounded-[28px] bg-linear-to-tl from-background via-background/80 to-transparent blur-sm" />
+    <div className="pointer-events-none absolute right-1 bottom-1 z-10 h-14 w-14 rounded-[28px] bg-linear-to-tl from-background via-background/80 to-transparent blur-sm" />
   );
 
   const renderWithChrome = () => (
-    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-black/10 shadow-md">
       <div
-        className="absolute inset-x-0 top-0 flex min-h-[44px] items-center gap-3 bg-background/90 px-3 py-2 shadow-sm touch-none cursor-grab active:cursor-grabbing"
+        className="absolute inset-x-0 top-0 flex min-h-[44px] cursor-grab touch-none items-center gap-3 bg-background/90 px-3 py-2 shadow-sm active:cursor-grabbing"
         onPointerDown={(event) => onStartDrag(event, "drag")}
         role="presentation"
       >
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] uppercase tracking-wide">{block.type}</span>
+        <div className="flex items-center gap-2 font-medium text-muted-foreground text-xs">
+          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] uppercase tracking-wide">
+            {block.type}
+          </span>
           <span className="text-foreground">{block.id}</span>
         </div>
         <div className="ms-auto flex items-center justify-end gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={onToggleSettings}
-                className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8")}
                 aria-label="Open block settings"
+                className={cn(
+                  buttonVariants({ size: "icon", variant: "outline" }),
+                  "h-8 w-8"
+                )}
+                onClick={onToggleSettings}
+                onPointerDown={(event) => event.stopPropagation()}
+                type="button"
               >
                 <Settings2Icon className="h-4 w-4" />
               </button>
@@ -698,11 +822,14 @@ function EditableBlock({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={onRemove}
-                className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 text-red-500")}
                 aria-label="Remove block"
+                className={cn(
+                  buttonVariants({ size: "icon", variant: "ghost" }),
+                  "h-8 w-8 text-red-500"
+                )}
+                onClick={onRemove}
+                onPointerDown={(event) => event.stopPropagation()}
+                type="button"
               >
                 <Trash2Icon className="h-4 w-4" />
               </button>
@@ -713,19 +840,19 @@ function EditableBlock({
       </div>
 
       <div className="flex h-full min-h-0 w-full flex-col pt-12">
-        <div className="flex-1 min-h-0">{children}</div>
+        <div className="min-h-0 flex-1">{children}</div>
       </div>
 
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            type="button"
-            onPointerDown={(event) => onStartDrag(event, "resize")}
-            className={cn(
-              buttonVariants({ variant: "secondary", size: "icon" }),
-              "absolute bottom-2 right-2 z-30 h-8 w-8 cursor-se-resize touch-none"
-            )}
             aria-label="Resize block"
+            className={cn(
+              buttonVariants({ size: "icon", variant: "secondary" }),
+              "absolute right-2 bottom-2 z-30 h-8 w-8 cursor-se-resize touch-none"
+            )}
+            onPointerDown={(event) => onStartDrag(event, "resize")}
+            type="button"
           >
             <ExpandIcon className="h-4 w-4" />
           </button>
@@ -738,55 +865,55 @@ function EditableBlock({
   );
 
   const blockContent = (
-      <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-md shadow-black/10">
-        <div className="flex h-full min-h-0 w-full flex-col">
-          <div className="flex-1 min-h-0">
-            {renderBlock(block, urlParams, {
-              onOpenSettings: onToggleSettings,
-              onRemove,
-              onStartDrag: (event) => onStartDrag(event, "drag"),
-            })}
-          </div>
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg shadow-black/10 shadow-md">
+      <div className="flex h-full min-h-0 w-full flex-col">
+        <div className="min-h-0 flex-1">
+          {renderBlock(block, urlParams, {
+            onOpenSettings: onToggleSettings,
+            onRemove,
+            onStartDrag: (event) => onStartDrag(event, "drag"),
+          })}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onPointerDown={(event) => onStartDrag(event, "resize")}
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "icon" }),
-                "absolute bottom-2 right-2 z-30 h-8 w-8 cursor-se-resize touch-none"
-              )}
-              aria-label="Resize block"
-            >
-              <ExpandIcon className="h-4 w-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Resize block</TooltipContent>
-        </Tooltip>
-        {vignette}
-        {isSettingsOpen ? settingsOverlay : null}
       </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            aria-label="Resize block"
+            className={cn(
+              buttonVariants({ size: "icon", variant: "secondary" }),
+              "absolute right-2 bottom-2 z-30 h-8 w-8 cursor-se-resize touch-none"
+            )}
+            onPointerDown={(event) => onStartDrag(event, "resize")}
+            type="button"
+          >
+            <ExpandIcon className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Resize block</TooltipContent>
+      </Tooltip>
+      {vignette}
+      {isSettingsOpen ? settingsOverlay : null}
+    </div>
   );
 
   const isChromeWrapped = !(block.type === "list" || block.type === "record");
 
   return (
-    <>
-      <ViewBlock
-        id={block.id}
-        type={block.type}
-        position={block.position}
-        // Framer Motion props passed to ViewBlock
-        isDragging={isDragging}
-      >
-        {isDragging ? (
-           <div className="h-full w-full rounded-lg border-2 border-dashed border-primary/50 bg-primary/5" />
-        ) : (
-           isChromeWrapped ? renderWithChrome() : blockContent
-        )}
-      </ViewBlock>
-    </>
+    <ViewBlock
+      id={block.id}
+      // Framer Motion props passed to ViewBlock
+      isDragging={isDragging}
+      position={block.position}
+      type={block.type}
+    >
+      {isDragging ? (
+        <div className="h-full w-full rounded-lg border-2 border-primary/50 border-dashed bg-primary/5" />
+      ) : isChromeWrapped ? (
+        renderWithChrome()
+      ) : (
+        blockContent
+      )}
+    </ViewBlock>
   );
 }
 
@@ -797,13 +924,25 @@ function renderBlock(
     onOpenSettings: () => void;
     onRemove: () => void;
     onStartDrag: (event: ReactPointerEvent) => void;
-  },
+  }
 ) {
   switch (block.type) {
     case "list":
-      return <ListBlockView block={block} urlParams={urlParams} editControls={editControls} />;
+      return (
+        <ListBlockView
+          block={block}
+          editControls={editControls}
+          urlParams={urlParams}
+        />
+      );
     case "record":
-      return <RecordBlockView block={block} urlParams={urlParams} editControls={editControls} />;
+      return (
+        <RecordBlockView
+          block={block}
+          editControls={editControls}
+          urlParams={urlParams}
+        />
+      );
     case "report":
       return <ReportBlockView block={block} />;
     case "trigger":
@@ -824,8 +963,12 @@ function RecordSimpleSettings({
   tableOptions: string[];
   tablesLoading: boolean;
 }) {
-  const { table: tableMetadata, isLoading: isMetadataLoading } = useTableMetadata(block.tableName || null);
-  const availableFields = useMemo(() => tableMetadata?.config?.field_metadata ?? [], [tableMetadata]);
+  const { table: tableMetadata, isLoading: isMetadataLoading } =
+    useTableMetadata(block.tableName || null);
+  const availableFields = useMemo(
+    () => tableMetadata?.config?.field_metadata ?? [],
+    [tableMetadata]
+  );
 
   const update = (updates: Partial<RecordBlockDraft>) => {
     onChange({
@@ -843,14 +986,18 @@ function RecordSimpleSettings({
     });
   };
 
-  const tableChoices = tableOptions.length ? tableOptions : [block.tableName].filter(Boolean);
+  const tableChoices = tableOptions.length
+    ? tableOptions
+    : [block.tableName].filter(Boolean);
   const isAllSelected = block.display.columns.length === 0;
   const effectiveColumns = isAllSelected
     ? availableFields.map((field) => field.field_name)
     : block.display.columns;
 
   const handleFieldToggle = (fieldName: string, checked: boolean) => {
-    const base = isAllSelected ? availableFields.map((field) => field.field_name) : block.display.columns;
+    const base = isAllSelected
+      ? availableFields.map((field) => field.field_name)
+      : block.display.columns;
     const next = checked
       ? Array.from(new Set([...base, fieldName]))
       : base.filter((column) => column !== fieldName);
@@ -863,9 +1010,9 @@ function RecordSimpleSettings({
         <Label htmlFor={`quick-record-table-${block.id}`}>Table</Label>
         {tableChoices.length > 0 ? (
           <Select
-            value={block.tableName}
-            onValueChange={(value) => update({ tableName: value })}
             disabled={tablesLoading}
+            onValueChange={(value) => update({ tableName: value })}
+            value={block.tableName}
           >
             <SelectTrigger id={`quick-record-table-${block.id}`}>
               <SelectValue placeholder="Select a table" />
@@ -881,9 +1028,9 @@ function RecordSimpleSettings({
         ) : (
           <Input
             id={`quick-record-table-${block.id}`}
-            value={block.tableName}
             onChange={(event) => update({ tableName: event.target.value })}
             placeholder="customers"
+            value={block.tableName}
           />
         )}
       </Field>
@@ -892,17 +1039,19 @@ function RecordSimpleSettings({
         <Label htmlFor={`quick-record-id-${block.id}`}>Record ID</Label>
         <Input
           id={`quick-record-id-${block.id}`}
-          value={block.recordId}
           onChange={(event) => update({ recordId: event.target.value })}
           placeholder="uuid"
+          value={block.recordId}
         />
       </Field>
 
       <Field>
         <Label htmlFor={`quick-record-mode-${block.id}`}>Mode</Label>
         <Select
+          onValueChange={(value) =>
+            updateDisplay({ mode: value as typeof block.display.mode })
+          }
           value={block.display.mode}
-          onValueChange={(value) => updateDisplay({ mode: value as typeof block.display.mode })}
         >
           <SelectTrigger id={`quick-record-mode-${block.id}`}>
             <SelectValue placeholder="Mode" />
@@ -918,28 +1067,40 @@ function RecordSimpleSettings({
       </Field>
 
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-foreground">Visible fields</div>
+        <div className="font-semibold text-foreground text-sm">
+          Visible fields
+        </div>
         {isMetadataLoading ? (
-          <p className="text-sm text-muted-foreground">Loading fields…</p>
+          <p className="text-muted-foreground text-sm">Loading fields…</p>
         ) : availableFields.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No fields available for this table.</p>
+          <p className="text-muted-foreground text-sm">
+            No fields available for this table.
+          </p>
         ) : (
           <div className="space-y-2">
             {availableFields.map((field) => {
-              const isChecked = isAllSelected ? true : effectiveColumns.includes(field.field_name);
+              const isChecked = isAllSelected
+                ? true
+                : effectiveColumns.includes(field.field_name);
               return (
-                <div key={field.field_name} className="flex items-start gap-3">
+                <div className="flex items-start gap-3" key={field.field_name}>
                   <Checkbox
-                    id={`record-field-${block.id}-${field.field_name}`}
                     checked={isChecked}
-                    onCheckedChange={(next) => handleFieldToggle(field.field_name, Boolean(next))}
+                    id={`record-field-${block.id}-${field.field_name}`}
+                    onCheckedChange={(next) =>
+                      handleFieldToggle(field.field_name, Boolean(next))
+                    }
                   />
                   <div className="grid gap-1">
-                    <Label htmlFor={`record-field-${block.id}-${field.field_name}`}>
+                    <Label
+                      htmlFor={`record-field-${block.id}-${field.field_name}`}
+                    >
                       {field.display_name ?? field.field_name}
                     </Label>
                     {field.description ? (
-                      <p className="text-sm text-muted-foreground">{field.description}</p>
+                      <p className="text-muted-foreground text-sm">
+                        {field.description}
+                      </p>
                     ) : null}
                   </div>
                 </div>
@@ -968,9 +1129,8 @@ function FormatToggle({
     preview: ReactNode;
   }> = [
     {
-      value: "table",
-      label: "Table",
       hint: "Rows and columns",
+      label: "Table",
       preview: (
         <div className="grid grid-cols-3 gap-[2px]">
           <div className="h-1.5 rounded-sm bg-foreground/70" />
@@ -978,22 +1138,22 @@ function FormatToggle({
           <div className="h-1.5 rounded-sm bg-foreground/20" />
         </div>
       ),
+      value: "table",
     },
     {
-      value: "cards",
-      label: "Cards",
       hint: "Stacked cards",
+      label: "Cards",
       preview: (
         <div className="flex flex-col gap-[3px]">
           <div className="h-1.5 rounded-sm bg-foreground/70" />
           <div className="h-1.5 w-3/5 rounded-sm bg-foreground/30" />
         </div>
       ),
+      value: "cards",
     },
     {
-      value: "grid",
-      label: "Grid",
       hint: "Tiled items",
+      label: "Grid",
       preview: (
         <div className="grid grid-cols-3 gap-[3px]">
           <div className="h-1.5 rounded-sm bg-foreground/70" />
@@ -1001,6 +1161,7 @@ function FormatToggle({
           <div className="h-1.5 rounded-sm bg-foreground/30" />
         </div>
       ),
+      value: "grid",
     },
   ];
 
@@ -1010,22 +1171,30 @@ function FormatToggle({
         const selected = option.value === value;
         return (
           <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
+            aria-label={`${option.label} format`}
+            aria-pressed={selected}
             className={cn(
               "flex min-w-[140px] flex-1 items-center justify-between rounded-md border px-3 py-2 text-left transition",
-              selected ? "border-primary/60 bg-primary/5 shadow-sm" : "border-border bg-background hover:bg-muted/40"
+              selected
+                ? "border-primary/60 bg-primary/5 shadow-sm"
+                : "border-border bg-background hover:bg-muted/40"
             )}
-            aria-pressed={selected}
-            aria-label={`${option.label} format`}
             id={`${idPrefix}-${option.value}`}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            type="button"
           >
             <div className="space-y-0.5">
-              <div className="text-sm font-semibold text-foreground">{option.label}</div>
-              <div className="text-[11px] text-muted-foreground">{option.hint}</div>
+              <div className="font-semibold text-foreground text-sm">
+                {option.label}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {option.hint}
+              </div>
             </div>
-            <div className="ms-3 h-8 w-14 rounded-sm border border-border/80 bg-muted/50 px-1.5 py-1">{option.preview}</div>
+            <div className="ms-3 h-8 w-14 rounded-sm border border-border/80 bg-muted/50 px-1.5 py-1">
+              {option.preview}
+            </div>
           </button>
         );
       })}
@@ -1036,4 +1205,3 @@ function FormatToggle({
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
-

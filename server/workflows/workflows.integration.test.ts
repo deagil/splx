@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
  * Integration tests for transactional fan-out and the workflow worker.
@@ -52,9 +52,9 @@ describeIfDb("workflows fan-out and worker (integration)", () => {
         'db.contacts.created',
         ${JSON.stringify([
           {
-            type: "condition",
-            label: "always pass",
             input: { left: "1", operator: "equals", right: "1" },
+            label: "always pass",
+            type: "condition",
           },
         ])}::jsonb,
         ${ACTOR}
@@ -68,11 +68,11 @@ describeIfDb("workflows fan-out and worker (integration)", () => {
 
   it("fans out a matching workflow into workflow_schedule in the same emit", async () => {
     await emitEvent({
-      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
       eventName: "db.contacts.created",
       payload: { record: { id: "c1" } },
-      actorUserId: ACTOR,
       requestId: "wf-test-1",
+      workspaceId: WORKSPACE,
     });
 
     const { sql } = await import("drizzle-orm");
@@ -87,7 +87,7 @@ describeIfDb("workflows fan-out and worker (integration)", () => {
       sql`SELECT workflow_id, event_id, status, trigger_source
           FROM public.workflow_schedule
           WHERE event_id = ${events[0].id}`
-    )) as Array<Record<string, unknown>>;
+    )) as Record<string, unknown>[];
 
     expect(schedules).toHaveLength(1);
     expect(schedules[0].workflow_id).toBe(
@@ -102,11 +102,11 @@ describeIfDb("workflows fan-out and worker (integration)", () => {
     const db = getControlPlaneDb();
 
     await emitEvent({
-      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
       eventName: "db.contacts.updated",
       payload: {},
-      actorUserId: ACTOR,
       requestId: "wf-test-2",
+      workspaceId: WORKSPACE,
     });
 
     await db.execute(sql`

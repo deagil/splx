@@ -16,12 +16,12 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-type EventType = {
-  id: string;
-  name: string;
+interface EventType {
   description: string | null;
+  id: string;
   isSystem: boolean;
-};
+  name: string;
+}
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -50,12 +50,12 @@ export function AutomationEventsView() {
     setSaving(true);
     try {
       const response = await fetch("/api/v1/event-types", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          name,
           description: description.trim() || null,
+          name,
         }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
       const body = await response.json();
       if (!response.ok) {
@@ -101,11 +101,7 @@ export function AutomationEventsView() {
             yourself.
           </p>
         </div>
-        <Button
-          onClick={() => setAdding(true)}
-          type="button"
-          variant="primary"
-        >
+        <Button onClick={() => setAdding(true)} type="button" variant="primary">
           Add type
         </Button>
       </div>

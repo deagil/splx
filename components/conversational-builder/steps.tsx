@@ -1,20 +1,20 @@
 "use client";
 
+import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Sparkles } from "lucide-react";
 
-export type ConversationOption = {
+export interface ConversationOption {
   label: string;
   value: string;
-};
+}
 
-export type ConversationQuestionProps = {
+export interface ConversationQuestionProps {
   message: string;
-  options?: ConversationOption[];
   onSelect: (value: string) => void;
-};
+  options?: ConversationOption[];
+}
 
 export function ConversationQuestion({
   message,
@@ -23,15 +23,15 @@ export function ConversationQuestion({
 }: ConversationQuestionProps) {
   return (
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-      <p className="text-sm font-medium">{message}</p>
+      <p className="font-medium text-sm">{message}</p>
       {options.length > 0 && (
         <div className="flex flex-col gap-2">
           {options.map((option, index) => (
             <Button
-              key={index}
-              variant="outline"
               className="w-full justify-start text-left"
+              key={index}
               onClick={() => onSelect(option.value)}
+              variant="outline"
             >
               {option.label}
             </Button>
@@ -42,11 +42,11 @@ export function ConversationQuestion({
   );
 }
 
-export type ConversationVariantsProps = {
+export interface ConversationVariantsProps {
   message: string;
-  options?: ConversationOption[];
   onSelect: (value: string) => void;
-};
+  options?: ConversationOption[];
+}
 
 export function ConversationVariants({
   message,
@@ -62,15 +62,15 @@ export function ConversationVariants({
 
   return (
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-      <p className="text-sm font-medium">{message}</p>
+      <p className="font-medium text-sm">{message}</p>
       {options.length > 0 && (
         <div className="flex flex-col gap-2">
           {options.map((option, index) => (
             <Button
-              key={index}
-              variant={selectedIndex === index ? "primary" : "outline"}
               className="w-full justify-between"
+              key={index}
               onClick={() => handleSelect(option.value, index)}
+              variant={selectedIndex === index ? "primary" : "outline"}
             >
               <span className="flex-1 text-left">{option.label}</span>
               {selectedIndex === index && <Check className="ml-2 h-4 w-4" />}
@@ -82,10 +82,10 @@ export function ConversationVariants({
   );
 }
 
-export type ConversationClarificationProps = {
+export interface ConversationClarificationProps {
   message: string;
   onSubmit: (response: string) => void;
-};
+}
 
 export function ConversationClarification({
   message,
@@ -102,15 +102,15 @@ export function ConversationClarification({
 
   return (
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-      <p className="text-sm font-medium">{message}</p>
-      <form onSubmit={handleSubmit} className="space-y-2">
+      <p className="font-medium text-sm">{message}</p>
+      <form className="space-y-2" onSubmit={handleSubmit}>
         <Textarea
+          className="min-h-[80px] resize-none"
           name="response"
           placeholder="Type your response here..."
-          className="min-h-[80px] resize-none"
           required
         />
-        <Button type="submit" size="sm" className="w-full">
+        <Button className="w-full" size="sm" type="submit">
           Submit
         </Button>
       </form>
@@ -118,9 +118,7 @@ export function ConversationClarification({
   );
 }
 
-export type GeneratedPreviewProps = {
-  title: string;
-  subtitle?: string;
+export interface GeneratedPreviewProps {
   body?: React.ReactNode;
   primaryAction: {
     label: string;
@@ -135,7 +133,9 @@ export type GeneratedPreviewProps = {
     icon?: React.ReactNode;
     disabled?: boolean;
   };
-};
+  subtitle?: string;
+  title: string;
+}
 
 export function GeneratedPreview({
   title,
@@ -148,37 +148,39 @@ export function GeneratedPreview({
     <div className="space-y-4 rounded-lg border bg-gradient-to-br from-primary/5 via-primary/2 to-primary/5 p-4">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <h4 className="text-sm font-semibold">{title}</h4>
-          {subtitle && (
-            <span className="rounded bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
+          <h4 className="font-semibold text-sm">{title}</h4>
+          {!!subtitle && (
+            <span className="rounded bg-muted px-2 py-0.5 font-mono text-muted-foreground text-xs">
               {subtitle}
             </span>
           )}
         </div>
-        {body && <div className="rounded border bg-background p-3 text-xs">{body}</div>}
+        {!!body && (
+          <div className="rounded border bg-background p-3 text-xs">{body}</div>
+        )}
       </div>
       <div className="flex gap-2">
-        {secondaryAction && (
+        {!!secondaryAction && (
           <Button
-            variant="outline"
-            size="sm"
-            onClick={secondaryAction.onClick}
-            disabled={secondaryAction.disabled || primaryAction.isLoading}
             className="flex-1"
+            disabled={secondaryAction.disabled || primaryAction.isLoading}
+            onClick={secondaryAction.onClick}
+            size="sm"
+            variant="outline"
           >
             {secondaryAction.icon}
-            {secondaryAction.icon && <span className="mr-2" />}
+            {!!secondaryAction.icon && <span className="mr-2" />}
             {secondaryAction.label}
           </Button>
         )}
         <Button
-          size="sm"
-          onClick={primaryAction.onClick}
-          disabled={primaryAction.isLoading}
           className="flex-1"
+          disabled={primaryAction.isLoading}
+          onClick={primaryAction.onClick}
+          size="sm"
         >
           {primaryAction.isLoading ? (
-            primaryAction.loadingLabel ?? "Saving..."
+            (primaryAction.loadingLabel ?? "Saving...")
           ) : (
             <>
               {primaryAction.icon ?? <Sparkles className="mr-2 h-3 w-3" />}
@@ -190,7 +192,3 @@ export function GeneratedPreview({
     </div>
   );
 }
-
-
-
-

@@ -1,34 +1,34 @@
 import type { ListBlockDraft, PageBlockDraft, PageDraft } from "./types";
 
-export type PageTemplate = {
+export interface PageTemplate {
+  blocks: PageBlockDraft[];
+  description: string;
   id: string;
   name: string;
-  description: string;
   preview: TemplateRow[];
-  blocks: PageBlockDraft[];
   settings?: Partial<PageDraft["settings"]>;
-};
+}
 
-export type TemplateRow = {
+export interface TemplateRow {
   columns: Array<{
     span: number;
     label?: string;
     variant?: "record" | "list" | "trigger" | "report";
   }>;
-};
+}
 
 const defaultListBlock = (id: string, tableName: string): ListBlockDraft => ({
-  id,
-  type: "list",
-  position: { x: 0, y: 0, width: 12, height: 4 },
-  tableName,
-  filters: [],
   display: {
+    columns: [],
+    editable: false,
     format: "table",
     showActions: true,
-    editable: false,
-    columns: [],
   },
+  filters: [],
+  id,
+  position: { height: 4, width: 12, x: 0, y: 0 },
+  tableName,
+  type: "list",
 });
 
 const defaultRecordBlock = (
@@ -36,196 +36,193 @@ const defaultRecordBlock = (
   tableName: string,
   recordId: string
 ): PageBlockDraft => ({
-  id,
-  type: "record",
-  position: { x: 0, y: 0, width: 12, height: 6 },
-  tableName,
-  recordId,
   display: {
-    mode: "read",
-    format: "form",
     columns: [],
+    format: "form",
+    mode: "read",
   },
+  id,
+  position: { height: 6, width: 12, x: 0, y: 0 },
+  recordId,
+  tableName,
+  type: "record",
 });
 
 export const pageTemplates: PageTemplate[] = [
   {
-    id: "detail-view",
-    name: "Detail view",
-    description:
-      "Record details with audit log and workflow runs filtered to the current record.",
-    preview: [
-      { columns: [{ span: 12, label: "Record", variant: "record" }] },
-      {
-        columns: [
-          { span: 6, label: "Audit log", variant: "list" },
-          { span: 6, label: "Runs", variant: "list" },
-        ],
-      },
-    ],
-    settings: {
-      urlParams: [
-        {
-          id: "param-id",
-          name: "id",
-          required: true,
-          description: "Record identifier",
-        },
-      ],
-    },
     blocks: [
       defaultRecordBlock("record-detail", "records", "url.id"),
       {
         ...defaultListBlock("audit-log", "audit_logs"),
-        position: { x: 0, y: 1, width: 6, height: 4 },
         filters: [
           {
-            id: "audit-filter",
             column: "record_id",
+            id: "audit-filter",
             operator: "equals",
             value: "url.id",
           },
         ],
+        position: { height: 4, width: 6, x: 0, y: 1 },
       },
       {
         ...defaultListBlock("workflow-runs", "workflow_runs"),
-        position: { x: 6, y: 1, width: 6, height: 4 },
         filters: [
           {
-            id: "runs-filter",
             column: "record_id",
+            id: "runs-filter",
             operator: "equals",
             value: "url.id",
           },
         ],
+        position: { height: 4, width: 6, x: 6, y: 1 },
       },
     ],
-  },
-  {
-    id: "list-view",
-    name: "List view",
-    description: "Single, full-width table for browsing a dataset.",
-    preview: [{ columns: [{ span: 12, label: "Table", variant: "list" }] }],
-    blocks: [
-      defaultListBlock("primary-list", "records"),
-    ],
-  },
-  {
-    id: "action-dashboard",
-    name: "Action dashboard",
     description:
-      "List of workflow runs with a trigger panel for quick actions.",
+      "Record details with audit log and workflow runs filtered to the current record.",
+    id: "detail-view",
+    name: "Detail view",
     preview: [
+      { columns: [{ label: "Record", span: 12, variant: "record" }] },
       {
         columns: [
-          { span: 8, label: "Runs", variant: "list" },
-          { span: 4, label: "Trigger", variant: "trigger" },
-        ],
-      },
-    ],
-    blocks: [
-      {
-        ...defaultListBlock("runs", "workflow_runs"),
-        position: { x: 0, y: 0, width: 8, height: 6 },
-      },
-      {
-        id: "trigger-panel",
-        type: "trigger",
-        position: { x: 8, y: 0, width: 4, height: 6 },
-        display: {
-          buttonText: "Run workflow",
-          actionType: "primary",
-          requireConfirmation: false,
-          confirmationText: "",
-          hookName: "run_workflow",
-        },
-      },
-    ],
-  },
-  {
-    id: "master-detail",
-    name: "Master-detail",
-    description:
-      "Left column list for browsing, right column record details for the selection.",
-    preview: [
-      {
-        columns: [
-          { span: 5, label: "List", variant: "list" },
-          { span: 7, label: "Record", variant: "record" },
+          { label: "Audit log", span: 6, variant: "list" },
+          { label: "Runs", span: 6, variant: "list" },
         ],
       },
     ],
     settings: {
       urlParams: [
         {
-          id: "param-master-id",
+          description: "Record identifier",
+          id: "param-id",
           name: "id",
           required: true,
-          description: "Record identifier",
         },
       ],
     },
+  },
+  {
+    blocks: [defaultListBlock("primary-list", "records")],
+    description: "Single, full-width table for browsing a dataset.",
+    id: "list-view",
+    name: "List view",
+    preview: [{ columns: [{ label: "Table", span: 12, variant: "list" }] }],
+  },
+  {
     blocks: [
       {
-        ...defaultListBlock("master-list", "records"),
-        position: { x: 0, y: 0, width: 5, height: 8 },
+        ...defaultListBlock("runs", "workflow_runs"),
+        position: { height: 6, width: 8, x: 0, y: 0 },
       },
       {
-        ...defaultRecordBlock("detail-panel", "records", "url.id"),
-        position: { x: 5, y: 0, width: 7, height: 8 },
+        display: {
+          actionType: "primary",
+          buttonText: "Run workflow",
+          confirmationText: "",
+          hookName: "run_workflow",
+          requireConfirmation: false,
+        },
+        id: "trigger-panel",
+        position: { height: 6, width: 4, x: 8, y: 0 },
+        type: "trigger",
+      },
+    ],
+    description:
+      "List of workflow runs with a trigger panel for quick actions.",
+    id: "action-dashboard",
+    name: "Action dashboard",
+    preview: [
+      {
+        columns: [
+          { label: "Runs", span: 8, variant: "list" },
+          { label: "Trigger", span: 4, variant: "trigger" },
+        ],
       },
     ],
   },
   {
-    id: "reporting",
-    name: "Reporting overview",
-    description: "Combination of KPIs, chart, and recent activity feed.",
+    blocks: [
+      {
+        ...defaultListBlock("master-list", "records"),
+        position: { height: 8, width: 5, x: 0, y: 0 },
+      },
+      {
+        ...defaultRecordBlock("detail-panel", "records", "url.id"),
+        position: { height: 8, width: 7, x: 5, y: 0 },
+      },
+    ],
+    description:
+      "Left column list for browsing, right column record details for the selection.",
+    id: "master-detail",
+    name: "Master-detail",
     preview: [
       {
         columns: [
-          { span: 4, label: "Report", variant: "report" },
-          { span: 4, label: "Report", variant: "report" },
-          { span: 4, label: "Report", variant: "report" },
-        ],
-      },
-      {
-        columns: [
-          { span: 8, label: "Chart", variant: "report" },
-          { span: 4, label: "List", variant: "list" },
+          { label: "List", span: 5, variant: "list" },
+          { label: "Record", span: 7, variant: "record" },
         ],
       },
     ],
+    settings: {
+      urlParams: [
+        {
+          description: "Record identifier",
+          id: "param-master-id",
+          name: "id",
+          required: true,
+        },
+      ],
+    },
+  },
+  {
     blocks: [
       {
         ...defaultListBlock("kpi-one", "metrics"),
         id: "kpi-one",
-        position: { x: 0, y: 0, width: 4, height: 2 },
+        position: { height: 2, width: 4, x: 0, y: 0 },
       },
       {
         ...defaultListBlock("kpi-two", "metrics"),
         id: "kpi-two",
-        position: { x: 4, y: 0, width: 4, height: 2 },
+        position: { height: 2, width: 4, x: 4, y: 0 },
       },
       {
         ...defaultListBlock("kpi-three", "metrics"),
         id: "kpi-three",
-        position: { x: 8, y: 0, width: 4, height: 2 },
+        position: { height: 2, width: 4, x: 8, y: 0 },
       },
       {
-        id: "report-chart",
-        type: "report",
-        position: { x: 0, y: 2, width: 8, height: 6 },
-        reportId: "report-1",
         display: {
           chartType: "line",
           title: "Performance",
         },
+        id: "report-chart",
+        position: { height: 6, width: 8, x: 0, y: 2 },
+        reportId: "report-1",
+        type: "report",
       },
       {
         ...defaultListBlock("recent-activity", "activity_log"),
-        position: { x: 8, y: 2, width: 4, height: 6 },
+        position: { height: 6, width: 4, x: 8, y: 2 },
+      },
+    ],
+    description: "Combination of KPIs, chart, and recent activity feed.",
+    id: "reporting",
+    name: "Reporting overview",
+    preview: [
+      {
+        columns: [
+          { label: "Report", span: 4, variant: "report" },
+          { label: "Report", span: 4, variant: "report" },
+          { label: "Report", span: 4, variant: "report" },
+        ],
+      },
+      {
+        columns: [
+          { label: "Chart", span: 8, variant: "report" },
+          { label: "List", span: 4, variant: "list" },
+        ],
       },
     ],
   },
 ];
-

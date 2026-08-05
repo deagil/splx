@@ -1,16 +1,16 @@
-import {
-  type AdapterContext,
-  type ResourceAdapter,
-  type ResourceAdapterKind,
+import type {
+  AdapterContext,
+  ResourceAdapter,
+  ResourceAdapterKind,
 } from "./base";
 
-export type ZapierInvocationOptions = {
-  url?: string;
+export interface ZapierInvocationOptions {
   event?: string;
-  payload?: Record<string, unknown>;
-  method?: "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
-};
+  method?: "POST" | "PUT" | "PATCH";
+  payload?: Record<string, unknown>;
+  url?: string;
+}
 
 export class ZapierResourceAdapter implements ResourceAdapter {
   readonly kind: ResourceAdapterKind = "zapier";
@@ -38,16 +38,16 @@ export class ZapierResourceAdapter implements ResourceAdapter {
     const apiKey = this.resolveApiKey();
 
     const response = await fetch(targetUrl, {
-      method: options.method ?? "POST",
+      body: JSON.stringify({
+        event: options.event ?? "zapier.webhook",
+        payload: options.payload ?? {},
+      }),
       headers: {
         "content-type": "application/json",
         ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
         ...options.headers,
       },
-      body: JSON.stringify({
-        event: options.event ?? "zapier.webhook",
-        payload: options.payload ?? {},
-      }),
+      method: options.method ?? "POST",
     });
 
     if (!response.ok) {
@@ -72,7 +72,7 @@ export class ZapierResourceAdapter implements ResourceAdapter {
 
   private resolveApiKey(): string | undefined {
     const metadata = this.context.configuration ?? {};
-    const credentialRef = this.context.credentialRef;
+    const { credentialRef } = this.context;
 
     const metadataKey =
       (metadata.apiKey as string | undefined) ??
@@ -90,8 +90,3 @@ export class ZapierResourceAdapter implements ResourceAdapter {
     return credentialRef ?? undefined;
   }
 }
-
-
-
-
-

@@ -1,29 +1,29 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { WizardState } from "@/lib/build/table-wizard/types";
-import { WizardStepIndicator } from "./WizardStepIndicator";
-import { WizardNavigation } from "./WizardNavigation";
-import { TablePreview } from "./TablePreview";
+import { TOTAL_STEPS } from "@/lib/build/table-wizard/types";
 import { Step1TableType } from "./steps/Step1TableType";
 import { Step2BasicInfo } from "./steps/Step2BasicInfo";
 import { Step3Fields } from "./steps/Step3Fields";
 import { Step4Relationships } from "./steps/Step4Relationships";
 import { Step5Policies } from "./steps/Step5Policies";
 import { Step6Review } from "./steps/Step6Review";
-import { TOTAL_STEPS } from "@/lib/build/table-wizard/types";
+import { TablePreview } from "./TablePreview";
+import { WizardNavigation } from "./WizardNavigation";
+import { WizardStepIndicator } from "./WizardStepIndicator";
 
 const initialWizardState: WizardState = {
-  currentStep: 1,
-  tableType: null,
+  autoGeneratePages: true,
   baseTableId: null,
-  id: "",
-  name: "",
+  currentStep: 1,
   description: "",
   fields: [],
-  relationships: [],
+  id: "",
+  name: "",
   policyGroup: null,
-  autoGeneratePages: true,
+  relationships: [],
+  tableType: null,
   validationErrors: {},
 };
 
@@ -42,9 +42,9 @@ export function TableWizard() {
 
   const renderStep = () => {
     const stepProps = {
+      goToStep,
       state,
       updateState,
-      goToStep,
     };
 
     switch (state.currentStep) {
@@ -68,9 +68,9 @@ export function TableWizard() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Left Panel - Configuration */}
-      <div className="flex flex-col w-1/2 border-r border-border overflow-hidden">
+      <div className="flex w-1/2 flex-col overflow-hidden border-border border-r">
         {/* Header with step indicator */}
-        <div className="border-b border-border p-6 bg-background">
+        <div className="border-border border-b bg-background p-6">
           <WizardStepIndicator
             currentStep={state.currentStep}
             totalSteps={TOTAL_STEPS}
@@ -78,17 +78,15 @@ export function TableWizard() {
         </div>
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {renderStep()}
-        </div>
+        <div className="flex-1 overflow-y-auto p-6">{renderStep()}</div>
 
         {/* Navigation footer */}
-        <div className="border-t border-border p-6 bg-background">
+        <div className="border-border border-t bg-background p-6">
           <WizardNavigation
             currentStep={state.currentStep}
-            totalSteps={TOTAL_STEPS}
-            state={state}
             goToStep={goToStep}
+            state={state}
+            totalSteps={TOTAL_STEPS}
           />
         </div>
       </div>
@@ -100,4 +98,3 @@ export function TableWizard() {
     </div>
   );
 }
-

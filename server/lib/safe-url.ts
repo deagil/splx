@@ -1,6 +1,8 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+const ipv4MappedRegex = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/;
+
 /**
  * SSRF guard for endpoints that fetch a caller-supplied URL.
  *
@@ -79,7 +81,7 @@ function isBlockedIpv6(address: string): string | null {
   }
 
   // IPv4-mapped (::ffff:127.0.0.1) — check the embedded address.
-  const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  const mapped = normalized.match(ipv4MappedRegex);
   if (mapped) {
     return isBlockedIpv4(mapped[1]);
   }
@@ -88,8 +90,8 @@ function isBlockedIpv6(address: string): string | null {
 }
 
 export class UnsafeUrlError extends Error {
-  constructor(reason: string) {
-    super(`Refusing to fetch this URL: ${reason}`);
+  constructor(reason: string, options?: ErrorOptions) {
+    super(`Refusing to fetch this URL: ${reason}`, options);
     this.name = "UnsafeUrlError";
   }
 }
@@ -102,8 +104,8 @@ export async function assertPublicUrl(rawUrl: string): Promise<URL> {
   let url: URL;
   try {
     url = new URL(rawUrl);
-  } catch {
-    throw new UnsafeUrlError("invalid URL format");
+  } catch (error) {
+    throw new UnsafeUrlError("invalid URL format", { cause: error });
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -119,8 +121,10 @@ export async function assertPublicUrl(rawUrl: string): Promise<URL> {
     try {
       const resolved = await lookup(hostname, { all: true });
       addresses.push(...resolved.map((entry) => entry.address));
-    } catch {
-      throw new UnsafeUrlError("hostname could not be resolved");
+    } catch (error) {
+      throw new UnsafeUrlError("hostname could not be resolved", {
+        cause: error,
+      });
     }
   }
 

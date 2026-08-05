@@ -1,49 +1,60 @@
 "use client";
 
-import useSWR from "swr";
-import Link from "next/link";
 import { Database, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "../ui/button";
-import { toast } from "sonner";
 
-type TableInfo = {
-  schema: string;
+interface TableInfo {
   name: string;
+  schema: string;
   type: string;
-};
+}
 
-type TablesResponse = {
+interface TablesResponse {
   tables: TableInfo[];
-};
+}
 
 const fetcher = async (url: string): Promise<TableInfo[]> => {
-  console.log('[Fetcher] Fetching:', url);
+  console.log("[Fetcher] Fetching:", url);
 
   const response = await fetch(url, {
     credentials: "same-origin",
   });
 
-  console.log('[Fetcher] Response status:', response.status, response.statusText);
+  console.log(
+    "[Fetcher] Response status:",
+    response.status,
+    response.statusText
+  );
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    console.error('[Fetcher] Error response:', errorData);
-    throw new Error(errorData.error || `Failed to load tables (${response.status})`);
+    const errorData = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    console.error("[Fetcher] Error response:", errorData);
+    throw new Error(
+      errorData.error || `Failed to load tables (${response.status})`
+    );
   }
 
   const payload = await response.json();
-  console.log('[Fetcher] Payload received:', payload);
+  console.log("[Fetcher] Payload received:", payload);
 
   // Handle case where payload might be the array directly or wrapped in {tables: [...]}
   if (Array.isArray(payload)) {
-    console.log('[Fetcher] Payload is array, returning directly');
+    console.log("[Fetcher] Payload is array, returning directly");
     return payload;
   }
 
   if (payload && typeof payload === "object" && Array.isArray(payload.tables)) {
-    console.log('[Fetcher] Payload has tables array, returning payload.tables:', payload.tables);
+    console.log(
+      "[Fetcher] Payload has tables array, returning payload.tables:",
+      payload.tables
+    );
     return payload.tables;
   }
 
@@ -54,21 +65,25 @@ const fetcher = async (url: string): Promise<TableInfo[]> => {
 
 export function DataTablesView() {
   const [isSyncing, setIsSyncing] = useState(false);
-  const { data: tablesRaw, error, isLoading, mutate } = useSWR<TableInfo[]>(
-    "/api/tables?type=data",
-    fetcher
-  );
+  const {
+    data: tablesRaw,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<TableInfo[]>("/api/tables?type=data", fetcher);
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
       const response = await fetch("/api/tables/sync", {
-        method: "POST",
         credentials: "same-origin",
+        method: "POST",
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to sync tables" }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Failed to sync tables" }));
         throw new Error(errorData.error || "Failed to sync tables");
       }
 
@@ -82,7 +97,9 @@ export function DataTablesView() {
       );
     } catch (error) {
       console.error("Sync error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to sync tables");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to sync tables"
+      );
     } finally {
       setIsSyncing(false);
     }
@@ -93,33 +110,37 @@ export function DataTablesView() {
   let tables: TableInfo[] = [];
   if (Array.isArray(tablesRaw)) {
     tables = tablesRaw;
-  } else if (tablesRaw && typeof tablesRaw === 'object' && 'tables' in tablesRaw) {
+  } else if (
+    tablesRaw &&
+    typeof tablesRaw === "object" &&
+    "tables" in tablesRaw
+  ) {
     // Handle case where SWR bypasses fetcher and returns raw API response
     tables = (tablesRaw as TablesResponse).tables || [];
   }
 
-  console.log('[DataTablesView] Debug:', {
-    isLoading,
+  console.log("[DataTablesView] Debug:", {
     error: error?.message,
-    tablesRaw,
-    tablesLength: tables.length,
+    isLoading,
     tablesIsArray: Array.isArray(tablesRaw),
-    tablesType: typeof tablesRaw
+    tablesLength: tables.length,
+    tablesRaw,
+    tablesType: typeof tablesRaw,
   });
 
   if (error) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-destructive">
+      <div className="rounded-md border border-border/60 border-dashed p-8 text-center text-destructive text-sm">
         <p className="font-semibold">Failed to load data tables</p>
-        <p className="text-muted-foreground mt-1">{error.message}</p>
+        <p className="mt-1 text-muted-foreground">{error.message}</p>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 bg-muted/50 p-3">
-        <Skeleton className="h-6 w-32 mb-4" />
+      <div className="rounded-md border border-border/60 border-dashed bg-muted/50 p-3">
+        <Skeleton className="mb-4 h-6 w-32" />
         <div className="overflow-auto rounded border border-border/50">
           <table className="min-w-full text-left text-xs">
             <thead className="bg-muted/60">
@@ -137,7 +158,7 @@ export function DataTablesView() {
             </thead>
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="even:bg-muted/40">
+                <tr className="even:bg-muted/40" key={i}>
                   <td className="px-3 py-2">
                     <Skeleton className="h-4 w-32" />
                   </td>
@@ -158,14 +179,18 @@ export function DataTablesView() {
 
   if (tables.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 bg-background p-3 text-xs text-muted-foreground">
-        <div className="text-center py-12">
-          <Database className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="font-semibold text-foreground mb-2">No data tables found</p>
+      <div className="rounded-md border border-border/60 border-dashed bg-background p-3 text-muted-foreground text-xs">
+        <div className="py-12 text-center">
+          <Database className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <p className="mb-2 font-semibold text-foreground">
+            No data tables found
+          </p>
           <p>Create tables in your connected database to see them here.</p>
           {/* <Button variant="default" size="sm" className="mt-4 cursor-pointer" asChild> */}
           <Link href="/build/data/create-wizard">
-            <Button variant="primary" size="sm" className="mt-4 cursor-pointer">Create Table</Button>
+            <Button className="mt-4 cursor-pointer" size="sm" variant="primary">
+              Create Table
+            </Button>
           </Link>
         </div>
       </div>
@@ -176,9 +201,11 @@ export function DataTablesView() {
   if (!Array.isArray(tables)) {
     console.error("Tables is not an array at render time:", tables);
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-destructive">
+      <div className="rounded-md border border-border/60 border-dashed p-8 text-center text-destructive text-sm">
         <p className="font-semibold">Invalid data format</p>
-        <p className="text-muted-foreground mt-1">Please refresh the page or contact support.</p>
+        <p className="mt-1 text-muted-foreground">
+          Please refresh the page or contact support.
+        </p>
       </div>
     );
   }
@@ -186,29 +213,29 @@ export function DataTablesView() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap gap-3 text-muted-foreground text-sm">
           <span className="font-medium text-foreground">
             Tables: <span className="font-mono">{tables.length}</span>
           </span>
           <span>Type: Data tables</span>
         </div>
         <Button
+          className="gap-2"
+          disabled={isSyncing}
+          onClick={handleSync}
+          size="sm"
           type="button"
           variant="outline"
-          size="sm"
-          onClick={handleSync}
-          disabled={isSyncing}
-          className="gap-2"
         >
           <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
           {isSyncing ? "Syncing..." : "Sync Tables"}
         </Button>
       </div>
 
-      <div className="rounded-md border border-dashed border-border/60 bg-background p-3 text-xs text-foreground">
-        <p className="font-semibold mb-3">Data Tables</p>
+      <div className="rounded-md border border-border/60 border-dashed bg-background p-3 text-foreground text-xs">
+        <p className="mb-3 font-semibold">Data Tables</p>
         <div className="mt-3 overflow-auto rounded border border-border/50">
-          <table className="min-w-full text-left text-xs text-foreground">
+          <table className="min-w-full text-left text-foreground text-xs">
             <thead className="bg-muted/60">
               <tr>
                 <th className="px-3 py-2 font-semibold">Table Name</th>
@@ -219,19 +246,23 @@ export function DataTablesView() {
             <tbody>
               {tables.map((table) => (
                 <tr
+                  className="cursor-pointer transition-colors even:bg-muted/40 hover:bg-accent"
                   key={table.name}
-                  className="even:bg-muted/40 hover:bg-accent cursor-pointer transition-colors"
                 >
                   <td className="px-3 py-2">
                     <Link
-                      href={`/data/tables/${table.name}`}
                       className="font-mono text-foreground hover:underline"
+                      href={`/data/tables/${table.name}`}
                     >
                       {table.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{table.schema}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{table.type}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {table.schema}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {table.type}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -241,4 +272,3 @@ export function DataTablesView() {
     </div>
   );
 }
-

@@ -19,7 +19,9 @@ import {
  * Record id is passed as `?id=` to match the existing contract.
  */
 
-type Params = { tableName: string };
+interface Params {
+  tableName: string;
+}
 
 const RESERVED_QUERY_KEYS = new Set([
   "id",
@@ -48,9 +50,8 @@ function requireRecordId(query: URLSearchParams): string {
 
 export const GET = endpoint<undefined, Params, unknown>({
   auth: "required",
-  permission: "data.view",
   async handler({ user, params, query, requestId }) {
-    const repo = dataRepository({ tenant: user.tenant, requestId });
+    const repo = dataRepository({ requestId, tenant: user.tenant });
     const recordId = query.get("id");
 
     if (recordId) {
@@ -74,46 +75,45 @@ export const GET = endpoint<undefined, Params, unknown>({
     }
 
     const { records, total } = await repo.list(params.tableName, {
+      filters,
+      includeLabels,
       limit,
       offset,
       orderBy,
       orderDirection,
-      includeLabels,
-      filters,
     });
 
     return {
       data: { records },
       meta: {
         pagination: {
-          total,
+          hasMore: offset + limit < total,
           limit,
           offset,
-          hasMore: offset + limit < total,
+          total,
         },
       },
     };
   },
+  permission: "data.view",
 });
 
 export const POST = endpoint<Record<string, unknown>, Params, unknown>({
   auth: "required",
-  permission: "data.create",
-  schema: rowSchema,
   async handler({ user, params, body, requestId }) {
-    const repo = dataRepository({ tenant: user.tenant, requestId });
+    const repo = dataRepository({ requestId, tenant: user.tenant });
     const record = await repo.create(params.tableName, body);
     return { data: { record }, status: 201 };
   },
+  permission: "data.create",
+  schema: rowSchema,
 });
 
 export const PATCH = endpoint<Record<string, unknown>, Params, unknown>({
   auth: "required",
-  permission: "data.edit",
-  schema: rowSchema,
   async handler({ user, params, body, query, requestId }) {
     const recordId = requireRecordId(query);
-    const repo = dataRepository({ tenant: user.tenant, requestId });
+    const repo = dataRepository({ requestId, tenant: user.tenant });
 
     const record = await repo.update(params.tableName, recordId, body);
     if (!record) {
@@ -122,14 +122,15 @@ export const PATCH = endpoint<Record<string, unknown>, Params, unknown>({
 
     return { data: { record } };
   },
+  permission: "data.edit",
+  schema: rowSchema,
 });
 
 export const DELETE = endpoint<undefined, Params, unknown>({
   auth: "required",
-  permission: "data.delete",
   async handler({ user, params, query, requestId }) {
     const recordId = requireRecordId(query);
-    const repo = dataRepository({ tenant: user.tenant, requestId });
+    const repo = dataRepository({ requestId, tenant: user.tenant });
 
     const deleted = await repo.remove(params.tableName, recordId);
     if (!deleted) {
@@ -138,4 +139,5 @@ export const DELETE = endpoint<undefined, Params, unknown>({
 
     return { data: { success: true } };
   },
+  permission: "data.delete",
 });

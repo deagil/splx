@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, type PointerEvent as ReactPointerEvent } from "react";
 import { Settings2Icon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
+import { type PointerEvent as ReactPointerEvent, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -12,25 +11,38 @@ import {
   CardHeader,
   CardHeading,
 } from "@/components/ui/card";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { FieldMetadata } from "@/lib/server/tables";
 import { cn } from "@/lib/utils";
-import type { RecordBlockDraft } from "../types";
 import { useRecordBlockData, useTableMetadata } from "../hooks";
+import type { RecordBlockDraft } from "../types";
 
-export type RecordBlockViewProps = {
+export interface RecordBlockViewProps {
   block: RecordBlockDraft;
-  urlParams: Record<string, string>;
   editControls?: {
     onOpenSettings: () => void;
     onRemove: () => void;
     onStartDrag: (event: ReactPointerEvent) => void;
   };
-};
+  urlParams: Record<string, string>;
+}
 
-export function RecordBlockView({ block, urlParams, editControls }: RecordBlockViewProps) {
+export function RecordBlockView({
+  block,
+  urlParams,
+  editControls,
+}: RecordBlockViewProps) {
   const { data, isLoading, error } = useRecordBlockData(block, urlParams);
   const {
     table: tableMetadata,
@@ -39,7 +51,7 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
   } = useTableMetadata(block.tableName || null);
   const { copy } = useCopyToClipboard();
 
-  const resolvedRecordId = useMemo(
+  const _resolvedRecordId = useMemo(
     () => resolveToken(block.recordId, urlParams),
     [block.recordId, urlParams]
   );
@@ -57,7 +69,9 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
   const resolvedColumns = useMemo(() => {
     const availableColumns = data?.columns ?? Array.from(fieldMetaMap.keys());
     const selected =
-      block.display.columns.length === 0 ? availableColumns : block.display.columns;
+      block.display.columns.length === 0
+        ? availableColumns
+        : block.display.columns;
     return selected
       .filter((column) => availableColumns.includes(column))
       .filter((column) => !isFieldHidden(fieldMetaMap.get(column)));
@@ -66,7 +80,9 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
   const displayColumns =
     resolvedColumns.length > 0
       ? resolvedColumns
-      : data?.columns?.filter((column) => !isFieldHidden(fieldMetaMap.get(column))) ?? [];
+      : (data?.columns?.filter(
+          (column) => !isFieldHidden(fieldMetaMap.get(column))
+        ) ?? []);
 
   const hasError = error ?? metadataError;
   const isBusy = isLoading || isMetadataLoading;
@@ -78,17 +94,19 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
           <CardHeader
             className={cn(
               "py-3.5",
-              editControls ? "cursor-grab select-none active:cursor-grabbing" : undefined
+              editControls
+                ? "cursor-grab select-none active:cursor-grabbing"
+                : undefined
             )}
             onPointerDown={editControls?.onStartDrag}
             role={editControls ? "presentation" : undefined}
           >
             <CardHeading className="flex w-full items-center gap-3">
               <div className="min-w-0 flex-1 space-y-1 md:me-6">
-                <div className="text-sm font-medium text-foreground">
+                <div className="font-medium text-foreground text-sm">
                   {block.tableName || "Select a table"}
                 </div>
-                <CardDescription className="text-xs text-muted-foreground">
+                <CardDescription className="text-muted-foreground text-xs">
                   {tableMetadata?.name ?? "Loading metadata..."}
                 </CardDescription>
               </div>
@@ -97,12 +115,12 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={editControls.onOpenSettings}
                         aria-label="Configure block"
+                        onClick={editControls.onOpenSettings}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        size="icon"
+                        type="button"
+                        variant="outline"
                       >
                         <Settings2Icon className="h-4 w-4" />
                       </Button>
@@ -112,13 +130,13 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={editControls.onRemove}
                         aria-label="Remove block"
+                        className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
+                        onClick={editControls.onRemove}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        size="icon"
+                        type="button"
+                        variant="outline"
                       >
                         <Trash2Icon className="h-4 w-4" />
                       </Button>
@@ -131,28 +149,33 @@ export function RecordBlockView({ block, urlParams, editControls }: RecordBlockV
           </CardHeader>
           <CardContent className="min-h-0 flex-1 space-y-4 overflow-auto">
             {isBusy ? (
-              <p className="text-sm text-muted-foreground">Loading record…</p>
+              <p className="text-muted-foreground text-sm">Loading record…</p>
             ) : hasError ? (
-              <p className="text-sm text-destructive">{hasError}</p>
-            ) : !data?.record ? (
-              <p className="text-sm text-muted-foreground">
-                No record found for the provided identifier.
-              </p>
-            ) : (
+              <p className="text-destructive text-sm">{hasError}</p>
+            ) : data?.record ? (
               <dl className="grid gap-2 text-sm">
                 {displayColumns.map((column) => {
                   const meta = fieldMetaMap.get(column);
                   const label = meta?.display_name ?? column;
                   return (
-                    <div key={column} className="grid grid-cols-[140px,1fr] items-start gap-1">
-                      <dt className="truncate text-sm font-medium text-muted-foreground leading-snug">{label}</dt>
-                      <dd className="text-base text-foreground leading-normal pb-2">
+                    <div
+                      className="grid grid-cols-[140px,1fr] items-start gap-1"
+                      key={column}
+                    >
+                      <dt className="truncate font-medium text-muted-foreground text-sm leading-snug">
+                        {label}
+                      </dt>
+                      <dd className="pb-2 text-base text-foreground leading-normal">
                         {formatRecordValue(data.record?.[column], meta, copy)}
                       </dd>
                     </div>
                   );
                 })}
               </dl>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No record found for the provided identifier.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -165,7 +188,7 @@ function resolveToken(
   value: string,
   urlParams: Record<string, string>
 ): string | null {
-  if (!value || !value.startsWith("url.")) {
+  if (!value?.startsWith("url.")) {
     return value;
   }
   const key = value.slice(4);
@@ -186,7 +209,9 @@ function formatRecordValue(
     return <span className="text-muted-foreground/70">—</span>;
   }
 
-  const fieldType = (meta?.ui_hints?.field_type as string | undefined)?.toLowerCase();
+  const fieldType = (
+    meta?.ui_hints?.field_type as string | undefined
+  )?.toLowerCase();
   const dataType = meta?.data_type?.toLowerCase();
 
   if (typeof value === "string") {
@@ -195,10 +220,10 @@ function formatRecordValue(
         value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
       return (
         <Button
-          type="button"
-          variant="ghost"
           className="h-auto px-0 text-foreground underline-offset-4 hover:underline"
           onClick={() => copy(value)}
+          type="button"
+          variant="ghost"
         >
           {truncated}
         </Button>
@@ -207,7 +232,7 @@ function formatRecordValue(
 
     if (fieldType === "email") {
       return (
-        <Link href={`mailto:${value}`} className="text-primary hover:underline">
+        <Link className="text-primary hover:underline" href={`mailto:${value}`}>
           {value}
         </Link>
       );
@@ -215,7 +240,7 @@ function formatRecordValue(
 
     if (fieldType === "phone") {
       return (
-        <Link href={`tel:${value}`} className="text-primary hover:underline">
+        <Link className="text-primary hover:underline" href={`tel:${value}`}>
           {value}
         </Link>
       );
@@ -223,7 +248,12 @@ function formatRecordValue(
 
     if (fieldType === "url") {
       return (
-        <Link href={value} className="text-primary hover:underline" target="_blank" rel="noreferrer noopener">
+        <Link
+          className="text-primary hover:underline"
+          href={value}
+          rel="noreferrer noopener"
+          target="_blank"
+        >
           {value}
         </Link>
       );
@@ -233,7 +263,7 @@ function formatRecordValue(
       return renderLongTextWithHover(value);
     }
 
-    if (fieldType === "date" || (dataType && dataType.includes("timestamp"))) {
+    if (fieldType === "date" || dataType?.includes("timestamp")) {
       const date = new Date(value);
       if (!Number.isNaN(date.getTime())) {
         const relative = formatRelativeTime(date);
@@ -246,10 +276,10 @@ function formatRecordValue(
   if (typeof value === "number") {
     if (fieldType === "currency") {
       return new Intl.NumberFormat("en-US", {
-        style: "currency",
         currency: "USD",
-        minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        style: "currency",
       }).format(value);
     }
     return value.toLocaleString();
@@ -314,18 +344,21 @@ function formatFullDate(date: Date) {
           : "th";
   const time = date.toLocaleString("en-GB", {
     hour: "numeric",
-    minute: "2-digit",
     hour12: true,
+    minute: "2-digit",
   });
   return `${month} ${day}${ordinal}, ${time.toLowerCase()}`;
-}function formatRelativeTime(date: Date) {
+}
+function formatRelativeTime(date: Date) {
   const diffMs = date.getTime() - Date.now();
   const absMs = Math.abs(diffMs);
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });  const minute = 60 * 1000;
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
   const month = 30 * day;
-  const year = 365 * day;  if (absMs < minute) {
+  const year = 365 * day;
+  if (absMs < minute) {
     return rtf.format(Math.round(diffMs / 1000), "second");
   }
   if (absMs < hour) {

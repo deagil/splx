@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { streamObject } from "ai";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { myProvider } from "@/lib/ai/providers";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
@@ -26,23 +26,23 @@ export async function POST(request: Request) {
 
     const { object } = await streamObject({
       model: myProvider.languageModel("artifact-model"),
-      system: `You are a database schema expert. Generate appropriate database fields/columns for a table based on the user's description. 
-      Return an array of field objects with: field_name (snake_case), display_name, data_type (text, integer, uuid, boolean, timestamp, date, numeric, json, jsonb), 
-      is_required (boolean), is_unique (boolean), and optional description. Always include an 'id' field of type 'uuid' as the primary key.`,
       prompt: `Generate database fields for a table with this description: ${description}`,
       schema: z.object({
         fields: z.array(
           z.object({
-            field_name: z.string(),
-            display_name: z.string().optional(),
             data_type: z.string(),
+            default_value: z.unknown().optional(),
+            description: z.string().optional(),
+            display_name: z.string().optional(),
+            field_name: z.string(),
             is_required: z.boolean().optional(),
             is_unique: z.boolean().optional(),
-            description: z.string().optional(),
-            default_value: z.unknown().optional(),
           })
         ),
       }),
+      system: `You are a database schema expert. Generate appropriate database fields/columns for a table based on the user's description. 
+      Return an array of field objects with: field_name (snake_case), display_name, data_type (text, integer, uuid, boolean, timestamp, date, numeric, json, jsonb), 
+      is_required (boolean), is_unique (boolean), and optional description. Always include an 'id' field of type 'uuid' as the primary key.`,
     });
 
     const result = await object;
@@ -53,4 +53,3 @@ export async function POST(request: Request) {
     return handleError(error);
   }
 }
-

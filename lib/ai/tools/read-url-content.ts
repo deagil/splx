@@ -4,9 +4,6 @@ import { z } from "zod";
 export const readUrlContent = tool({
   description:
     "Read and extract the main content from a webpage URL. Returns clean markdown text suitable for understanding the page content. Use this when a user shares a URL and wants you to read or analyze its content.",
-  inputSchema: z.object({
-    url: z.string().url().describe("The URL of the webpage to read"),
-  }),
   execute: async ({ url }) => {
     const response = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: "text/markdown" },
@@ -19,33 +16,18 @@ export const readUrlContent = tool({
     const content = await response.text();
 
     // Truncate if too long (to avoid token limits)
-    const maxLength = 15000;
+    const maxLength = 15_000;
     if (content.length > maxLength) {
       return {
         content: content.slice(0, maxLength),
-        truncated: true,
         originalLength: content.length,
+        truncated: true,
       };
     }
 
     return { content, truncated: false };
   },
+  inputSchema: z.object({
+    url: z.string().url().describe("The URL of the webpage to read"),
+  }),
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

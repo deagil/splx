@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type DecorationContainerProps = {
+interface DecorationContainerProps {
   children: ReactNode;
   className?: string;
   /** Show gradient fades on edges (default: true) */
   showEdgeFades?: boolean;
-};
+}
 
 /**
  * Shared container for settings header decorations.
@@ -36,10 +36,9 @@ export function DecorationContainer({
       ) : null}
 
       {/* Content wrapper with reduced motion support */}
-      <div className="relative h-full w-full motion-reduce:*:!animate-none">
+      <div className="motion-reduce:*:!animate-none relative h-full w-full">
         {children}
       </div>
     </div>
   );
 }
-

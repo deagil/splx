@@ -1,48 +1,49 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
-type ConversationMessage = {
-  role: "user" | "assistant";
+interface ConversationMessage {
   content: string;
-};
+  role: "user" | "assistant";
+}
 
-type UseAIWizardStreamOptions<TUIState, TPreviewData> = {
+interface UseAIWizardStreamOptions<TUIState, TPreviewData> {
   endpoint: string;
   eventType: string;
   getPreviewFromUI?: (ui: TUIState) => TPreviewData | undefined;
   timeout?: number;
-};
+}
 
-type UseAIWizardStreamReturn<TUIState, TPreviewData> = {
-  start: (description: string, mode?: "auto" | "create" | "refine", previousData?: unknown) => Promise<void>;
-  respond: (response: string) => Promise<void>;
-  reset: () => void;
-  isStreaming: boolean;
-  currentUI: TUIState | null;
-  previewData: TPreviewData | null;
-  error: string | null;
+interface UseAIWizardStreamReturn<TUIState, TPreviewData> {
   conversationHistory: ConversationMessage[];
-};
+  currentUI: TUIState | null;
+  error: string | null;
+  isStreaming: boolean;
+  previewData: TPreviewData | null;
+  reset: () => void;
+  respond: (response: string) => Promise<void>;
+  start: (
+    description: string,
+    mode?: "auto" | "create" | "refine",
+    previousData?: unknown
+  ) => Promise<void>;
+}
 
 export function useAIWizardStream<
   TUIState extends { type: string; message?: string },
-  TPreviewData = unknown
+  TPreviewData = unknown,
 >(
   options: UseAIWizardStreamOptions<TUIState, TPreviewData>
 ): UseAIWizardStreamReturn<TUIState, TPreviewData> {
-  const {
-    endpoint,
-    eventType,
-    getPreviewFromUI,
-    timeout = 30000,
-  } = options;
+  const { endpoint, eventType, getPreviewFromUI, timeout = 30_000 } = options;
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentUI, setCurrentUI] = useState<TUIState | null>(null);
   const [previewData, setPreviewData] = useState<TPreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<
+    ConversationMessage[]
+  >([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -62,15 +63,15 @@ export function useAIWizardStream<
 
       try {
         const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            conversation_history: conversationHistory,
             description,
             mode,
             previous_report: previousData,
             previous_skill: previousData,
-            conversation_history: conversationHistory,
           }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
           signal: abortControllerRef.current.signal,
         });
 
@@ -99,14 +100,18 @@ export function useAIWizardStream<
         try {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
 
             for (const line of lines) {
-              if (!line.trim() || !line.startsWith("data: ")) continue;
+              if (!line.trim() || !line.startsWith("data: ")) {
+                continue;
+              }
 
               try {
                 const jsonStr = line.slice(6);
@@ -114,7 +119,7 @@ export function useAIWizardStream<
 
                 if (data.type === eventType && data.data) {
                   const uiState = data.data as TUIState;
-                  if (uiState && uiState.type) {
+                  if (uiState?.type) {
                     setCurrentUI(uiState);
                     setIsStreaming(false);
                     hasReceivedUI = true;
@@ -158,7 +163,8 @@ export function useAIWizardStream<
           // Request was aborted, don't set error
           return;
         }
-        const errorMessage = e instanceof Error ? e.message : "An error occurred";
+        const errorMessage =
+          e instanceof Error ? e.message : "An error occurred";
         setError(errorMessage);
         throw e;
       }
@@ -179,7 +185,7 @@ export function useAIWizardStream<
       // Add user message to history
       setConversationHistory((prev) => [
         ...prev,
-        { role: "user", content: description },
+        { content: description, role: "user" },
       ]);
 
       await processStream(description, mode, previousData);
@@ -189,7 +195,9 @@ export function useAIWizardStream<
 
   const respond = useCallback(
     async (response: string) => {
-      if (!currentUI) return;
+      if (!currentUI) {
+        return;
+      }
 
       setIsStreaming(true);
       setCurrentUI(null);
@@ -198,8 +206,8 @@ export function useAIWizardStream<
       // Add assistant and user messages to history
       setConversationHistory((prev) => [
         ...prev,
-        { role: "assistant", content: currentUI.message || "" },
-        { role: "user", content: response },
+        { content: currentUI.message || "", role: "assistant" },
+        { content: response, role: "user" },
       ]);
 
       await processStream(response, "auto", previewData);
@@ -217,13 +225,13 @@ export function useAIWizardStream<
   }, []);
 
   return {
-    start,
-    respond,
-    reset,
-    isStreaming,
-    currentUI,
-    previewData,
-    error,
     conversationHistory,
+    currentUI,
+    error,
+    isStreaming,
+    previewData,
+    reset,
+    respond,
+    start,
   };
 }

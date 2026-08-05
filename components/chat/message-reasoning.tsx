@@ -6,12 +6,12 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 
-type MessageReasoningProps = {
-  isLoading: boolean;
-  reasoning: string;
+interface MessageReasoningProps {
   /** When true, text response has started streaming - triggers collapse */
   hasTextStarted?: boolean;
-};
+  isLoading: boolean;
+  reasoning: string;
+}
 
 export function MessageReasoning({
   isLoading,

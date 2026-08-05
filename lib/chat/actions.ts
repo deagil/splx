@@ -3,8 +3,8 @@
 import { generateText, type UIMessage } from "ai";
 import { cookies } from "next/headers";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
-import { myProvider } from "@/lib/ai/providers";
 import { titlePrompt } from "@/lib/ai/prompts";
+import { myProvider } from "@/lib/ai/providers";
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
@@ -24,8 +24,8 @@ export async function generateTitleFromUserMessage({
 }) {
   const { text: title } = await generateText({
     model: myProvider.languageModel("title-model"),
-    system: titlePrompt,
     prompt: getTextFromMessage(message),
+    system: titlePrompt,
   });
 
   return title;

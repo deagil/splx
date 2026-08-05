@@ -11,20 +11,24 @@ import {
   type ResolvedTable,
 } from "./data";
 
+const unknownColumnRegex = /is_admin/;
+const managedByServerRegex = /managed by the server/;
+const atLeastOneFieldRegex = /at least one field/;
+
 const dialect = new PgDialect();
 
 function compile(query: ReturnType<typeof buildInsert>) {
   const { sql, params } = dialect.sqlToQuery(query);
-  return { sql, params };
+  return { params, sql };
 }
 
 // Only the fields the SQL builders actually read are populated.
 const contactsTable: ResolvedTable = {
-  config: { id: "contacts", name: "contacts", config: {} } as TableRecord,
-  physicalName: "contacts",
   columns: ["id", "name", "qty", "notes", "workspace_id"],
-  primaryKey: "id",
+  config: { config: {}, id: "contacts", name: "contacts" } as TableRecord,
   hasWorkspaceColumn: true,
+  physicalName: "contacts",
+  primaryKey: "id",
 };
 
 const noWorkspaceTable: ResolvedTable = {
@@ -72,7 +76,9 @@ describe("buildInsert", () => {
   });
 
   it("quotes the table and column identifiers", () => {
-    const { sql } = compile(buildInsert(contactsTable, { name: "Ada" }, "ws-1"));
+    const { sql } = compile(
+      buildInsert(contactsTable, { name: "Ada" }, "ws-1")
+    );
     expect(sql).toContain('"contacts"');
     expect(sql).toContain('"name"');
   });
@@ -94,12 +100,12 @@ describe("buildInsert", () => {
 
   it("rejects columns that do not exist on the table", () => {
     expect(() =>
-      buildInsert(contactsTable, { name: "Ada", is_admin: true }, "ws-1")
+      buildInsert(contactsTable, { is_admin: true, name: "Ada" }, "ws-1")
     ).toThrow(ApiError);
 
     expect(() =>
-      buildInsert(contactsTable, { name: "Ada", is_admin: true }, "ws-1")
-    ).toThrow(/is_admin/);
+      buildInsert(contactsTable, { is_admin: true, name: "Ada" }, "ws-1")
+    ).toThrow(unknownColumnRegex);
   });
 
   it("refuses a caller-supplied workspace_id", () => {
@@ -107,12 +113,12 @@ describe("buildInsert", () => {
     // physical table.
     expect(() =>
       buildInsert(contactsTable, { name: "Ada", workspace_id: "ws-2" }, "ws-1")
-    ).toThrow(/managed by the server/);
+    ).toThrow(managedByServerRegex);
   });
 
   it("rejects an empty body", () => {
     expect(() => buildInsert(contactsTable, {}, "ws-1")).toThrow(
-      /at least one field/
+      atLeastOneFieldRegex
     );
   });
 });
@@ -206,7 +212,9 @@ describe("parsePagination", () => {
 
   it("rejects out-of-range values", () => {
     expect(() => parsePagination(new URLSearchParams("limit=0"))).toThrow();
-    expect(() => parsePagination(new URLSearchParams("limit=100000"))).toThrow();
+    expect(() =>
+      parsePagination(new URLSearchParams("limit=100000"))
+    ).toThrow();
     expect(() => parsePagination(new URLSearchParams("offset=-1"))).toThrow();
   });
 });
@@ -219,6 +227,8 @@ describe("parseOrderDirection", () => {
   });
 
   it("rejects anything else rather than casting it through", () => {
-    expect(() => parseOrderDirection("; DROP TABLE contacts")).toThrow(ApiError);
+    expect(() => parseOrderDirection("; DROP TABLE contacts")).toThrow(
+      ApiError
+    );
   });
 });

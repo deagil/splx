@@ -1,9 +1,10 @@
 import type { UIMessageStreamWriter } from "ai";
-export type Session = {
+export interface Session {
   user?: {
     id?: string | null;
   } | null;
-};
+}
+
 import { codeDocumentHandler } from "@/artifacts/code/server";
 import { sheetDocumentHandler } from "@/artifacts/sheet/server";
 import { textDocumentHandler } from "@/artifacts/text/server";
@@ -12,33 +13,33 @@ import { saveDocument } from "../db/queries";
 import type { Document } from "../db/schema";
 import type { ChatMessage } from "../types";
 
-export type SaveDocumentProps = {
-  id: string;
-  title: string;
-  kind: ArtifactKind;
+export interface SaveDocumentProps {
   content: string;
-  userId: string;
-};
-
-export type CreateDocumentCallbackProps = {
   id: string;
+  kind: ArtifactKind;
   title: string;
-  dataStream: UIMessageStreamWriter<ChatMessage>;
-  session: Session;
-};
+  userId: string;
+}
 
-export type UpdateDocumentCallbackProps = {
-  document: Document;
+export interface CreateDocumentCallbackProps {
+  dataStream: UIMessageStreamWriter<ChatMessage>;
+  id: string;
+  session: Session;
+  title: string;
+}
+
+export interface UpdateDocumentCallbackProps {
+  dataStream: UIMessageStreamWriter<ChatMessage>;
   description: string;
-  dataStream: UIMessageStreamWriter<ChatMessage>;
+  document: Document;
   session: Session;
-};
+}
 
-export type DocumentHandler<T = ArtifactKind> = {
+export interface DocumentHandler<T = ArtifactKind> {
   kind: T;
   onCreateDocument: (args: CreateDocumentCallbackProps) => Promise<void>;
   onUpdateDocument: (args: UpdateDocumentCallbackProps) => Promise<void>;
-};
+}
 
 export function createDocumentHandler<T extends ArtifactKind>(config: {
   kind: T;
@@ -49,43 +50,39 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
     kind: config.kind,
     onCreateDocument: async (args: CreateDocumentCallbackProps) => {
       const draftContent = await config.onCreateDocument({
-        id: args.id,
-        title: args.title,
         dataStream: args.dataStream,
+        id: args.id,
         session: args.session,
+        title: args.title,
       });
 
       if (args.session?.user?.id) {
         await saveDocument({
-          id: args.id,
-          title: args.title,
           content: draftContent,
+          id: args.id,
           kind: config.kind,
+          title: args.title,
           userId: args.session.user.id,
         });
       }
-
-      return;
     },
     onUpdateDocument: async (args: UpdateDocumentCallbackProps) => {
       const draftContent = await config.onUpdateDocument({
-        document: args.document,
-        description: args.description,
         dataStream: args.dataStream,
+        description: args.description,
+        document: args.document,
         session: args.session,
       });
 
       if (args.session?.user?.id) {
         await saveDocument({
-          id: args.document.id,
-          title: args.document.title,
           content: draftContent,
+          id: args.document.id,
           kind: config.kind,
+          title: args.document.title,
           userId: args.session.user.id,
         });
       }
-
-      return;
     },
   };
 }

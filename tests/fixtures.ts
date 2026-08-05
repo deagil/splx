@@ -2,11 +2,11 @@ import { expect as baseExpect, test as baseTest } from "@playwright/test";
 import { getUnixTime } from "date-fns";
 import { createAuthenticatedContext, type UserContext } from "./helpers";
 
-type Fixtures = {
+interface Fixtures {
   adaContext: UserContext;
   babbageContext: UserContext;
   curieContext: UserContext;
-};
+}
 
 export const test = baseTest.extend<object, Fixtures>({
   adaContext: [

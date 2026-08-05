@@ -1,7 +1,7 @@
-import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { getChatById, getMessagesByChatId } from "@/lib/db/queries";
-import { convertToUIMessages } from "@/lib/utils";
 import { ChatSDKError } from "@/lib/errors";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { convertToUIMessages } from "@/lib/utils";
 
 export async function GET(
   _: Request,
@@ -34,4 +34,3 @@ export async function GET(
 
   return Response.json({ messages: uiMessages });
 }
-

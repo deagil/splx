@@ -12,30 +12,30 @@ const createReportSchema = z.record(z.string(), z.unknown());
  */
 export const GET = endpoint({
   auth: "required",
-  permission: "reports.view",
   async handler({ user }) {
     const reports = await listReports(user.tenant);
     return { data: { reports } };
   },
+  permission: "reports.view",
 });
 
 export const POST = endpoint<Record<string, unknown>>({
   auth: "required",
-  permission: "reports.edit",
-  schema: createReportSchema,
   async handler({ user, body, requestId }) {
     const report = await createReport(user.tenant, body);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "reports.created",
-      resourceType: "report",
-      resourceId: (report as { id?: string }).id ?? null,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: (report as { id?: string }).id ?? null,
+      resourceType: "report",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { report }, status: 201 };
   },
+  permission: "reports.edit",
+  schema: createReportSchema,
 });

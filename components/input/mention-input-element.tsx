@@ -1,18 +1,18 @@
 "use client";
 
-import * as React from "react";
-import type { TComboboxInputElement } from "platejs";
-import type { PlateElementProps } from "platejs/react";
 import { getMentionOnSelectItem } from "@platejs/mention";
-import { PlateElement } from "platejs/react";
 import {
-  User,
-  FileText,
-  Table2,
   Database,
+  FileText,
   LayoutGrid,
   Search,
+  Table2,
+  User,
 } from "lucide-react";
+import type { TComboboxInputElement } from "platejs";
+import type { PlateElementProps } from "platejs/react";
+import { PlateElement } from "platejs/react";
+import * as React from "react";
 import {
   InlineCombobox,
   InlineComboboxContent,
@@ -22,8 +22,8 @@ import {
   InlineComboboxInput,
   InlineComboboxItem,
 } from "@/components/ui/inline-combobox";
-import type { MentionableItem, MentionType } from "@/lib/types/mentions";
 import { filterMentionableItems } from "@/lib/plate/mention-config";
+import type { MentionableItem, MentionType } from "@/lib/types/mentions";
 
 export type MentionInputElementProps =
   PlateElementProps<TComboboxInputElement> & {
@@ -93,7 +93,7 @@ function groupMentionableItems(items: MentionableItem[]) {
 
   for (const label of order) {
     if (groups[label]?.length > 0) {
-      orderedGroups.push({ label, items: groups[label] });
+      orderedGroups.push({ items: groups[label], label });
     }
   }
 
@@ -136,11 +136,11 @@ export function MentionInputElement({
   return (
     <PlateElement {...props} as="span">
       <InlineCombobox
-        value={search}
         element={element}
         setValue={setSearch}
         showTrigger={true}
         trigger="@"
+        value={search}
       >
         <span className="inline-block align-baseline text-sm">
           <InlineComboboxInput />
@@ -157,16 +157,16 @@ export function MentionInputElement({
                 return (
                   <InlineComboboxItem
                     key={item.key}
-                    value={item.text}
                     onClick={() => handleSelectItem(item)}
+                    value={item.text}
                   >
                     <Icon className="shrink-0" />
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="truncate font-medium text-sm">
                         {item.text}
                       </span>
-                      {item.description && (
-                        <span className="truncate text-xs text-muted-foreground">
+                      {!!item.description && (
+                        <span className="truncate text-muted-foreground text-xs">
                           {item.description}
                         </span>
                       )}
@@ -183,4 +183,3 @@ export function MentionInputElement({
     </PlateElement>
   );
 }
-

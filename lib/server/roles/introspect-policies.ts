@@ -8,33 +8,37 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
  * RLS policies and detect permission gaps.
  */
 
-export type RlsPolicy = {
+export interface RlsPolicy {
+  cmd: string;
+  permissive: string;
+  policyname: string;
+  qual: string | null;
+  roles: string[];
   schemaname: string;
   tablename: string;
-  policyname: string;
-  permissive: string;
-  roles: string[];
-  cmd: string;
-  qual: string | null;
   with_check: string | null;
-};
+}
 
-export type PolicyPermissionRef = {
-  tablename: string;
-  policyname: string;
+export interface PolicyPermissionRef {
   permission: string;
+  policyname: string;
   source: "qual" | "with_check";
-};
+  tablename: string;
+}
 
-export type TableRlsStatus = {
-  table_name: string;
-  rls_enabled: boolean;
-  rls_forced: boolean;
+export interface TableRlsStatus {
   has_policies: boolean;
   policy_count: number;
-};
+  rls_enabled: boolean;
+  rls_forced: boolean;
+  table_name: string;
+}
 
-export type GapAnalysis = {
+export interface GapAnalysis {
+  incompleteCrud: Array<{
+    resource: string;
+    missingActions: string[];
+  }>;
   missingPermissions: Array<{
     permission: string;
     tablename: string;
@@ -42,11 +46,7 @@ export type GapAnalysis = {
   }>;
   tablesWithoutPolicies: string[];
   tablesWithoutRls: string[];
-  incompleteCrud: Array<{
-    resource: string;
-    missingActions: string[];
-  }>;
-};
+}
 
 /**
  * Get all RLS policies in the public schema
@@ -111,7 +111,10 @@ export async function extractPolicyPermissions(
   `);
 
   const permissions: PolicyPermissionRef[] = [
-    ...(qualResult as unknown as any[]).map((r) => ({ ...r, source: "qual" as const })),
+    ...(qualResult as unknown as any[]).map((r) => ({
+      ...r,
+      source: "qual" as const,
+    })),
     ...(withCheckResult as unknown as any[]).map((r) => ({
       ...r,
       source: "with_check" as const,
@@ -170,7 +173,9 @@ export async function getTablesWithoutPolicies(
     ORDER BY c.relname
   `);
 
-  return (result as unknown as { table_name: string }[]).map((r) => r.table_name);
+  return (result as unknown as { table_name: string }[]).map(
+    (r) => r.table_name
+  );
 }
 
 /**
@@ -208,7 +213,9 @@ export async function getTablesWithoutRls(
  */
 export async function getSeededPermissions(
   db: PostgresJsDatabase
-): Promise<Array<{ role_id: string; permission: string; description: string | null }>> {
+): Promise<
+  Array<{ role_id: string; permission: string; description: string | null }>
+> {
   const result = await db.execute<{
     role_id: string;
     permission: string;
@@ -219,30 +226,41 @@ export async function getSeededPermissions(
     ORDER BY role_id, permission
   `);
 
-  return result as unknown as Array<{ role_id: string; permission: string; description: string | null }>;
+  return result as unknown as Array<{
+    role_id: string;
+    permission: string;
+    description: string | null;
+  }>;
 }
 
 /**
  * Analyze gaps between RLS policies and seeded permissions
  */
-export async function analyzeGaps(db: PostgresJsDatabase): Promise<GapAnalysis> {
+export async function analyzeGaps(
+  db: PostgresJsDatabase
+): Promise<GapAnalysis> {
   // Get all data we need
-  const [policyPermissions, seededPermissions, tablesWithoutPolicies, tablesWithoutRls] =
-    await Promise.all([
-      extractPolicyPermissions(db),
-      getSeededPermissions(db),
-      getTablesWithoutPolicies(db),
-      getTablesWithoutRls(db),
-    ]);
+  const [
+    policyPermissions,
+    seededPermissions,
+    tablesWithoutPolicies,
+    tablesWithoutRls,
+  ] = await Promise.all([
+    extractPolicyPermissions(db),
+    getSeededPermissions(db),
+    getTablesWithoutPolicies(db),
+    getTablesWithoutRls(db),
+  ]);
 
   const seededSet = new Set(seededPermissions.map((p) => p.permission));
 
   // Find permissions referenced in policies but not seeded
   const missingPermissions = policyPermissions
     .filter((p) => !seededSet.has(p.permission))
-    .filter((p, i, arr) =>
-      // Dedupe by permission
-      arr.findIndex((x) => x.permission === p.permission) === i
+    .filter(
+      (p, i, arr) =>
+        // Dedupe by permission
+        arr.findIndex((x) => x.permission === p.permission) === i
     );
 
   // Check CRUD coverage for each resource
@@ -255,7 +273,8 @@ export async function analyzeGaps(db: PostgresJsDatabase): Promise<GapAnalysis> 
   }
 
   const crudActions = ["view", "create", "edit", "delete"];
-  const incompleteCrud: Array<{ resource: string; missingActions: string[] }> = [];
+  const incompleteCrud: Array<{ resource: string; missingActions: string[] }> =
+    [];
 
   for (const resource of resources) {
     const existingActions = seededPermissions
@@ -275,15 +294,15 @@ export async function analyzeGaps(db: PostgresJsDatabase): Promise<GapAnalysis> 
         (action) => !existingActions.includes(action)
       );
       if (missing.length > 0) {
-        incompleteCrud.push({ resource, missingActions: missing });
+        incompleteCrud.push({ missingActions: missing, resource });
       }
     }
   }
 
   return {
+    incompleteCrud,
     missingPermissions,
     tablesWithoutPolicies,
     tablesWithoutRls,
-    incompleteCrud,
   };
 }

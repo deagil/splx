@@ -4,7 +4,9 @@ import { endpoint } from "@/server/api/endpoint";
 import { writeAuditLog } from "@/server/lib/audit";
 import { emitEvent } from "@/server/lib/events";
 
-type Params = { pageId: string };
+interface Params {
+  pageId: string;
+}
 
 const savePageSchema = z.record(z.string(), z.unknown());
 
@@ -14,32 +16,32 @@ const savePageSchema = z.record(z.string(), z.unknown());
  */
 const save = endpoint<Record<string, unknown>, Params>({
   auth: "required",
-  permission: "pages.edit",
-  schema: savePageSchema,
   async handler({ user, params, body, requestId }) {
     const page = await updatePage(user.tenant, params.pageId, body);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "pages.updated",
-      resourceType: "page",
-      resourceId: params.pageId,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: params.pageId,
+      resourceType: "page",
+      workspaceId: user.workspaceId,
     });
 
     // Page definitions are system objects an automation may want to react to.
     await emitEvent({
-      workspaceId: user.workspaceId,
+      actorUserId: user.userId,
       eventName: "page.updated",
       payload: { pageId: params.pageId },
-      actorUserId: user.userId,
       requestId,
+      workspaceId: user.workspaceId,
     });
 
     return { data: { page } };
   },
+  permission: "pages.edit",
+  schema: savePageSchema,
 });
 
 export const PUT = save;

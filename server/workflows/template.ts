@@ -13,19 +13,16 @@ const TEMPLATE_RE = /^\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}$/;
 
 export type TemplateContext = Record<string, unknown>;
 
-export function resolvePath(
-  context: TemplateContext,
-  path: string
-): unknown {
+export function resolvePath(context: TemplateContext, path: string): unknown {
   const parts = path.split(".");
   let current: unknown = context;
 
   for (const part of parts) {
     if (current === null || current === undefined) {
-      return undefined;
+      return;
     }
     if (typeof current !== "object") {
-      return undefined;
+      return;
     }
     current = (current as Record<string, unknown>)[part];
   }

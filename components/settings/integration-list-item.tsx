@@ -1,18 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { CheckCircle2, ExternalLink } from "lucide-react";
-
-import type { Integration, IntegrationStatus } from "@/lib/integrations/registry";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import type {
+  Integration,
+  IntegrationStatus,
+} from "@/lib/integrations/registry";
 import { cn } from "@/lib/utils";
 
-type IntegrationListItemProps = {
-  integration: Integration;
-  status: IntegrationStatus;
+interface IntegrationListItemProps {
   icon: ReactNode;
+  integration: Integration;
   onConfigure: () => void;
-};
+  status: IntegrationStatus;
+}
 
 export function IntegrationListItem({
   integration,
@@ -27,7 +29,7 @@ export function IntegrationListItem({
     <div
       className={cn(
         "group rounded-xl border bg-card p-4 transition-all duration-200",
-        "hover:shadow-md hover:border-border/80",
+        "hover:border-border/80 hover:shadow-md",
         isConnected && "border-emerald-200/50 dark:border-emerald-800/30"
       )}
     >
@@ -35,32 +37,32 @@ export function IntegrationListItem({
       <div className="flex items-center gap-4">
         {/* Icon */}
         <div
+          aria-hidden="true"
           className={cn(
             "flex size-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-transform group-hover:scale-105",
             integration.brandConfig.iconClassName
           )}
-          aria-hidden="true"
         >
           {icon}
         </div>
 
         {/* Name and mobile description */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-foreground">{integration.name}</h3>
           {/* Description shown inline on larger screens */}
-          <p className="hidden sm:block text-sm text-muted-foreground mt-0.5">
+          <p className="mt-0.5 hidden text-muted-foreground text-sm sm:block">
             {integration.description}
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex shrink-0 items-center gap-3">
           {integration.learnMoreUrl ? (
             <a
+              className="hidden items-center gap-1 text-muted-foreground text-sm transition-colors hover:text-foreground lg:flex"
               href={integration.learnMoreUrl}
-              target="_blank"
               rel="noopener noreferrer"
-              className="hidden lg:flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              target="_blank"
             >
               Learn more
               <ExternalLink className="size-3" />
@@ -69,23 +71,23 @@ export function IntegrationListItem({
 
           {isConnected ? (
             <Button
-              variant="outline"
-              size="sm"
-              onClick={onConfigure}
               className={cn(
                 "gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800",
                 "dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
               )}
+              onClick={onConfigure}
+              size="sm"
+              variant="outline"
             >
               <CheckCircle2 className="size-3.5" />
               <span className="hidden sm:inline">Connected</span>
             </Button>
           ) : (
             <Button
-              variant="primary"
-              size="sm"
-              onClick={onConfigure}
               disabled={isLoading || !integration.configurable}
+              onClick={onConfigure}
+              size="sm"
+              variant="primary"
             >
               {isLoading ? "..." : "Connect"}
             </Button>
@@ -94,10 +96,9 @@ export function IntegrationListItem({
       </div>
 
       {/* Description shown below on mobile */}
-      <p className="sm:hidden text-sm text-muted-foreground mt-3 pl-16">
+      <p className="mt-3 pl-16 text-muted-foreground text-sm sm:hidden">
         {integration.description}
       </p>
     </div>
   );
 }
-

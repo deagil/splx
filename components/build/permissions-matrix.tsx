@@ -1,5 +1,6 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import React, { useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -10,21 +11,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type PermissionRow = {
-  resource: string;
+export interface PermissionRow {
   action: string;
   key: string;
-};
+  resource: string;
+}
 
 interface PermissionsMatrixProps {
-  roles: string[];
-  permissions: Array<{ role_id: string; permission: string; description?: string | null }>;
   onChange: (roleId: string, permission: string, checked: boolean) => void;
-  pendingChanges: Array<{ role_id: string; permission: string; action: "add" | "remove" }>;
+  pendingChanges: Array<{
+    role_id: string;
+    permission: string;
+    action: "add" | "remove";
+  }>;
+  permissions: Array<{
+    role_id: string;
+    permission: string;
+    description?: string | null;
+  }>;
+  roles: string[];
 }
 
 export function PermissionsMatrix({
@@ -45,14 +52,23 @@ export function PermissionsMatrix({
     // Ensure we have some default rows if the DB is empty or lacks specific permissions
     // This makes the matrix useful even when starting fresh
     const defaults = [
-        "pages.view", "pages.edit", "pages.create", "pages.delete",
-        "tables.view", "tables.edit", 
-        "data.view", "data.create", "data.edit", "data.delete"
+      "pages.view",
+      "pages.edit",
+      "pages.create",
+      "pages.delete",
+      "tables.view",
+      "tables.edit",
+      "data.view",
+      "data.create",
+      "data.edit",
+      "data.delete",
     ];
-    
-    defaults.forEach(p => {
-        if (!uniquePermissions.includes(p)) uniquePermissions.push(p);
-    });
+
+    for (const p of defaults) {
+      if (!uniquePermissions.includes(p)) {
+        uniquePermissions.push(p);
+      }
+    }
     uniquePermissions.sort();
 
     return uniquePermissions
@@ -60,24 +76,25 @@ export function PermissionsMatrix({
       .map((p) => {
         const [resource, ...actionParts] = p.split(".");
         // Handle cases like "data.view" vs just "view"
-        const action = actionParts.length > 0 ? actionParts.join(".") : resource;
-        
+        const action =
+          actionParts.length > 0 ? actionParts.join(".") : resource;
+
         return {
+          action,
           key: p,
           resource: actionParts.length > 0 ? resource : "system",
-          action,
         };
       });
   }, [permissions]);
 
   // Group rows by resource
   const groupedRows: Record<string, PermissionRow[]> = {};
-  permissionRows.forEach((row) => {
+  for (const row of permissionRows) {
     if (!groupedRows[row.resource]) {
       groupedRows[row.resource] = [];
     }
     groupedRows[row.resource].push(row);
-  });
+  }
 
   const getPermissionState = (roleId: string, permissionKey: string) => {
     // Check pending changes first
@@ -95,11 +112,10 @@ export function PermissionsMatrix({
     );
   };
 
-  const isPending = (roleId: string, permissionKey: string) => {
-     return pendingChanges.some(
+  const isPending = (roleId: string, permissionKey: string) =>
+    pendingChanges.some(
       (c) => c.role_id === roleId && c.permission === permissionKey
     );
-  }
 
   return (
     <div className="rounded-md border">
@@ -108,10 +124,12 @@ export function PermissionsMatrix({
           <TableRow>
             <TableHead className="w-[200px]">Permission</TableHead>
             {roles.map((role) => (
-              <TableHead key={role} className="text-center">
+              <TableHead className="text-center" key={role}>
                 <div className="flex items-center justify-center gap-2">
-                    {role} 
-                    {role === 'admin' && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {role}
+                  {role === "admin" && (
+                    <Lock className="h-3 w-3 text-muted-foreground" />
+                  )}
                 </div>
               </TableHead>
             ))}
@@ -120,36 +138,44 @@ export function PermissionsMatrix({
         <TableBody>
           {Object.entries(groupedRows).map(([resource, rows]) => (
             <React.Fragment key={resource}>
-              <TableRow key={`header-${resource}`} className="bg-muted/50">
-                <TableCell colSpan={roles.length + 1} className="font-semibold py-2">
+              <TableRow className="bg-muted/50" key={`header-${resource}`}>
+                <TableCell
+                  className="py-2 font-semibold"
+                  colSpan={roles.length + 1}
+                >
                   {resource.toUpperCase()}
                 </TableCell>
               </TableRow>
               {rows.map((row) => (
-                <TableRow key={row.key} className="hover:bg-transparent">
-                  <TableCell className="font-medium text-xs text-muted-foreground pl-6">
+                <TableRow className="hover:bg-transparent" key={row.key}>
+                  <TableCell className="pl-6 font-medium text-muted-foreground text-xs">
                     {row.action}
                   </TableCell>
                   {roles.map((role) => {
                     const isAdmin = role === "admin";
-                    const isChecked = isAdmin || getPermissionState(role, row.key);
+                    const isChecked =
+                      isAdmin || getPermissionState(role, row.key);
                     const pending = isPending(role, row.key);
 
                     return (
-                      <TableCell key={`${role}-${row.key}`} className="text-center p-2">
-                        <div className="flex justify-center h-full items-center">
-                            <Checkbox
+                      <TableCell
+                        className="p-2 text-center"
+                        key={`${role}-${row.key}`}
+                      >
+                        <div className="flex h-full items-center justify-center">
+                          <Checkbox
                             checked={isChecked}
-                            disabled={isAdmin}
                             className={cn(
-                                pending && "border-amber-500 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                              pending &&
+                                "border-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:bg-amber-500"
                             )}
+                            disabled={isAdmin}
                             onCheckedChange={(checked) => {
-                                if (!isAdmin) {
+                              if (!isAdmin) {
                                 onChange(role, row.key, checked === true);
-                                }
+                              }
                             }}
-                            />
+                          />
                         </div>
                       </TableCell>
                     );

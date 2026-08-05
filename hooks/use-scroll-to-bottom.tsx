@@ -7,7 +7,7 @@ export function useScrollToBottom() {
   const containerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  
+
   // Track if pinned mode is enabled (auto-scroll as content arrives)
   // Initialize from localStorage if available
   const [isPinned, setIsPinned] = useState(() => {
@@ -17,7 +17,7 @@ export function useScrollToBottom() {
     }
     return true;
   });
-  
+
   // Track if we should stick to bottom (respects isPinned setting)
   const shouldStickRef = useRef(true);
   // Track last scroll position to detect scroll direction
@@ -46,17 +46,17 @@ export function useScrollToBottom() {
     // Check if we are within 100px of the bottom
     const atBottom = scrollTop + clientHeight >= scrollHeight - 100;
     setIsAtBottom(atBottom);
-    
+
     // If pinned mode is disabled, don't manage stick behavior
     if (!isPinned) {
       shouldStickRef.current = false;
       return;
     }
-    
+
     // Detect if user scrolled UP (away from bottom)
     const scrolledUp = scrollTop < lastScrollTopRef.current - 5; // 5px threshold
     lastScrollTopRef.current = scrollTop;
-    
+
     // If user scrolled up, immediately disable stick
     if (scrolledUp && !atBottom) {
       shouldStickRef.current = false;
@@ -66,7 +66,7 @@ export function useScrollToBottom() {
         stickDebounceRef.current = null;
       }
     }
-    
+
     // If at bottom, re-enable stick after a short delay
     // This prevents accidental re-enabling during scroll momentum
     if (atBottom && !shouldStickRef.current) {
@@ -75,7 +75,11 @@ export function useScrollToBottom() {
       }
       stickDebounceRef.current = setTimeout(() => {
         if (containerRef.current) {
-          const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = containerRef.current;
+          const {
+            scrollTop: st,
+            scrollHeight: sh,
+            clientHeight: ch,
+          } = containerRef.current;
           if (st + ch >= sh - 50) {
             shouldStickRef.current = true;
           }
@@ -90,7 +94,7 @@ export function useScrollToBottom() {
     if (!containerRef.current || !shouldStickRef.current || !isPinned) {
       return;
     }
-    
+
     const container = containerRef.current;
     // Use instant scroll for content updates to keep up with streaming
     container.scrollTop = container.scrollHeight;
@@ -122,9 +126,9 @@ export function useScrollToBottom() {
 
     resizeObserver.observe(container);
     mutationObserver.observe(container, {
+      characterData: true,
       childList: true,
       subtree: true,
-      characterData: true,
     });
 
     handleScroll();
@@ -156,8 +160,8 @@ export function useScrollToBottom() {
     if (scrollBehavior && containerRef.current) {
       const container = containerRef.current;
       const scrollOptions: ScrollToOptions = {
-        top: container.scrollHeight,
         behavior: scrollBehavior,
+        top: container.scrollHeight,
       };
       container.scrollTo(scrollOptions);
       setScrollBehavior(false);
@@ -189,10 +193,10 @@ export function useScrollToBottom() {
     containerRef,
     endRef,
     isAtBottom,
-    scrollToBottom,
+    isPinned,
     onViewportEnter,
     onViewportLeave,
-    isPinned,
+    scrollToBottom,
     setIsPinned,
   };
 }

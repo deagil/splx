@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
-import type { TenantContext } from "@/lib/server/tenant/context";
-import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { createClient } from "@/lib/supabase/server";
+import { invalidateTableMetadataCache } from "@/lib/server/tables/cache";
+import {
+  generateListPageBlock,
+  generatePageSettings,
+} from "@/lib/server/tables/pages/templates";
 import {
   detectReverseRelationships,
   detectTableRelationships,
@@ -12,32 +14,29 @@ import type {
   TableConfig,
   TableRecord,
 } from "@/lib/server/tables/schema";
-import type { DbClient } from "@/lib/server/tenant/context";
-import {
-  generateListPageBlock,
-  generatePageSettings,
-} from "@/lib/server/tables/pages/templates";
-import { invalidateTableMetadataCache } from "@/lib/server/tables/cache";
+import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
+import { getResourceStore } from "@/lib/server/tenant/resource-store";
+import { createClient } from "@/lib/supabase/server";
 
-type ColumnInfo = {
+interface ColumnInfo {
+  column_default: string | null;
   column_name: string;
   data_type: string;
   is_nullable: string;
-  column_default: string | null;
   is_unique: boolean;
-};
+}
 
-type TableComment = {
-  table_name: string;
+interface TableComment {
   description: string | null;
-};
+  table_name: string;
+}
 
 /**
  * Introspects columns for a given table from information_schema
  */
 async function introspectTableColumns(
   db: DbClient,
-  tableName: string,
+  tableName: string
 ): Promise<FieldMetadata[]> {
   const columns = (await db.execute(sql`
     SELECT
@@ -65,12 +64,12 @@ async function introspectTableColumns(
   `)) as ColumnInfo[];
 
   return columns.map((col) => ({
-    field_name: col.column_name,
+    data_type: col.data_type,
     display_name: col.column_name
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" "),
-    data_type: col.data_type,
+    field_name: col.column_name,
     is_required: col.is_nullable === "NO",
     is_unique: col.is_unique,
   }));
@@ -81,7 +80,7 @@ async function introspectTableColumns(
  */
 async function getTableComments(
   db: DbClient,
-  tableNames: string[],
+  tableNames: string[]
 ): Promise<Map<string, string | null>> {
   if (tableNames.length === 0) {
     return new Map();
@@ -110,7 +109,7 @@ async function getTableComments(
  */
 async function detectPrimaryKey(
   db: DbClient,
-  tableName: string,
+  tableName: string
 ): Promise<string | undefined> {
   const result = (await db.execute(sql`
     SELECT kcu.column_name
@@ -135,7 +134,7 @@ async function ensureTablePage(
   tenant: TenantContext,
   tableName: string,
   tableConfig: TableConfig,
-  description: string | null,
+  description: string | null
 ): Promise<void> {
   const pageId = tableName; // Use same ID as table
 
@@ -149,14 +148,14 @@ async function ensureTablePage(
 
   // Create a mock TableRecord for the template generator
   const mockTableRecord: TableRecord = {
-    id: tableName,
-    workspace_id: tenant.workspaceId,
-    name: tableName,
-    description,
     config: tableConfig,
-    created_by: tenant.userId,
     created_at: new Date().toISOString(),
+    created_by: tenant.userId,
+    description,
+    id: tableName,
+    name: tableName,
     updated_at: new Date().toISOString(),
+    workspace_id: tenant.workspaceId,
   };
 
   const listBlock = generateListPageBlock(mockTableRecord);
@@ -165,17 +164,17 @@ async function ensureTablePage(
   if (!existingPage) {
     // Create new page with list block
     const { error: pageError } = await supabase.from("pages").insert({
+      blocks: [listBlock],
+      created_by: tenant.userId,
+      description: description ?? `List view for ${tableName} table`,
       id: pageId,
-      workspace_id: tenant.workspaceId,
+      layout: {},
       name: tableName
         .split("_")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" "),
-      description: description ?? `List view for ${tableName} table`,
-      blocks: [listBlock],
       settings: pageSettings,
-      layout: {},
-      created_by: tenant.userId,
+      workspace_id: tenant.workspaceId,
     });
 
     if (pageError) {
@@ -185,13 +184,13 @@ async function ensureTablePage(
   // If page exists, we don't update it to preserve user customizations
 }
 
-export type SyncResult = {
+export interface SyncResult {
+  message?: string;
+  results?: Array<{ name: string; success: boolean; error?: string }>;
   success: true;
   synced: number;
   total?: number;
-  message?: string;
-  results?: Array<{ name: string; success: boolean; error?: string }>;
-};
+}
 
 /**
  * Syncs all data tables from the resource store into the `tables` config
@@ -245,27 +244,30 @@ export async function syncTablesForTenant(
         "ai_skills",
       ]);
 
-      const dataTableNames = tenant.mode === "local"
-        ? tableNames.filter((name) => !SYSTEM_TABLES.has(name.toLowerCase()))
-        : tableNames;
+      const dataTableNames =
+        tenant.mode === "local"
+          ? tableNames.filter((name) => !SYSTEM_TABLES.has(name.toLowerCase()))
+          : tableNames;
 
       if (dataTableNames.length === 0) {
         return {
+          message: "No data tables to sync",
           success: true,
           synced: 0,
-          message: "No data tables to sync",
         };
       }
 
       // Get table comments
-      const commentsMap = await store.withSqlClient(async (db) => {
-        return getTableComments(db, dataTableNames);
-      });
+      const commentsMap = await store.withSqlClient(async (db) =>
+        getTableComments(db, dataTableNames)
+      );
 
       // Process each table
-      const syncResults: Array<
-        { name: string; success: boolean; error?: string }
-      > = [];
+      const syncResults: Array<{
+        name: string;
+        success: boolean;
+        error?: string;
+      }> = [];
 
       for (const tableName of dataTableNames) {
         try {
@@ -275,14 +277,14 @@ export async function syncTablesForTenant(
             relationships,
             reverseRelationships,
             primaryKey,
-          ] = await store.withSqlClient(async (db) => {
-            return Promise.all([
+          ] = await store.withSqlClient(async (db) =>
+            Promise.all([
               introspectTableColumns(db, tableName),
               detectTableRelationships(db, tableName),
               detectReverseRelationships(db, tableName),
               detectPrimaryKey(db, tableName),
-            ]);
-          });
+            ])
+          );
 
           // Combine forward and reverse relationships
           const allRelationships: RelationshipConfig[] = [
@@ -291,14 +293,14 @@ export async function syncTablesForTenant(
           ];
 
           const tableConfig: TableConfig = {
-            table_type: "base_table",
-            primary_key_column: primaryKey,
             field_metadata: fieldMetadata,
-            relationships: allRelationships,
-            label_fields: [],
-            rls_policy_templates: [],
-            rls_policy_groups: [],
             indexes: [],
+            label_fields: [],
+            primary_key_column: primaryKey,
+            relationships: allRelationships,
+            rls_policy_groups: [],
+            rls_policy_templates: [],
+            table_type: "base_table",
           };
 
           const description = commentsMap.get(tableName) ?? null;
@@ -320,9 +322,9 @@ export async function syncTablesForTenant(
             const { error: updateError } = await supabase
               .from("tables")
               .update({
-                name: tableName,
-                description,
                 config: tableConfig,
+                description,
+                name: tableName,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", tableId)
@@ -332,12 +334,12 @@ export async function syncTablesForTenant(
               console.error(
                 `Failed to sync table ${tableName}:`,
                 updateError.message,
-                updateError,
+                updateError
               );
               syncResults.push({
+                error: updateError.message,
                 name: tableName,
                 success: false,
-                error: updateError.message,
               });
             } else {
               // Table updated successfully, ensure page exists
@@ -346,7 +348,7 @@ export async function syncTablesForTenant(
                 tenant,
                 tableName,
                 tableConfig,
-                description,
+                description
               );
               await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });
@@ -356,24 +358,24 @@ export async function syncTablesForTenant(
             const { error: insertError } = await supabase
               .from("tables")
               .insert({
-                id: tableId,
-                workspace_id: tenant.workspaceId,
-                name: tableName,
-                description,
                 config: tableConfig,
                 created_by: tenant.userId,
+                description,
+                id: tableId,
+                name: tableName,
+                workspace_id: tenant.workspaceId,
               });
 
             if (insertError) {
               console.error(
                 `Failed to sync table ${tableName}:`,
                 insertError.message,
-                insertError,
+                insertError
               );
               syncResults.push({
+                error: insertError.message,
                 name: tableName,
                 success: false,
-                error: insertError.message,
               });
             } else {
               // Table created successfully, create page
@@ -382,7 +384,7 @@ export async function syncTablesForTenant(
                 tenant,
                 tableName,
                 tableConfig,
-                description,
+                description
               );
               await invalidateTableMetadataCache(tenant, tableName);
               syncResults.push({ name: tableName, success: true });
@@ -397,10 +399,10 @@ export async function syncTablesForTenant(
       const successCount = syncResults.filter((r) => r.success).length;
 
       return {
+        results: syncResults,
         success: true,
         synced: successCount,
         total: dataTableNames.length,
-        results: syncResults,
       };
     } finally {
       await store.dispose();

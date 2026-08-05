@@ -1,12 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
 import { nanoid } from "nanoid";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import type { ReportRecord } from "@/lib/server/reports";
+import { cn } from "@/lib/utils";
 import {
   LIST_DISPLAY_FORMATS,
   LIST_FILTER_OPERATORS,
@@ -18,11 +26,9 @@ import {
   REPORT_CHART_TYPES,
   type RecordBlockDraft,
   type ReportBlockDraft,
-  type TriggerBlockDraft,
   TRIGGER_ACTION_TYPES,
+  type TriggerBlockDraft,
 } from "./types";
-import type { ReportRecord } from "@/lib/server/reports";
-import { cn } from "@/lib/utils";
 
 export function ListBlockForm({
   block,
@@ -49,9 +55,14 @@ export function ListBlockForm({
 
   const filters = useMemo(() => block.filters ?? [], [block.filters]);
 
-  const handleFilterUpdate = (filterId: string, updates: Partial<ListBlockFilter>) => {
+  const handleFilterUpdate = (
+    filterId: string,
+    updates: Partial<ListBlockFilter>
+  ) => {
     update({
-      filters: filters.map((filter) => (filter.id === filterId ? { ...filter, ...updates } : filter)),
+      filters: filters.map((filter) =>
+        filter.id === filterId ? { ...filter, ...updates } : filter
+      ),
     });
   };
 
@@ -60,8 +71,8 @@ export function ListBlockForm({
       filters: [
         ...filters,
         {
-          id: nanoid(10),
           column: "",
+          id: nanoid(10),
           operator: "equals",
           value: "",
         },
@@ -77,26 +88,28 @@ export function ListBlockForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <h4 className="text-base font-semibold text-foreground">List configuration</h4>
+      <h4 className="font-semibold text-base text-foreground">
+        List configuration
+      </h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
           <Label htmlFor={`list-table-${block.id}`}>Table</Label>
           <Input
             id={`list-table-${block.id}`}
-            value={block.tableName}
             onChange={(event) => update({ tableName: event.target.value })}
             placeholder="customers"
+            value={block.tableName}
           />
         </Field>
         <Field>
           <Label htmlFor={`list-format-${block.id}`}>Display format</Label>
           <Select
-            value={block.display.format}
             onValueChange={(value) =>
               updateDisplay({
                 format: value as ListBlockDraft["display"]["format"],
               })
             }
+            value={block.display.format}
           >
             <SelectTrigger id={`list-format-${block.id}`}>
               <SelectValue placeholder="Format" />
@@ -114,22 +127,21 @@ export function ListBlockForm({
 
       <div className="grid gap-4 md:grid-cols-3">
         <CheckboxField
+          checked={block.display.showActions}
           id={`list-actions-${block.id}`}
           label="Show row actions"
-          checked={block.display.showActions}
           onChange={(checked) => updateDisplay({ showActions: checked })}
         />
         <CheckboxField
+          checked={block.display.editable}
           id={`list-editable-${block.id}`}
           label="Inline editable"
-          checked={block.display.editable}
           onChange={(checked) => updateDisplay({ editable: checked })}
         />
         <Field>
           <Label htmlFor={`list-columns-${block.id}`}>Visible columns</Label>
           <Input
             id={`list-columns-${block.id}`}
-            value={block.display.columns.join(", ")}
             onChange={(event) =>
               updateDisplay({
                 columns: event.target.value
@@ -139,82 +151,96 @@ export function ListBlockForm({
               })
             }
             placeholder="id, email, status"
+            value={block.display.columns.join(", ")}
           />
         </Field>
       </div>
 
       <div>
-        <h5 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Table Features</h5>
+        <h5 className="mb-3 font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+          Table Features
+        </h5>
         <div className="grid gap-4 md:grid-cols-3">
           <CheckboxField
+            checked={block.display.enableSearch ?? true}
             id={`list-search-${block.id}`}
             label="Enable search"
-            checked={block.display.enableSearch ?? true}
             onChange={(checked) => updateDisplay({ enableSearch: checked })}
           />
           <CheckboxField
+            checked={block.display.enableRowSelection ?? false}
             id={`list-row-selection-${block.id}`}
             label="Row selection"
-            checked={block.display.enableRowSelection ?? false}
-            onChange={(checked) => updateDisplay({ enableRowSelection: checked })}
+            onChange={(checked) =>
+              updateDisplay({ enableRowSelection: checked })
+            }
           />
           <CheckboxField
+            checked={block.display.enableStickyHeader ?? true}
             id={`list-sticky-header-${block.id}`}
             label="Sticky headers"
-            checked={block.display.enableStickyHeader ?? true}
-            onChange={(checked) => updateDisplay({ enableStickyHeader: checked })}
+            onChange={(checked) =>
+              updateDisplay({ enableStickyHeader: checked })
+            }
           />
           <CheckboxField
+            checked={block.display.enableColumnVisibility ?? false}
             id={`list-column-visibility-${block.id}`}
             label="Column visibility toggle"
-            checked={block.display.enableColumnVisibility ?? false}
-            onChange={(checked) => updateDisplay({ enableColumnVisibility: checked })}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnVisibility: checked })
+            }
           />
           <CheckboxField
+            checked={block.display.enableColumnResize ?? false}
             id={`list-column-resize-${block.id}`}
             label="Column resizing"
-            checked={block.display.enableColumnResize ?? false}
-            onChange={(checked) => updateDisplay({ enableColumnResize: checked })}
+            onChange={(checked) =>
+              updateDisplay({ enableColumnResize: checked })
+            }
           />
           <CheckboxField
+            checked={block.display.enableColumnPin ?? false}
             id={`list-column-pin-${block.id}`}
             label="Column pinning"
-            checked={block.display.enableColumnPin ?? false}
             onChange={(checked) => updateDisplay({ enableColumnPin: checked })}
           />
           <CheckboxField
+            checked={block.display.enableColumnDrag ?? false}
             id={`list-column-drag-${block.id}`}
             label="Column reordering"
-            checked={block.display.enableColumnDrag ?? false}
             onChange={(checked) => updateDisplay({ enableColumnDrag: checked })}
           />
           <Field>
             <Label htmlFor={`list-page-size-${block.id}`}>Page size</Label>
             <Input
               id={`list-page-size-${block.id}`}
-              type="number"
-              min={1}
               max={100}
-              value={block.display.defaultPageSize ?? 10}
+              min={1}
               onChange={(event) =>
                 updateDisplay({
-                  defaultPageSize: Number.parseInt(event.target.value, 10) || 10,
+                  defaultPageSize:
+                    Number.parseInt(event.target.value, 10) || 10,
                 })
               }
               placeholder="10"
+              type="number"
+              value={block.display.defaultPageSize ?? 10}
             />
           </Field>
           <Field>
-            <Label htmlFor={`list-search-placeholder-${block.id}`}>Search placeholder</Label>
+            <Label htmlFor={`list-search-placeholder-${block.id}`}>
+              Search placeholder
+            </Label>
             <Input
               id={`list-search-placeholder-${block.id}`}
-              value={block.display.searchPlaceholder ?? ""}
               onChange={(event) =>
                 updateDisplay({
                   searchPlaceholder: event.target.value || undefined,
                 })
               }
               placeholder="Search..."
+              value={block.display.searchPlaceholder ?? ""}
             />
           </Field>
         </div>
@@ -222,8 +248,10 @@ export function ListBlockForm({
 
       <div>
         <header className="flex items-center justify-between">
-          <h5 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Filters</h5>
-          <Button type="button" variant="outline" onClick={handleAddFilter}>
+          <h5 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+            Filters
+          </h5>
+          <Button onClick={handleAddFilter} type="button" variant="outline">
             Add filter
           </Button>
         </header>
@@ -233,31 +261,33 @@ export function ListBlockForm({
           ) : (
             filters.map((filter) => (
               <div
-                key={filter.id}
                 className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[1fr,1fr,1fr,auto]"
+                key={filter.id}
               >
                 <Field>
                   <Label htmlFor={`filter-column-${filter.id}`}>Column</Label>
                   <Input
                     id={`filter-column-${filter.id}`}
-                    value={filter.column}
                     onChange={(event) =>
                       handleFilterUpdate(filter.id, {
                         column: event.target.value,
                       })
                     }
                     placeholder="customer_id"
+                    value={filter.column}
                   />
                 </Field>
                 <Field>
-                  <Label htmlFor={`filter-operator-${filter.id}`}>Operator</Label>
+                  <Label htmlFor={`filter-operator-${filter.id}`}>
+                    Operator
+                  </Label>
                   <Select
-                    value={filter.operator}
                     onValueChange={(value) =>
                       handleFilterUpdate(filter.id, {
                         operator: value as ListFilterOperator,
                       })
                     }
+                    value={filter.operator}
                   >
                     <SelectTrigger id={`filter-operator-${filter.id}`}>
                       <SelectValue placeholder="Operator" />
@@ -275,20 +305,20 @@ export function ListBlockForm({
                   <Label htmlFor={`filter-value-${filter.id}`}>Value</Label>
                   <Input
                     id={`filter-value-${filter.id}`}
-                    value={filter.value}
                     onChange={(event) =>
                       handleFilterUpdate(filter.id, {
                         value: event.target.value,
                       })
                     }
                     placeholder="url.customerId"
+                    value={filter.value}
                   />
                 </Field>
                 <Button
-                  type="button"
-                  variant="ghost"
                   className="self-end text-red-500 hover:text-red-500"
                   onClick={() => handleRemoveFilter(filter.id)}
+                  type="button"
+                  variant="ghost"
                 >
                   Remove
                 </Button>
@@ -330,15 +360,17 @@ export function RecordBlockForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <h4 className="text-base font-semibold text-foreground">Record configuration</h4>
+      <h4 className="font-semibold text-base text-foreground">
+        Record configuration
+      </h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
           <Label htmlFor={`record-table-${block.id}`}>Table</Label>
           {tableOptions && tableOptions.length > 0 ? (
             <Select
-              value={block.tableName}
-              onValueChange={(value) => update({ tableName: value })}
               disabled={tablesLoading}
+              onValueChange={(value) => update({ tableName: value })}
+              value={block.tableName}
             >
               <SelectTrigger id={`record-table-${block.id}`}>
                 <SelectValue placeholder="Select a table" />
@@ -354,9 +386,9 @@ export function RecordBlockForm({
           ) : (
             <Input
               id={`record-table-${block.id}`}
-              value={block.tableName}
               onChange={(event) => update({ tableName: event.target.value })}
               placeholder="customers"
+              value={block.tableName}
             />
           )}
         </Field>
@@ -364,9 +396,9 @@ export function RecordBlockForm({
           <Label htmlFor={`record-id-${block.id}`}>Record ID</Label>
           <Input
             id={`record-id-${block.id}`}
-            value={block.recordId}
             onChange={(event) => update({ recordId: event.target.value })}
             placeholder="url.customerId"
+            value={block.recordId}
           />
         </Field>
       </div>
@@ -374,12 +406,12 @@ export function RecordBlockForm({
         <Field>
           <Label htmlFor={`record-mode-${block.id}`}>Mode</Label>
           <Select
-            value={block.display.mode}
             onValueChange={(value) =>
               updateDisplay({
                 mode: value as RecordBlockDraft["display"]["mode"],
               })
             }
+            value={block.display.mode}
           >
             <SelectTrigger id={`record-mode-${block.id}`}>
               <SelectValue placeholder="Mode" />
@@ -396,12 +428,12 @@ export function RecordBlockForm({
         <Field>
           <Label htmlFor={`record-format-${block.id}`}>Display</Label>
           <Select
-            value={block.display.format}
             onValueChange={(value) =>
               updateDisplay({
                 format: value as RecordBlockDraft["display"]["format"],
               })
             }
+            value={block.display.format}
           >
             <SelectTrigger id={`record-format-${block.id}`}>
               <SelectValue placeholder="Display" />
@@ -419,7 +451,6 @@ export function RecordBlockForm({
           <Label htmlFor={`record-columns-${block.id}`}>Columns</Label>
           <Input
             id={`record-columns-${block.id}`}
-            value={block.display.columns.join(", ")}
             onChange={(event) =>
               updateDisplay({
                 columns: event.target.value
@@ -429,6 +460,7 @@ export function RecordBlockForm({
               })
             }
             placeholder="Leave blank for all columns"
+            value={block.display.columns.join(", ")}
           />
         </Field>
       </div>
@@ -463,14 +495,16 @@ export function ReportBlockForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <h4 className="text-base font-semibold text-foreground">Report configuration</h4>
+      <h4 className="font-semibold text-base text-foreground">
+        Report configuration
+      </h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
           <Label htmlFor={`report-id-${block.id}`}>Report</Label>
           <Select
-            value={block.reportId}
-            onValueChange={(value) => update({ reportId: value })}
             disabled={!reports?.length}
+            onValueChange={(value) => update({ reportId: value })}
+            value={block.reportId}
           >
             <SelectTrigger id={`report-id-${block.id}`}>
               <SelectValue placeholder="Select a report" />
@@ -487,12 +521,12 @@ export function ReportBlockForm({
         <Field>
           <Label htmlFor={`report-chart-${block.id}`}>Chart type</Label>
           <Select
-            value={block.display.chartType}
             onValueChange={(value) =>
               updateDisplay({
                 chartType: value as ReportBlockDraft["display"]["chartType"],
               })
             }
+            value={block.display.chartType}
           >
             <SelectTrigger id={`report-chart-${block.id}`}>
               <SelectValue placeholder="Chart type" />
@@ -511,9 +545,9 @@ export function ReportBlockForm({
         <Label htmlFor={`report-title-${block.id}`}>Title</Label>
         <Input
           id={`report-title-${block.id}`}
-          value={block.display.title}
           onChange={(event) => updateDisplay({ title: event.target.value })}
           placeholder="Sales summary"
+          value={block.display.title}
         />
       </Field>
     </div>
@@ -539,26 +573,30 @@ export function TriggerBlockForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <h4 className="text-base font-semibold text-foreground">Trigger configuration</h4>
+      <h4 className="font-semibold text-base text-foreground">
+        Trigger configuration
+      </h4>
       <div className="grid gap-4 md:grid-cols-2">
         <Field>
           <Label htmlFor={`trigger-text-${block.id}`}>Button label</Label>
           <Input
             id={`trigger-text-${block.id}`}
-            value={block.display.buttonText}
-            onChange={(event) => updateDisplay({ buttonText: event.target.value })}
+            onChange={(event) =>
+              updateDisplay({ buttonText: event.target.value })
+            }
             placeholder="Delete record"
+            value={block.display.buttonText}
           />
         </Field>
         <Field>
           <Label htmlFor={`trigger-action-${block.id}`}>Action style</Label>
           <Select
-            value={block.display.actionType}
             onValueChange={(value) =>
               updateDisplay({
                 actionType: value as TriggerBlockDraft["display"]["actionType"],
               })
             }
+            value={block.display.actionType}
           >
             <SelectTrigger id={`trigger-action-${block.id}`}>
               <SelectValue placeholder="Action type" />
@@ -574,19 +612,23 @@ export function TriggerBlockForm({
         </Field>
       </div>
       <CheckboxField
+        checked={block.display.requireConfirmation}
         id={`trigger-confirmation-${block.id}`}
         label="Require confirmation"
-        checked={block.display.requireConfirmation}
         onChange={(checked) => updateDisplay({ requireConfirmation: checked })}
       />
       {block.display.requireConfirmation ? (
         <Field>
-          <Label htmlFor={`trigger-confirm-${block.id}`}>Confirmation message</Label>
+          <Label htmlFor={`trigger-confirm-${block.id}`}>
+            Confirmation message
+          </Label>
           <Textarea
             id={`trigger-confirm-${block.id}`}
-            value={block.display.confirmationText}
-            onChange={(event) => updateDisplay({ confirmationText: event.target.value })}
+            onChange={(event) =>
+              updateDisplay({ confirmationText: event.target.value })
+            }
             rows={3}
+            value={block.display.confirmationText}
           />
         </Field>
       ) : null}
@@ -594,9 +636,9 @@ export function TriggerBlockForm({
         <Label htmlFor={`trigger-hook-${block.id}`}>Hook name</Label>
         <Input
           id={`trigger-hook-${block.id}`}
-          value={block.display.hookName}
           onChange={(event) => updateDisplay({ hookName: event.target.value })}
           placeholder="delete_record"
+          value={block.display.hookName}
         />
       </Field>
     </div>
@@ -617,28 +659,33 @@ export function CheckboxField({
   return (
     <div className="flex items-center gap-2">
       <input
-        id={id}
-        type="checkbox"
-        className="h-4 w-4 rounded border border-input"
         checked={checked}
+        className="h-4 w-4 rounded border border-input"
+        id={id}
         onChange={(event) => onChange(event.target.checked)}
+        type="checkbox"
       />
-      <Label htmlFor={id} className="text-sm font-medium text-foreground">
+      <Label className="font-medium text-foreground text-sm" htmlFor={id}>
         {label}
       </Label>
     </div>
   );
 }
 
-export function Field({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Field({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
 }
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-md border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
+    <div className="rounded-md border border-border/60 border-dashed p-6 text-muted-foreground text-sm">
       {message}
     </div>
   );
 }
-

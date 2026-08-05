@@ -5,68 +5,68 @@ import type { Suggestion } from "@/lib/db/schema";
 import type { ChatMessage, CustomUIDataTypes } from "@/lib/types";
 import type { UIArtifact } from "./artifact";
 
-export type ArtifactActionContext<M = any> = {
+export interface ArtifactActionContext<M = any> {
   content: string;
-  handleVersionChange: (type: "next" | "prev" | "toggle" | "latest") => void;
   currentVersionIndex: number;
+  handleVersionChange: (type: "next" | "prev" | "toggle" | "latest") => void;
   isCurrentVersion: boolean;
-  mode: "edit" | "diff";
   metadata: M;
+  mode: "edit" | "diff";
   setMetadata: Dispatch<SetStateAction<M>>;
-};
+}
 
-type ArtifactAction<M = any> = {
-  icon: ReactNode;
-  label?: string;
+interface ArtifactAction<M = any> {
   description: string;
-  onClick: (context: ArtifactActionContext<M>) => Promise<void> | void;
+  icon: ReactNode;
   isDisabled?: (context: ArtifactActionContext<M>) => boolean;
-};
+  label?: string;
+  onClick: (context: ArtifactActionContext<M>) => Promise<void> | void;
+}
 
-export type ArtifactToolbarContext = {
+export interface ArtifactToolbarContext {
   sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
-};
+}
 
-export type ArtifactToolbarItem = {
+export interface ArtifactToolbarItem {
   description: string;
   icon: ReactNode;
   onClick: (context: ArtifactToolbarContext) => void;
-};
+}
 
-type ArtifactContent<M = any> = {
-  title: string;
+interface ArtifactContent<M = any> {
   content: string;
-  mode: "edit" | "diff";
-  isCurrentVersion: boolean;
   currentVersionIndex: number;
-  status: "streaming" | "idle";
-  suggestions: Suggestion[];
-  onSaveContent: (updatedContent: string, debounce: boolean) => void;
-  isInline: boolean;
   getDocumentContentById: (index: number) => string;
+  isCurrentVersion: boolean;
+  isInline: boolean;
   isLoading: boolean;
   metadata: M;
+  mode: "edit" | "diff";
+  onSaveContent: (updatedContent: string, debounce: boolean) => void;
   setMetadata: Dispatch<SetStateAction<M>>;
-};
+  status: "streaming" | "idle";
+  suggestions: Suggestion[];
+  title: string;
+}
 
-type InitializeParameters<M = any> = {
+interface InitializeParameters<M = any> {
   documentId: string;
   setMetadata: Dispatch<SetStateAction<M>>;
-};
+}
 
-type ArtifactConfig<T extends string, M = any> = {
-  kind: T;
-  description: string;
-  content: ComponentType<ArtifactContent<M>>;
+interface ArtifactConfig<T extends string, M = any> {
   actions: ArtifactAction<M>[];
-  toolbar: ArtifactToolbarItem[];
+  content: ComponentType<ArtifactContent<M>>;
+  description: string;
   initialize?: (parameters: InitializeParameters<M>) => void;
+  kind: T;
   onStreamPart: (args: {
     setMetadata: Dispatch<SetStateAction<M>>;
     setArtifact: Dispatch<SetStateAction<UIArtifact>>;
     streamPart: DataUIPart<CustomUIDataTypes>;
   }) => void;
-};
+  toolbar: ArtifactToolbarItem[];
+}
 
 export class Artifact<T extends string, M = any> {
   readonly kind: T;

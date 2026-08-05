@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { getResourceStore } from "@/lib/server/tenant/resource-store";
 import type { TenantContext } from "@/lib/server/tenant/context";
+import { getResourceStore } from "@/lib/server/tenant/resource-store";
 
 const MAX_ROWS = 500;
 
@@ -23,8 +23,8 @@ function assertSafeSelect(query: string): void {
 
 export async function runReportQuery(
   tenant: TenantContext,
-  query: string,
-): Promise<Array<Record<string, unknown>>> {
+  query: string
+): Promise<Record<string, unknown>[]> {
   const cleanQuery = sanitizeQuery(query);
   assertSafeSelect(cleanQuery);
 
@@ -32,26 +32,14 @@ export async function runReportQuery(
 
   try {
     const wrapped = sql.raw(
-      `SELECT * FROM (${cleanQuery}) AS report_subquery LIMIT ${MAX_ROWS}`,
+      `SELECT * FROM (${cleanQuery}) AS report_subquery LIMIT ${MAX_ROWS}`
     );
     const rows = await store.withSqlClient(async (db) => {
       const result = await db.execute(wrapped);
-      return result as Array<Record<string, unknown>>;
+      return result as Record<string, unknown>[];
     });
     return rows ?? [];
   } finally {
     await store.dispose();
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

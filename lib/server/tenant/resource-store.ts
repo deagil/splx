@@ -1,7 +1,8 @@
+import { asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { asc, eq } from "drizzle-orm";
 import { type WorkspaceApp, workspaceApp } from "@/lib/db/schema";
+import { requireEnv } from "@/lib/env";
 import {
   type AdapterContext,
   BaseSqlAdapter,
@@ -13,9 +14,9 @@ import { PostgresResourceAdapter } from "./adapters/postgres";
 import { ZapierResourceAdapter } from "./adapters/zapier";
 import type { TenantContext } from "./context";
 
-export type ResourceStoreOptions = {
+export interface ResourceStoreOptions {
   connectionId?: string | null;
-};
+}
 
 export type WorkspaceConnection = Pick<
   WorkspaceApp,
@@ -25,10 +26,6 @@ export type WorkspaceConnection = Pick<
 class LocalSqlAdapter extends BaseSqlAdapter {
   readonly kind = "local" as const;
 
-  constructor(context: AdapterContext) {
-    super(context);
-  }
-
   protected createSqlClient() {
     return postgres(process.env.POSTGRES_URL!);
   }
@@ -37,7 +34,7 @@ class LocalSqlAdapter extends BaseSqlAdapter {
 export class ResourceStore<A extends ResourceAdapter = ResourceAdapter> {
   constructor(
     private readonly adapter: A,
-    private readonly tenant: TenantContext,
+    private readonly tenant: TenantContext
   ) {}
 
   get workspaceId(): string {
@@ -71,12 +68,12 @@ export class ResourceStore<A extends ResourceAdapter = ResourceAdapter> {
 
 export async function getResourceStore(
   tenant: TenantContext,
-  options: ResourceStoreOptions = {},
+  options: ResourceStoreOptions = {}
 ): Promise<ResourceStore> {
   if (tenant.mode === "local") {
     const adapter = new LocalSqlAdapter({
-      workspaceId: tenant.workspaceId,
       connectionId: options.connectionId ?? tenant.connectionId,
+      workspaceId: tenant.workspaceId,
     });
     await adapter.initialize();
     return new ResourceStore(adapter, tenant);
@@ -89,7 +86,7 @@ export async function getResourceStore(
     const connection = await resolveWorkspaceConnection(
       db,
       tenant.workspaceId,
-      options.connectionId ?? tenant.connectionId,
+      options.connectionId ?? tenant.connectionId
     );
 
     const adapter = await createAdapterForConnection(connection, tenant);
@@ -104,15 +101,15 @@ export async function getResourceStore(
 async function resolveWorkspaceConnection(
   db: ReturnType<typeof drizzle>,
   workspaceId: string,
-  explicitConnectionId: string | null | undefined,
+  explicitConnectionId: string | null | undefined
 ): Promise<WorkspaceConnection> {
   if (explicitConnectionId) {
     const [connection] = await db
       .select({
-        id: workspaceApp.id,
-        type: workspaceApp.type,
         credential_ref: workspaceApp.credential_ref,
+        id: workspaceApp.id,
         metadata: workspaceApp.metadata,
+        type: workspaceApp.type,
       })
       .from(workspaceApp)
       .where(eq(workspaceApp.id, explicitConnectionId))
@@ -127,10 +124,10 @@ async function resolveWorkspaceConnection(
 
   const [defaultConnection] = await db
     .select({
-      id: workspaceApp.id,
-      type: workspaceApp.type,
       credential_ref: workspaceApp.credential_ref,
+      id: workspaceApp.id,
       metadata: workspaceApp.metadata,
+      type: workspaceApp.type,
     })
     .from(workspaceApp)
     .where(eq(workspaceApp.workspace_id, workspaceId))
@@ -139,7 +136,7 @@ async function resolveWorkspaceConnection(
 
   if (!defaultConnection) {
     throw new Error(
-      `No resource connection configured for workspace ${workspaceId}`,
+      `No resource connection configured for workspace ${workspaceId}`
     );
   }
 
@@ -148,13 +145,13 @@ async function resolveWorkspaceConnection(
 
 async function createAdapterForConnection(
   connection: WorkspaceConnection,
-  tenant: TenantContext,
+  tenant: TenantContext
 ): Promise<ResourceAdapter> {
   const baseContext: AdapterContext = {
-    workspaceId: tenant.workspaceId,
+    configuration: connection.metadata as Record<string, unknown>,
     connectionId: connection.id,
     credentialRef: connection.credential_ref,
-    configuration: connection.metadata as Record<string, unknown>,
+    workspaceId: tenant.workspaceId,
   };
 
   switch (connection.type) {

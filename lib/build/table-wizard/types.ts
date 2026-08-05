@@ -1,9 +1,9 @@
 import type React from "react";
 import type {
-  TableConfig,
   FieldMetadata,
   RelationshipConfig,
   RLSPolicyGroup,
+  TableConfig,
 } from "@/lib/server/tables/schema";
 
 // Re-export types for convenience
@@ -11,32 +11,31 @@ export type { FieldMetadata, RelationshipConfig, RLSPolicyGroup, TableConfig };
 
 export type TableType = "new" | "view" | "import";
 
-export type WizardState = {
-  currentStep: number;
-  tableType: TableType | null;
+export interface WizardState {
+  autoGeneratePages: boolean;
   baseTableId: string | null; // For view type
-  id: string;
-  name: string;
+  currentStep: number;
   description: string;
   fields: FieldMetadata[];
-  relationships: RelationshipConfig[];
+  id: string;
+  name: string;
   policyGroup: string | null; // Policy group ID
-  autoGeneratePages: boolean;
+  relationships: RelationshipConfig[];
+  tableType: TableType | null;
   validationErrors: Record<number, string[]>;
-};
+}
 
-export type WizardStep = {
+export interface WizardStep {
+  component: React.ComponentType<WizardStepProps>;
+  description: string;
   id: number;
   title: string;
-  description: string;
-  component: React.ComponentType<WizardStepProps>;
-};
+}
 
-export type WizardStepProps = {
+export interface WizardStepProps {
+  goToStep: (step: number) => void;
   state: WizardState;
   updateState: (updates: Partial<WizardState>) => void;
-  goToStep: (step: number) => void;
-};
+}
 
 export const TOTAL_STEPS = 6;
-

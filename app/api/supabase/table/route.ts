@@ -1,20 +1,17 @@
-import { NextResponse } from "next/server";
-import { z, ZodError } from "zod";
 import { sql } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { ZodError, z } from "zod";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
+
+const filterOpKeyRegex = /^filter_op\[(.+)]$/;
+const filterKeyRegex = /^filter\[(.+)]$/;
 
 const COLUMN_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 const TABLE_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
 const querySchema = z.object({
-  table: z
-    .string()
-    .min(1, "Table name is required")
-    .regex(TABLE_NAME_REGEX, "Table name must be alphanumeric or underscore"),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(1000).default(100),
   filters: z
     .array(
       z.object({
@@ -34,9 +31,15 @@ const querySchema = z.object({
           "is_not_null",
         ]),
         value: z.string().nullable(),
-      }),
+      })
     )
     .default([]),
+  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  page: z.coerce.number().int().min(1).default(1),
+  table: z
+    .string()
+    .min(1, "Table name is required")
+    .regex(TABLE_NAME_REGEX, "Table name must be alphanumeric or underscore"),
 });
 
 export async function GET(request: Request) {
@@ -58,8 +61,7 @@ export async function GET(request: Request) {
 
         for (const filter of validated.filters) {
           const column = escapeIdentifier(filter.column);
-          const operator = filter.operator;
-          const value = filter.value;
+          const { operator, value } = filter;
 
           if (operator === "is_null") {
             whereConditions.push(`${column} IS NULL`);
@@ -73,7 +75,7 @@ export async function GET(request: Request) {
               whereConditions.push(`${column} != ${escapedValue}`);
             } else if (operator === "contains") {
               whereConditions.push(
-                `${column} ILIKE ${escapeString(`%${value}%`)}`,
+                `${column} ILIKE ${escapeString(`%${value}%`)}`
               );
             } else if (operator === "greater_than") {
               whereConditions.push(`${column} > ${escapedValue}`);
@@ -87,50 +89,55 @@ export async function GET(request: Request) {
           }
         }
 
-        const whereClause = whereConditions.length > 0
-          ? `WHERE ${whereConditions.join(" AND ")}`
-          : "";
+        const whereClause =
+          whereConditions.length > 0
+            ? `WHERE ${whereConditions.join(" AND ")}`
+            : "";
 
         const tableName = escapeIdentifier(validated.table);
 
         // Get total count
         const countQuery = sql.raw(
-          `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`,
+          `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`
         );
         const countResult = await db.execute(countQuery);
-        const totalCount = Number.parseInt(
-          (countResult[0] as { count: string | number }).count.toString(),
-          10,
-        ) || 0;
+        const totalCount =
+          Number.parseInt(
+            (countResult[0] as { count: string | number }).count.toString(),
+            10
+          ) || 0;
 
         // Get paginated rows
         const dataQuery = sql.raw(
-          `SELECT * FROM ${tableName} ${whereClause} LIMIT ${validated.limit} OFFSET ${start}`,
+          `SELECT * FROM ${tableName} ${whereClause} LIMIT ${validated.limit} OFFSET ${start}`
         );
         const dataResult = await db.execute(dataQuery);
 
         return {
-          rows: dataResult as Array<Record<string, unknown>>,
           count: totalCount,
+          rows: dataResult as Record<string, unknown>[],
         };
       });
 
-      const columns = rows.length > 0
-        ? Object.keys(rows[0] as Record<string, unknown>)
-        : [];
+      const columns =
+        rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
 
       return NextResponse.json({
-        tableName: validated.table,
         columns,
-        rows,
         pagination: {
-          page: validated.page,
           limit: validated.limit,
+          page: validated.page,
+          totalPages:
+            validated.limit === 0
+              ? 0
+              : Math.max(
+                  1,
+                  Math.ceil((count ?? rows.length) / validated.limit)
+                ),
           totalRows: count ?? rows.length,
-          totalPages: validated.limit === 0
-            ? 0
-            : Math.max(1, Math.ceil((count ?? rows.length) / validated.limit)),
         },
+        rows,
+        tableName: validated.table,
       });
     } finally {
       await store.dispose();
@@ -149,8 +156,8 @@ function parseQuery(searchParams: URLSearchParams) {
   const filterValues = new Map<string, string | null>();
 
   for (const [key, value] of searchParams.entries()) {
-    const operatorMatch = /^filter_op\[(.+)]$/.exec(key);
-    const valueMatch = /^filter\[(.+)]$/.exec(key);
+    const operatorMatch = filterOpKeyRegex.exec(key);
+    const valueMatch = filterKeyRegex.exec(key);
 
     if (operatorMatch?.[1]) {
       filterOperators.set(operatorMatch[1], value);
@@ -165,24 +172,21 @@ function parseQuery(searchParams: URLSearchParams) {
     value: string | null;
   }> = [];
 
-  const columns = new Set([
-    ...filterOperators.keys(),
-    ...filterValues.keys(),
-  ]);
+  const columns = new Set([...filterOperators.keys(), ...filterValues.keys()]);
 
-  columns.forEach((column) => {
+  for (const column of columns) {
     filters.push({
       column,
       operator: filterOperators.get(column) ?? "equals",
       value: filterValues.get(column) ?? null,
     });
-  });
+  }
 
   return {
-    table,
-    page,
-    limit,
     filters,
+    limit,
+    page,
+    table,
   };
 }
 
@@ -200,29 +204,20 @@ function handleError(error: unknown) {
       {
         error: "Validation failed",
         issues: error.issues.map((issue) => ({
-          path: issue.path.join("."),
           message: issue.message,
+          path: issue.path.join("."),
         })),
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   if (error instanceof Error) {
     if (error.message === "Forbidden") {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(
-    { error: "Unknown error" },
-    { status: 500 },
-  );
+  return NextResponse.json({ error: "Unknown error" }, { status: 500 });
 }

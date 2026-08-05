@@ -62,7 +62,7 @@ export const PromptInputTextarea = ({
 
       // Submit on Enter (without Shift)
       e.preventDefault();
-      const form = e.currentTarget.form;
+      const { form } = e.currentTarget;
       if (form) {
         form.requestSubmit();
       }
@@ -129,7 +129,8 @@ export const PromptInputButton = ({
   size,
   ...props
 }: PromptInputButtonProps) => {
-  const computedSize = size ?? (Children.count(props.children) > 1 ? "md" : "icon");
+  const computedSize =
+    size ?? (Children.count(props.children) > 1 ? "md" : "icon");
 
   return (
     <Button

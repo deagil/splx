@@ -13,7 +13,6 @@ import { listAuditLogs } from "@/server/repositories/activity";
  */
 export const GET = endpoint({
   auth: "required",
-  permission: "workspace.view",
   async handler({ user, query }) {
     const rawLimit = query.get("limit");
     const limit = rawLimit === null ? undefined : Number(rawLimit);
@@ -22,8 +21,8 @@ export const GET = endpoint({
     }
 
     const entries = await listAuditLogs(user.workspaceId, {
-      limit,
       before: query.get("before") ?? undefined,
+      limit,
     });
 
     return {
@@ -37,4 +36,5 @@ export const GET = endpoint({
       },
     };
   },
+  permission: "workspace.view",
 });

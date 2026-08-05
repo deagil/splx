@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { PageNotFoundError } from "@/lib/server/pages";
-import { ReservedTableNameError, TableNotFoundError } from "@/lib/server/tables";
+import {
+  ReservedTableNameError,
+  TableNotFoundError,
+} from "@/lib/server/tables";
 
 /**
  * Shared error and success shapes for the API control plane.
@@ -18,11 +21,11 @@ import { ReservedTableNameError, TableNotFoundError } from "@/lib/server/tables"
  *    connection strings) to the client. The real error is logged server-side.
  */
 
-export type ErrorBody = {
+export interface ErrorBody {
   error: string;
   issues?: Array<{ path: string; message: string }>;
   requestId?: string;
-};
+}
 
 export function unauthorized(requestId?: string): NextResponse<ErrorBody> {
   return NextResponse.json(
@@ -56,8 +59,8 @@ export function badRequest(
 export class ApiError extends Error {
   status: number;
 
-  constructor(status: number, message: string) {
-    super(message);
+  constructor(status: number, message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "ApiError";
     this.status = status;
   }
@@ -88,8 +91,8 @@ export function handleError(
       {
         error: "Validation failed",
         issues: error.issues.map((issue) => ({
-          path: issue.path.join("."),
           message: issue.message,
+          path: issue.path.join("."),
         })),
         requestId,
       },
@@ -121,8 +124,9 @@ export function handleError(
 
   // Unrecognised: log the detail, return a generic message.
   console.error("[api] unhandled error", {
+    error:
+      error instanceof Error ? (error.stack ?? error.message) : String(error),
     requestId,
-    error: error instanceof Error ? error.stack ?? error.message : String(error),
   });
 
   return NextResponse.json(

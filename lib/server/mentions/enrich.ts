@@ -21,8 +21,8 @@ export function extractMentionsFromMessage(
   // First, check for mentions in custom field (preferred approach)
   if (message.mentions && Array.isArray(message.mentions)) {
     return message.mentions.map((mention) => ({
-      type: "mention" as const,
       mention,
+      type: "mention" as const,
     }));
   }
 
@@ -32,11 +32,14 @@ export function extractMentionsFromMessage(
     for (const part of message.parts) {
       // Type guard to check if this is a mention part
       // We use a type assertion since AI SDK types don't include our custom type
-      const partAny = part as { type?: string; mention?: MentionPart["mention"] };
+      const partAny = part as {
+        type?: string;
+        mention?: MentionPart["mention"];
+      };
       if (partAny.type === "mention" && partAny.mention) {
         mentions.push({
-          type: "mention",
           mention: partAny.mention,
+          type: "mention",
         });
       }
     }
@@ -81,16 +84,17 @@ export async function createEnrichedMessageContent(
   message: ChatMessage & { mentions?: MentionPart["mention"][] }
 ): Promise<string> {
   // Extract the original user message text
-  const originalText = message.parts
-    ?.filter((part) => part.type === "text")
-    .map((part) => ("text" in part ? part.text : ""))
-    .join(" ") || "";
+  const originalText =
+    message.parts
+      ?.filter((part) => part.type === "text")
+      .map((part) => ("text" in part ? part.text : ""))
+      .join(" ") || "";
 
   // Extract and enrich mentions (convert to text)
   const mentionContext = await enrichMessageWithMentions(message);
 
   // If no mentions, return original text
-  if (!mentionContext || !mentionContext.trim()) {
+  if (!mentionContext?.trim()) {
     return originalText;
   }
 
@@ -98,4 +102,3 @@ export async function createEnrichedMessageContent(
   // Format: [Mention contexts]\n\nUser message: [original text]
   return `${mentionContext}\n\nUser message: ${originalText}`;
 }
-

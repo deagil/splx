@@ -15,8 +15,6 @@ const runSchema = z.object({
 export const POST = endpoint<z.infer<typeof runSchema>, { workflowId: string }>(
   {
     auth: "required",
-    permission: "workflows.run",
-    schema: runSchema,
     async handler({ user, params, body, requestId }) {
       const workflow = await getWorkflow(user.workspaceId, params.workflowId);
       if (!workflow) {
@@ -24,28 +22,30 @@ export const POST = endpoint<z.infer<typeof runSchema>, { workflowId: string }>(
       }
 
       const { scheduleId } = await enqueueManualRun({
-        workspaceId: user.workspaceId,
-        workflowId: params.workflowId,
         actorUserId: user.userId,
+        context: body.context ?? { event: null, steps: [] },
         requestId,
         triggerSource: body.triggerSource ?? "manual",
-        context: body.context ?? { event: null, steps: [] },
+        workflowId: params.workflowId,
+        workspaceId: user.workspaceId,
       });
 
       await writeAuditLog({
-        workspaceId: user.workspaceId,
-        actorUserId: user.userId,
         action: "workflows.run",
-        resourceType: "workflow",
-        resourceId: params.workflowId,
+        actorUserId: user.userId,
         changes: {
           scheduleId,
           triggerSource: body.triggerSource ?? "manual",
         },
         requestId,
+        resourceId: params.workflowId,
+        resourceType: "workflow",
+        workspaceId: user.workspaceId,
       });
 
       return { data: { scheduleId }, status: 202 };
     },
+    permission: "workflows.run",
+    schema: runSchema,
   }
 );

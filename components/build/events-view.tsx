@@ -13,9 +13,9 @@ export function EventsView() {
     <ActivityLogView
       columns={[
         {
-          key: "createdAt",
-          header: "When",
           className: "w-44",
+          header: "When",
+          key: "createdAt",
           render: (entry) => (
             <span title={formatTimestamp(entry.createdAt)}>
               {formatRelative(entry.createdAt)}
@@ -23,8 +23,8 @@ export function EventsView() {
           ),
         },
         {
-          key: "eventName",
           header: "Event",
+          key: "eventName",
           render: (entry) => (
             <span className="font-mono text-xs">
               {entry.eventName as string}
@@ -32,9 +32,9 @@ export function EventsView() {
           ),
         },
         {
-          key: "actorEmail",
-          header: "Actor",
           className: "w-48",
+          header: "Actor",
+          key: "actorEmail",
           render: (entry) => (
             <span className="text-sm">
               {(entry.actorEmail as string | null) ??

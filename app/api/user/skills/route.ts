@@ -60,11 +60,11 @@ export async function POST(request: Request) {
     const { data: skill, error } = await supabase
       .from("ai_skills")
       .insert({
-        user_id: user.id,
-        name,
         command: command || name.toLowerCase().replace(/[^a-z0-9-_]/g, "-"),
         description: description || null,
+        name,
         prompt,
+        user_id: user.id,
       })
       .select()
       .single();

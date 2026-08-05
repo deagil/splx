@@ -15,10 +15,10 @@ import { NextResponse } from "next/server";
  * Delete a delegator once nothing fetches its path.
  */
 
-type V1Body = {
+interface V1Body {
   data?: unknown;
   meta?: Record<string, unknown>;
-};
+}
 
 /**
  * Flattens `{ data: {...}, meta: { pagination } }` to `{ ...data, pagination }`.

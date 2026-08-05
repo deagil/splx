@@ -1,4 +1,5 @@
 import equal from "fast-deep-equal";
+import { ClipboardIcon, HeartIcon } from "lucide-react";
 import { memo } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -6,8 +7,7 @@ import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { Action, Actions } from "../elements/actions";
-import { CopyIcon, PencilEditIcon, ThumbDownIcon, ThumbUpIcon } from "../shared/icons";
-import { ClipboardCopyIcon, ClipboardIcon, HeartIcon } from "lucide-react";
+import { CopyIcon, PencilEditIcon, ThumbDownIcon } from "../shared/icons";
 
 export function PureMessageActions({
   chatId,
@@ -50,9 +50,9 @@ export function PureMessageActions({
     return (
       <Actions className="-mr-0.5 justify-end">
         <div className="relative">
-          {setMode && (
+          {!!setMode && (
             <Action
-              className="-left-10 absolute top-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/message:opacity-100"
+              className="absolute top-0 -left-10 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/message:opacity-100"
               data-testid="message-edit-button"
               onClick={() => setMode("edit")}
               tooltip="Edit"
@@ -70,21 +70,21 @@ export function PureMessageActions({
 
   return (
     <Actions className="-ml-0.5 opacity-0 transition-opacity group-hover/message:opacity-100">
-
       <Action
         data-testid="message-upvote"
         disabled={vote?.is_upvoted}
         onClick={() => {
           const upvote = fetch("/api/vote", {
-            method: "PATCH",
             body: JSON.stringify({
               chatId,
               messageId: message.id,
               type: "up",
             }),
+            method: "PATCH",
           });
 
           toast.promise(upvote, {
+            error: "Failed to like message.",
             loading: "Saving recommendation...",
             success: () => {
               mutate<Vote[]>(
@@ -104,10 +104,10 @@ export function PureMessageActions({
                   return [
                     ...votesWithoutCurrent,
                     {
-                      workspace_id: workspaceId,
                       chat_id: chatId,
-                      message_id: message.id,
                       is_upvoted: true,
+                      message_id: message.id,
+                      workspace_id: workspaceId,
                     },
                   ];
                 },
@@ -116,7 +116,6 @@ export function PureMessageActions({
 
               return "Liked Message!";
             },
-            error: "Failed to like message.",
           });
         }}
         tooltip="Like Message"
@@ -129,15 +128,16 @@ export function PureMessageActions({
         disabled={vote && !vote.is_upvoted}
         onClick={() => {
           const downvote = fetch("/api/vote", {
-            method: "PATCH",
             body: JSON.stringify({
               chatId,
               messageId: message.id,
               type: "down",
             }),
+            method: "PATCH",
           });
 
           toast.promise(downvote, {
+            error: "Failed to save recommendation.",
             loading: "Updating recommendations...",
             success: () => {
               mutate<Vote[]>(
@@ -157,10 +157,10 @@ export function PureMessageActions({
                   return [
                     ...votesWithoutCurrent,
                     {
-                      workspace_id: workspaceId,
                       chat_id: chatId,
-                      message_id: message.id,
                       is_upvoted: false,
+                      message_id: message.id,
+                      workspace_id: workspaceId,
                     },
                   ];
                 },
@@ -169,14 +169,13 @@ export function PureMessageActions({
 
               return "Disliked Message.";
             },
-            error: "Failed to save recommendation.",
           });
         }}
         tooltip="Dislike Message"
       >
         <ThumbDownIcon />
       </Action>
-            <Action onClick={handleCopy} tooltip="Copy">
+      <Action onClick={handleCopy} tooltip="Copy">
         <ClipboardIcon />
       </Action>
     </Actions>

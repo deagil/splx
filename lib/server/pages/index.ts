@@ -1,18 +1,17 @@
 export {
-  listPages,
-  getPageById,
   createPage,
-  updatePage,
   deletePage,
   getOrCreateSystemPage,
+  getPageById,
+  listPages,
   PageNotFoundError,
+  updatePage,
 } from "./repository";
 export type {
-  PageRecord,
-  PageBlock,
-  PageSettings,
-  PageLayout,
   CreatePageInput,
+  PageBlock,
+  PageLayout,
+  PageRecord,
+  PageSettings,
   UpdatePageInput,
 } from "./schema";
-

@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { CheckCircleFillIcon, WarningIcon } from "./icons";
 
 const iconsByType: Record<"success" | "error", ReactNode> = {
-  success: <CheckCircleFillIcon />,
   error: <WarningIcon />,
+  success: <CheckCircleFillIcon />,
 };
 
 export function toast(props: Omit<ToastProps, "id">) {
@@ -68,8 +68,8 @@ function Toast(props: ToastProps) {
   );
 }
 
-type ToastProps = {
+interface ToastProps {
+  description: string;
   id: string | number;
   type: "success" | "error";
-  description: string;
-};
+}

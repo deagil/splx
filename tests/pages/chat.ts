@@ -92,9 +92,9 @@ export class ChatPage {
       const imageBuffer = fs.readFileSync(filePath);
 
       await fileChooser.setFiles({
-        name: "mouth of the seine, monet.jpg",
-        mimeType: "image/jpeg",
         buffer: imageBuffer,
+        mimeType: "image/jpeg",
+        name: "mouth of the seine, monet.jpg",
       });
     });
 
@@ -163,8 +163,11 @@ export class ChatPage {
       .catch(() => null);
 
     return {
-      element: lastMessageElement,
       content,
+      async downvote() {
+        await lastMessageElement.getByTestId("message-downvote").click();
+      },
+      element: lastMessageElement,
       reasoning: reasoningElement,
       async toggleReasoningVisibility() {
         await lastMessageElement
@@ -173,9 +176,6 @@ export class ChatPage {
       },
       async upvote() {
         await lastMessageElement.getByTestId("message-upvote").click();
-      },
-      async downvote() {
-        await lastMessageElement.getByTestId("message-downvote").click();
       },
     };
   }
@@ -202,12 +202,11 @@ export class ChatPage {
       ? await lastMessageElement.getByTestId("message-attachments").all()
       : [];
 
-    const page = this.page;
+    const { page } = this;
 
     return {
-      element: lastMessageElement,
-      content,
       attachments,
+      content,
       async edit(newMessage: string) {
         await page.getByTestId("message-edit-button").click();
         await page.getByTestId("message-editor").fill(newMessage);
@@ -216,6 +215,7 @@ export class ChatPage {
           page.getByTestId("message-editor-send-button")
         ).not.toBeVisible();
       },
+      element: lastMessageElement,
     };
   }
 
@@ -251,7 +251,7 @@ export class ChatPage {
     count: number,
     makeMessage: (i: number) => string
   ) {
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < count; i += 1) {
       await this.sendUserMessage(makeMessage(i));
       await this.isGenerationComplete();
     }

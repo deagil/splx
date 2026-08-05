@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { type PointerEvent as ReactPointerEvent } from "react";
 import { Settings2Icon, Trash2Icon } from "lucide-react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { ReportChart } from "@/components/reports/report-chart";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,14 +19,14 @@ import { cn } from "@/lib/utils";
 import { useReportBlockData, useReports } from "../hooks";
 import type { ReportBlockDraft } from "../types";
 
-export type ReportBlockViewProps = {
+export interface ReportBlockViewProps {
   block: ReportBlockDraft;
   editControls?: {
     onOpenSettings: () => void;
     onRemove: () => void;
     onStartDrag: (event: ReactPointerEvent) => void;
   };
-};
+}
 
 export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
   const { data, isLoading, error } = useReportBlockData(block);
@@ -53,11 +52,11 @@ export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
           >
             <CardHeading className="flex w-full items-center gap-3">
               <div className="min-w-0 flex-1 space-y-1 md:me-6">
-                <div className="text-sm font-medium text-foreground">
+                <div className="font-medium text-foreground text-sm">
                   {title}
                 </div>
                 {block.display.title && reportDef ? (
-                  <CardDescription className="text-xs text-muted-foreground">
+                  <CardDescription className="text-muted-foreground text-xs">
                     {reportDef.title}
                   </CardDescription>
                 ) : null}
@@ -67,12 +66,12 @@ export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={editControls.onOpenSettings}
                         aria-label="Configure block"
+                        onClick={editControls.onOpenSettings}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        size="icon"
+                        type="button"
+                        variant="outline"
                       >
                         <Settings2Icon className="h-4 w-4" />
                       </Button>
@@ -82,13 +81,13 @@ export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={editControls.onRemove}
                         aria-label="Remove block"
+                        className="border-destructive/60 text-red-500 hover:border-destructive hover:bg-destructive/5"
+                        onClick={editControls.onRemove}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        size="icon"
+                        type="button"
+                        variant="outline"
                       >
                         <Trash2Icon className="h-4 w-4" />
                       </Button>
@@ -101,25 +100,25 @@ export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-hidden p-4">
             {isLoading ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
                 Loading report data…
               </div>
             ) : hasError ? (
-              <div className="flex h-full items-center justify-center text-sm text-destructive">
+              <div className="flex h-full items-center justify-center text-destructive text-sm">
                 {hasError}
               </div>
             ) : !data || data.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
                 No data available
               </div>
             ) : (
               <div className="h-full w-full">
                 <ReportChart
-                  data={data}
-                  chartType={block.display.chartType || reportDef?.chart_type}
                   chartConfig={
                     (reportDef?.chart_config as Record<string, unknown>) ?? {}
                   }
+                  chartType={block.display.chartType || reportDef?.chart_type}
+                  data={data}
                 />
               </div>
             )}
@@ -129,4 +128,3 @@ export function ReportBlockView({ block, editControls }: ReportBlockViewProps) {
     </TooltipProvider>
   );
 }
-

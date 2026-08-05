@@ -2,63 +2,62 @@
 
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
+import { globalMentionRegistry } from "@/lib/mentions/global-registry";
+import type { PageRecord } from "@/lib/server/pages";
 import type {
-  Mention,
+  BlockMention,
   MentionableItem,
   PageMention,
-  BlockMention,
 } from "@/lib/types/mentions";
-import type { PageRecord } from "@/lib/server/pages";
-import { globalMentionRegistry } from "@/lib/mentions/global-registry";
 
 /**
  * Data that can be mentioned from a block
  */
-export type BlockMentionableData = {
+export interface BlockMentionableData {
   blockId: string;
   blockType: "list" | "record" | "report" | "trigger";
-  tableName?: string;
-  label: string;
-  description?: string;
   data?: unknown; // The actual data from the block
-};
+  description?: string;
+  label: string;
+  tableName?: string;
+}
 
 /**
  * Context value for mentionable data
  */
-type MentionContextValue = {
-  /**
-   * Register mentionable data from a block
-   */
-  registerBlockData: (data: BlockMentionableData) => void;
-  /**
-   * Unregister block data when block unmounts
-   */
-  unregisterBlockData: (blockId: string) => void;
-  /**
-   * Get all mentionable items for the current page
-   */
-  getMentionableItems: () => MentionableItem[];
+interface MentionContextValue {
   /**
    * Get mentionable data for a specific block
    */
   getBlockData: (blockId: string) => BlockMentionableData | undefined;
   /**
+   * Get all mentionable items for the current page
+   */
+  getMentionableItems: () => MentionableItem[];
+  /**
    * Current page information
    */
   page: PageRecord | null;
   /**
+   * Register mentionable data from a block
+   */
+  registerBlockData: (data: BlockMentionableData) => void;
+  /**
    * Set current page
    */
   setPage: (page: PageRecord | null) => void;
-};
+  /**
+   * Unregister block data when block unmounts
+   */
+  unregisterBlockData: (blockId: string) => void;
+}
 
 const MentionContext = createContext<MentionContextValue | null>(null);
 
@@ -117,9 +116,7 @@ export function MentionContextProvider({
   }, []);
 
   const getBlockData = useCallback(
-    (blockId: string) => {
-      return blockDataMap.get(blockId);
-    },
+    (blockId: string) => blockDataMap.get(blockId),
     [blockDataMap]
   );
 
@@ -129,35 +126,35 @@ export function MentionContextProvider({
     // Add "This Page" option if we have a page
     if (page) {
       const pageMention: PageMention = {
-        type: "page",
+        description: `All data from ${page.name}`,
         id: page.id,
         label: "This Page",
-        description: `All data from ${page.name}`,
+        type: "page",
       };
       items.push({
-        key: `page-${page.id}`,
-        text: "@thisPage",
         description: pageMention.description,
+        key: `page-${page.id}`,
         mention: pageMention,
+        text: "@thisPage",
       });
     }
 
     // Add block mentions
     for (const [blockId, blockData] of blockDataMap.entries()) {
       const blockMention: BlockMention = {
-        type: "block",
-        id: blockId,
         blockId,
         blockType: blockData.blockType,
-        tableName: blockData.tableName,
-        label: blockData.label,
         description: blockData.description,
+        id: blockId,
+        label: blockData.label,
+        tableName: blockData.tableName,
+        type: "block",
       };
       items.push({
-        key: `block-${blockId}`,
-        text: `@${blockData.label}`,
         description: blockData.description,
+        key: `block-${blockId}`,
         mention: blockMention,
+        text: `@${blockData.label}`,
       });
     }
 
@@ -172,12 +169,12 @@ export function MentionContextProvider({
 
   const value = useMemo(
     () => ({
-      registerBlockData,
-      unregisterBlockData,
-      getMentionableItems,
       getBlockData,
+      getMentionableItems,
       page,
+      registerBlockData,
       setPage,
+      unregisterBlockData,
     }),
     [
       registerBlockData,
@@ -192,4 +189,3 @@ export function MentionContextProvider({
     <MentionContext.Provider value={value}>{children}</MentionContext.Provider>
   );
 }
-

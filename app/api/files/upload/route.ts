@@ -2,7 +2,6 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 // Use Blob instead of File since File is not available in Node.js environment
@@ -57,10 +56,10 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(data);
-    } catch (_error) {
+    } catch {
       return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
-  } catch (_error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to process request" },
       { status: 500 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   checkPermissionAgainstMap,
-  resolveEffectivePermissions,
   type RolePermissionRow,
+  resolveEffectivePermissions,
 } from "./match";
 
 const WS_A = "aaaaaaaa-0000-0000-0000-000000000001";
@@ -16,14 +16,14 @@ const WS_B = "bbbbbbbb-0000-0000-0000-000000000002";
  */
 const rows: RolePermissionRow[] = [
   // Global defaults.
-  { role_id: "admin", permission: "*", workspace_id: null },
-  { role_id: "builder", permission: "pages.view", workspace_id: null },
-  { role_id: "builder", permission: "pages.edit", workspace_id: null },
-  { role_id: "builder", permission: "data.delete", workspace_id: null },
+  { permission: "*", role_id: "admin", workspace_id: null },
+  { permission: "pages.view", role_id: "builder", workspace_id: null },
+  { permission: "pages.edit", role_id: "builder", workspace_id: null },
+  { permission: "data.delete", role_id: "builder", workspace_id: null },
   // Workspace A narrows builder and defines a custom role.
-  { role_id: "builder", permission: "pages.view", workspace_id: WS_A },
-  { role_id: "auditor", permission: "data.view", workspace_id: WS_A },
-  { role_id: "auditor", permission: "reports.view", workspace_id: WS_A },
+  { permission: "pages.view", role_id: "builder", workspace_id: WS_A },
+  { permission: "data.view", role_id: "auditor", workspace_id: WS_A },
+  { permission: "reports.view", role_id: "auditor", workspace_id: WS_A },
 ];
 
 describe("resolveEffectivePermissions", () => {
@@ -51,7 +51,9 @@ describe("resolveEffectivePermissions", () => {
   it("does not leak one workspace's overrides into another", () => {
     const map = resolveEffectivePermissions(rows, WS_B);
     expect(map.auditor).toBeUndefined();
-    expect(checkPermissionAgainstMap(map, ["auditor"], "data.view")).toBe(false);
+    expect(checkPermissionAgainstMap(map, ["auditor"], "data.view")).toBe(
+      false
+    );
   });
 
   it("leaves roles the workspace does not mention untouched", () => {
@@ -70,7 +72,9 @@ describe("resolveEffectivePermissions", () => {
     const a = resolveEffectivePermissions(rows, WS_A);
     const b = resolveEffectivePermissions(rows, WS_B);
 
-    expect(checkPermissionAgainstMap(a, ["builder"], "data.delete")).toBe(false);
+    expect(checkPermissionAgainstMap(a, ["builder"], "data.delete")).toBe(
+      false
+    );
     expect(checkPermissionAgainstMap(b, ["builder"], "data.delete")).toBe(true);
   });
 });

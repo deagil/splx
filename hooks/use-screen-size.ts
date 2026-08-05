@@ -55,11 +55,10 @@ export function useScreenSize() {
   const isLargeDesktop = screenSize === "large-desktop";
 
   return {
-    screenSize: screenSize ?? "mobile",
-    width: width ?? 0,
-    isMobile,
     isLaptop,
     isLargeDesktop,
+    isMobile,
+    screenSize: screenSize ?? "mobile",
+    width: width ?? 0,
   };
 }
-

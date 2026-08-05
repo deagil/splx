@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { user, workspace } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { type NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { STRIPE_PLUS_PRICE_ID } from "@/lib/constants";
+import { user, workspace } from "@/lib/db/schema";
 import { getAppMode } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
+import { stripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
-import { STRIPE_PLUS_PRICE_ID } from "@/lib/constants";
 
 export async function GET(req: NextRequest) {
-  const searchParams = req.nextUrl.searchParams;
+  const { searchParams } = req.nextUrl;
   const sessionId = searchParams.get("session_id");
 
   if (!sessionId) {
@@ -26,13 +26,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(new URL("/onboarding", req.url));
     }
 
-    const subscriptionId = typeof session.subscription === "string"
-      ? session.subscription
-      : session.subscription?.id;
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id;
 
-    const customerId = typeof session.customer === "string"
-      ? session.customer
-      : session.customer?.id;
+    const customerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id;
 
     if (!subscriptionId || !customerId) {
       console.error("Missing subscription or customer ID");
@@ -62,10 +64,10 @@ export async function GET(req: NextRequest) {
         await db
           .update(workspace)
           .set({
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId,
             plan: "plus",
+            stripe_customer_id: customerId,
             stripe_price_id: STRIPE_PLUS_PRICE_ID,
+            stripe_subscription_id: subscriptionId,
             updated_at: new Date(),
           })
           .where(eq(workspace.id, workspaceId));
@@ -92,12 +94,13 @@ export async function GET(req: NextRequest) {
         try {
           // Update workspace with Stripe details
           await store.withSqlClient((db) =>
-            db.update(workspace)
+            db
+              .update(workspace)
               .set({
-                stripe_customer_id: customerId,
-                stripe_subscription_id: subscriptionId,
                 plan: "plus",
+                stripe_customer_id: customerId,
                 stripe_price_id: STRIPE_PLUS_PRICE_ID,
+                stripe_subscription_id: subscriptionId,
                 updated_at: new Date(),
               })
               .where(eq(workspace.id, workspaceId))
@@ -105,7 +108,8 @@ export async function GET(req: NextRequest) {
 
           // Mark user onboarding as complete
           await store.withSqlClient((db) =>
-            db.update(user)
+            db
+              .update(user)
               .set({
                 onboarding_completed: true,
               })

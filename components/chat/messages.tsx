@@ -1,5 +1,5 @@
-import type { ChatAddToolApproveResponseFunction } from "ai";
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import equal from "fast-deep-equal";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownIcon, PinIcon, PinOffIcon } from "lucide-react";
@@ -8,11 +8,16 @@ import { useMessages } from "@/hooks/use-messages";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useDataStream } from "../shared/data-stream-provider";
 import { Conversation, ConversationContent } from "../elements/conversation";
+import { useDataStream } from "../shared/data-stream-provider";
 import { Greeting } from "../shared/greeting";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import { PreviewMessage, ThinkingMessage } from "./message";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Helper for timestamped logging
 function logMessages(label: string, data?: Record<string, unknown>) {
@@ -25,73 +30,77 @@ function logMessages(label: string, data?: Record<string, unknown>) {
 }
 
 /** Optimistic user message for instant display */
-export type OptimisticMessage = {
-  id: string;
-  text: string;
+export interface OptimisticMessage {
   attachments?: { name: string; url: string; contentType?: string }[];
+  id: string;
   mentions?: unknown[];
   skill?: { id: string; name: string; command: string; prompt?: string };
-};
+  text: string;
+}
 
-type MessagesProps = {
+interface MessagesProps {
   addToolApprovalResponse: ChatAddToolApproveResponseFunction;
   chatId: string;
-  status: UseChatHelpers<ChatMessage>["status"];
-  votes: Vote[] | undefined;
-  messages: ChatMessage[];
-  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
-  regenerate: UseChatHelpers<ChatMessage>["regenerate"];
-  isReadonly: boolean;
-  isArtifactVisible: boolean;
-  selectedModelId: string;
   inputSlot?: React.ReactNode;
+  isArtifactVisible: boolean;
+  isReadonly: boolean;
+  messages: ChatMessage[];
   /** Optimistic user message for instant display before server confirms */
   optimisticMessage?: OptimisticMessage | null;
-};
+  regenerate: UseChatHelpers<ChatMessage>["regenerate"];
+  selectedModelId: string;
+  setMessages: UseChatHelpers<ChatMessage>["setMessages"];
+  status: UseChatHelpers<ChatMessage>["status"];
+  votes: Vote[] | undefined;
+}
 
-/** 
+/**
  * Renders the user's message optimistically (before server confirms)
  * with a smooth animation from bottom
  */
-const OptimisticUserMessage = memo(({ message }: { message: OptimisticMessage }) => {
-  return (
-    <motion.div
-      className="group/message w-full"
-      data-role="user"
-      data-testid="message-user-optimistic"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: { duration: 0.1 } }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-    >
-      <div className="flex w-full items-start justify-end gap-2 md:gap-3">
-        <div className="flex max-w-[calc(100%-2.5rem)] flex-col gap-2 sm:max-w-[min(fit-content,80%)]">
-          {/* Show attachments if any */}
-          {message.attachments && message.attachments.length > 0 && (
-            <div className="flex flex-row justify-end gap-2">
-              {message.attachments.map((attachment) => (
-                <div
-                  key={attachment.url}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2"
-                >
-                  <span className="text-sm text-muted-foreground">{attachment.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
+const OptimisticUserMessage = memo(
+  ({ message }: { message: OptimisticMessage }) => {
+    return (
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        className="group/message w-full"
+        data-role="user"
+        data-testid="message-user-optimistic"
+        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+        initial={{ opacity: 0, y: 16 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+      >
+        <div className="flex w-full items-start justify-end gap-2 md:gap-3">
+          <div className="flex max-w-[calc(100%-2.5rem)] flex-col gap-2 sm:max-w-[min(fit-content,80%)]">
+            {/* Show attachments if any */}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="flex flex-row justify-end gap-2">
+                {message.attachments.map((attachment) => (
+                  <div
+                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2"
+                    key={attachment.url}
+                  >
+                    <span className="text-muted-foreground text-sm">
+                      {attachment.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* Message text bubble */}
-          <div
-            className="w-fit break-words rounded-2xl px-3 py-2 text-right text-white"
-            style={{ backgroundColor: "#006cff" }}
-          >
-            <span className="whitespace-pre-wrap">{message.text}</span>
+            {/* Message text bubble */}
+            <div
+              className="w-fit break-words rounded-2xl px-3 py-2 text-right text-white"
+              style={{ backgroundColor: "#006cff" }}
+            >
+              <span className="whitespace-pre-wrap">{message.text}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </motion.div>
-  );
-});
+      </motion.div>
+    );
+  }
+);
 
 OptimisticUserMessage.displayName = "OptimisticUserMessage";
 
@@ -124,7 +133,7 @@ function PureMessages({
 
   // Track if we've already scrolled for the current optimistic message
   const lastScrolledOptimisticIdRef = useRef<string | null>(null);
-  
+
   // Track message count for logging new messages
   const prevMessageCountRef = useRef(messages.length);
   const prevStatusRef = useRef(status);
@@ -133,21 +142,24 @@ function PureMessages({
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
       const newMessages = messages.slice(prevMessageCountRef.current);
-      logMessages("📬 New message(s) rendered", { 
+      logMessages("📬 New message(s) rendered", {
         newCount: newMessages.length,
+        roles: newMessages.map((m) => m.role),
         totalCount: messages.length,
-        roles: newMessages.map(m => m.role),
       });
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages.length]);
+  }, [messages.length, messages.slice]);
 
   // Log status-based UI changes
   useEffect(() => {
     if (prevStatusRef.current !== status) {
       if (status === "submitted") {
         logMessages("⏳ Showing thinking indicator");
-      } else if (status === "streaming" && prevStatusRef.current === "submitted") {
+      } else if (
+        status === "streaming" &&
+        prevStatusRef.current === "submitted"
+      ) {
         logMessages("📝 Started streaming (typing indicator → text)");
       } else if (status === "ready" && prevStatusRef.current === "streaming") {
         logMessages("✅ Stream rendering complete");
@@ -166,7 +178,11 @@ function PureMessages({
 
   // Scroll immediately when optimistic message appears (only once per message)
   useEffect(() => {
-    if (optimisticMessage && isPinned && optimisticMessage.id !== lastScrolledOptimisticIdRef.current) {
+    if (
+      optimisticMessage &&
+      isPinned &&
+      optimisticMessage.id !== lastScrolledOptimisticIdRef.current
+    ) {
       lastScrolledOptimisticIdRef.current = optimisticMessage.id;
       scrollToBottom("smooth");
     }
@@ -174,26 +190,34 @@ function PureMessages({
 
   // Extract last user message info once for ThinkingMessage props
   // Use optimistic message if available, otherwise use last message
-  const lastUserMessage = optimisticMessage 
-    ? { parts: optimisticMessage.attachments?.map(a => ({ type: "file" as const })) || [], mentions: optimisticMessage.mentions }
-    : messages.filter(m => m.role === "user").at(-1);
-  
+  const lastUserMessage = optimisticMessage
+    ? {
+        mentions: optimisticMessage.mentions,
+        parts:
+          optimisticMessage.attachments?.map((_a) => ({
+            type: "file" as const,
+          })) || [],
+      }
+    : messages.filter((m) => m.role === "user").at(-1);
+
   // Extract mention details for contextual thinking message
-  const messageMentions = (lastUserMessage as unknown as { mentions?: Array<{ type: string }> })?.mentions || [];
-  const urlMentions = messageMentions.filter(m => m.type === "url");
-  
+  const messageMentions =
+    (lastUserMessage as unknown as { mentions?: Array<{ type: string }> })
+      ?.mentions || [];
+  const urlMentions = messageMentions.filter((m) => m.type === "url");
+
   const thinkingProps = {
+    attachmentCount:
+      lastUserMessage?.parts?.filter((p) => p.type === "file").length ?? 0,
+    hasAttachments:
+      lastUserMessage?.parts?.some((p) => p.type === "file") ?? false,
     hasMentions: messageMentions.length > 0,
     hasUrlMentions: urlMentions.length > 0,
     urlCount: urlMentions.length,
-    hasAttachments: lastUserMessage?.parts?.some(p => p.type === "file") ?? false,
-    attachmentCount: lastUserMessage?.parts?.filter(p => p.type === "file").length ?? 0,
   };
 
   return (
-    <div
-      className="relative flex flex-1 flex-col overflow-hidden"
-    >
+    <div className="relative flex flex-1 flex-col overflow-hidden">
       {/* Scrollable messages area */}
       <div
         className="overscroll-behavior-contain -webkit-overflow-scrolling-touch flex-1 touch-pan-y overflow-y-scroll scroll-smooth"
@@ -222,7 +246,10 @@ function PureMessages({
                   message={message}
                   regenerate={regenerate}
                   requiresScrollPadding={
-                    hasSentMessage && index === messages.length - 1 && status !== "streaming" && !optimisticMessage
+                    hasSentMessage &&
+                    index === messages.length - 1 &&
+                    status !== "streaming" &&
+                    !optimisticMessage
                   }
                   setMessages={setMessages}
                   vote={
@@ -236,7 +263,7 @@ function PureMessages({
 
             {/* Optimistic user message - appears immediately before server confirms */}
             <AnimatePresence>
-              {optimisticMessage && (
+              {!!optimisticMessage && (
                 <OptimisticUserMessage
                   key={`optimistic-${optimisticMessage.id}`}
                   message={optimisticMessage}
@@ -247,13 +274,13 @@ function PureMessages({
             {/* Thinking indicator while waiting for response */}
             <AnimatePresence>
               {status === "submitted" && (
-                <ThinkingMessage 
-                  key="thinking" 
+                <ThinkingMessage
+                  attachmentCount={thinkingProps.attachmentCount}
+                  hasAttachments={thinkingProps.hasAttachments}
                   hasMentions={thinkingProps.hasMentions}
                   hasUrlMentions={thinkingProps.hasUrlMentions}
+                  key="thinking"
                   urlCount={thinkingProps.urlCount}
-                  hasAttachments={thinkingProps.hasAttachments}
-                  attachmentCount={thinkingProps.attachmentCount}
                 />
               )}
             </AnimatePresence>
@@ -269,36 +296,38 @@ function PureMessages({
 
       {/* Scroll mode toggle - subtle pill above input, right side */}
       {!isReadonly && (
-        <div className="pointer-events-none absolute bottom-[180px] right-3 z-20">
+        <div className="pointer-events-none absolute right-3 bottom-[180px] z-20">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <motion.button
-                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: 0.1 }}
-                  onClick={() => setIsPinned(!isPinned)}
+                  aria-label={
+                    isPinned ? "Disable auto-scroll" : "Enable auto-scroll"
+                  }
                   className={cn(
                     "pointer-events-auto flex items-center gap-1 rounded-md px-2 py-1 text-[10px] transition-all duration-150",
                     isPinned
                       ? "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
                       : "bg-muted/40 text-muted-foreground/70 hover:bg-muted/60 hover:text-muted-foreground"
                   )}
+                  initial={{ opacity: 0 }}
+                  onClick={() => setIsPinned(!isPinned)}
+                  transition={{ delay: 0.1, duration: 0.2 }}
                   type="button"
-                  aria-label={isPinned ? "Disable auto-scroll" : "Enable auto-scroll"}
                 >
                   {isPinned ? (
                     <PinIcon className="size-2.5" />
                   ) : (
                     <PinOffIcon className="size-2.5" />
                   )}
-                  <span className="hidden sm:inline font-medium">
+                  <span className="hidden font-medium sm:inline">
                     {isPinned ? "Auto" : "Free"}
                   </span>
                 </motion.button>
               </TooltipTrigger>
-              <TooltipContent side="left" className="text-xs" sideOffset={8}>
-                {isPinned 
+              <TooltipContent className="text-xs" side="left" sideOffset={8}>
+                {isPinned
                   ? "Auto-scrolls to new messages"
                   : "Free scrolling mode"}
               </TooltipContent>
@@ -311,7 +340,7 @@ function PureMessages({
       {inputSlot}
 
       {!isAtBottom && (
-        <div className="pointer-events-none absolute bottom-56 left-0 right-0 z-30 flex justify-center">
+        <div className="pointer-events-none absolute right-0 bottom-56 left-0 z-30 flex justify-center">
           <button
             aria-label="Scroll to bottom"
             className="pointer-events-auto rounded-full border bg-background p-2 shadow-lg transition-colors hover:bg-muted"
@@ -331,7 +360,7 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.isArtifactVisible !== nextProps.isArtifactVisible) {
     return false;
   }
-  
+
   // Skip re-renders when artifact is visible (optimization)
   if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) {
     return true;
@@ -341,12 +370,12 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) {
     return false;
   }
-  
+
   // Re-render when model changes
   if (prevProps.selectedModelId !== nextProps.selectedModelId) {
     return false;
   }
-  
+
   // Re-render when messages change (critical for showing new user messages)
   if (prevProps.messages.length !== nextProps.messages.length) {
     return false;
@@ -354,7 +383,7 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (!equal(prevProps.messages, nextProps.messages)) {
     return false;
   }
-  
+
   // Re-render when votes change
   if (!equal(prevProps.votes, nextProps.votes)) {
     return false;

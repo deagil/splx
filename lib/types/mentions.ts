@@ -20,10 +20,10 @@ export type MentionType =
  * Base mention metadata
  */
 export const mentionMetadataSchema = z.object({
-  type: z.enum(["page", "block", "table", "record", "user", "lookup", "url"]),
+  description: z.string().optional(), // Optional description
   id: z.string().optional(), // ID for the mentioned resource
   label: z.string(), // Display label
-  description: z.string().optional(), // Optional description
+  type: z.enum(["page", "block", "table", "record", "user", "lookup", "url"]),
 });
 
 export type MentionMetadata = z.infer<typeof mentionMetadataSchema>;
@@ -32,8 +32,8 @@ export type MentionMetadata = z.infer<typeof mentionMetadataSchema>;
  * Page mention - references all data from current page
  */
 export const pageMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("page"),
   pageId: z.string().optional(), // Optional page ID if not current page
+  type: z.literal("page"),
 });
 
 export type PageMention = z.infer<typeof pageMentionSchema>;
@@ -42,10 +42,10 @@ export type PageMention = z.infer<typeof pageMentionSchema>;
  * Block mention - references specific block data
  */
 export const blockMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("block"),
   blockId: z.string(),
   blockType: z.enum(["list", "record", "report", "trigger"]),
   tableName: z.string().optional(), // For list/record blocks
+  type: z.literal("block"),
 });
 
 export type BlockMention = z.infer<typeof blockMentionSchema>;
@@ -54,9 +54,9 @@ export type BlockMention = z.infer<typeof blockMentionSchema>;
  * Table mention - references table for lookup
  */
 export const tableMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("table"),
-  tableName: z.string(),
   filter: z.record(z.string(), z.unknown()).optional(), // Optional filter criteria
+  tableName: z.string(),
+  type: z.literal("table"),
 });
 
 export type TableMention = z.infer<typeof tableMentionSchema>;
@@ -65,9 +65,9 @@ export type TableMention = z.infer<typeof tableMentionSchema>;
  * Record mention - references specific record
  */
 export const recordMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("record"),
-  tableName: z.string(),
   recordId: z.string(),
+  tableName: z.string(),
+  type: z.literal("record"),
 });
 
 export type RecordMention = z.infer<typeof recordMentionSchema>;
@@ -86,9 +86,9 @@ export type UserMention = z.infer<typeof userMentionSchema>;
  * Lookup mention - generic data lookup
  */
 export const lookupMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("lookup"),
   lookupType: z.string(), // Type of lookup (e.g., "errorLogs", "customers")
   query: z.record(z.string(), z.unknown()).optional(), // Query parameters
+  type: z.literal("lookup"),
 });
 
 export type LookupMention = z.infer<typeof lookupMentionSchema>;
@@ -97,13 +97,13 @@ export type LookupMention = z.infer<typeof lookupMentionSchema>;
  * URL mention - references a web page URL
  */
 export const urlMentionSchema = mentionMetadataSchema.extend({
-  type: z.literal("url"),
-  url: z.string().url(), // The full URL
-  title: z.string().optional(), // Page title from OG metadata
   favicon: z.string().optional(), // Favicon URL
   image: z.string().optional(), // OG image URL
   /** Pre-fetched content from Jina Reader (saves ~20-30s during enrichment) */
   prefetchedContent: z.string().optional(),
+  title: z.string().optional(), // Page title from OG metadata
+  type: z.literal("url"),
+  url: z.string().url(), // The full URL
 });
 
 export type UrlMention = z.infer<typeof urlMentionSchema>;
@@ -125,7 +125,6 @@ export type Mention =
  * Uses a union of all mention schemas to preserve type-specific fields
  */
 export const mentionPartSchema = z.object({
-  type: z.literal("mention"),
   mention: z.union([
     pageMentionSchema,
     blockMentionSchema,
@@ -135,6 +134,7 @@ export const mentionPartSchema = z.object({
     lookupMentionSchema,
     urlMentionSchema,
   ]),
+  type: z.literal("mention"),
 });
 
 export type MentionPart = z.infer<typeof mentionPartSchema>;
@@ -142,10 +142,10 @@ export type MentionPart = z.infer<typeof mentionPartSchema>;
 /**
  * Mentionable data item for UI display
  */
-export type MentionableItem = {
-  key: string;
-  text: string;
+export interface MentionableItem {
   description?: string;
   icon?: string;
+  key: string;
   mention: MentionMetadata;
-};
+  text: string;
+}

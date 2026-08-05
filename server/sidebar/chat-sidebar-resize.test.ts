@@ -10,54 +10,54 @@ describe("chat sidebar resize guardrails", () => {
   it("allows resize only in regular desktop mode without artifact", () => {
     expect(
       canResizeChatSidebar({
-        open: true,
-        isExpandedMode: false,
         isArtifactVisible: false,
+        isExpandedMode: false,
+        open: true,
         screenSize: "laptop",
       })
     ).toBe(true);
 
     expect(
       canResizeChatSidebar({
-        open: true,
-        isExpandedMode: false,
         isArtifactVisible: false,
+        isExpandedMode: false,
+        open: true,
         screenSize: "large-desktop",
       })
     ).toBe(true);
 
     expect(
       canResizeChatSidebar({
-        open: true,
+        isArtifactVisible: false,
         isExpandedMode: true,
-        isArtifactVisible: false,
+        open: true,
         screenSize: "laptop",
       })
     ).toBe(false);
 
     expect(
       canResizeChatSidebar({
-        open: true,
-        isExpandedMode: false,
         isArtifactVisible: true,
+        isExpandedMode: false,
+        open: true,
         screenSize: "laptop",
       })
     ).toBe(false);
 
     expect(
       canResizeChatSidebar({
-        open: true,
-        isExpandedMode: false,
         isArtifactVisible: false,
+        isExpandedMode: false,
+        open: true,
         screenSize: "mobile",
       })
     ).toBe(false);
 
     expect(
       canResizeChatSidebar({
-        open: false,
-        isExpandedMode: false,
         isArtifactVisible: false,
+        isExpandedMode: false,
+        open: false,
         screenSize: "laptop",
       })
     ).toBe(false);

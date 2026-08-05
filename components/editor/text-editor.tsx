@@ -23,14 +23,14 @@ import {
   suggestionsPluginKey,
 } from "@/lib/editor/suggestions";
 
-type EditorProps = {
+interface EditorProps {
   content: string;
+  currentVersionIndex: number;
+  isCurrentVersion: boolean;
   onSaveContent: (updatedContent: string, debounce: boolean) => void;
   status: "streaming" | "idle";
-  isCurrentVersion: boolean;
-  currentVersionIndex: number;
   suggestions: Suggestion[];
-};
+}
 
 function PureEditor({
   content,
@@ -46,7 +46,7 @@ function PureEditor({
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: [
-          ...exampleSetup({ schema: documentSchema, menuBar: false }),
+          ...exampleSetup({ menuBar: false, schema: documentSchema }),
           inputRules({
             rules: [
               headingRule(1),
@@ -81,9 +81,9 @@ function PureEditor({
       editorRef.current.setProps({
         dispatchTransaction: (transaction) => {
           handleTransaction({
-            transaction,
             editorRef,
             onSaveContent,
+            transaction,
           });
         },
       });

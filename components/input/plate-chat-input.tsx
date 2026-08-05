@@ -1,42 +1,50 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useImperativeHandle, forwardRef } from "react";
-import { Plate, usePlateEditor, ParagraphPlugin } from "platejs/react";
+import { MentionInputPlugin, MentionPlugin } from "@platejs/mention/react";
+import { SlashInputPlugin, SlashPlugin } from "@platejs/slash-command/react";
 import { normalizeNodeId } from "platejs";
-import { MentionPlugin, MentionInputPlugin } from "@platejs/mention/react";
-import { SlashPlugin, SlashInputPlugin } from "@platejs/slash-command/react";
-import { MentionElement } from "@/components/ui/mention-node";
+import { ParagraphPlugin, Plate, usePlateEditor } from "platejs/react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import { MentionInputElement } from "@/components/input/mention-input-element";
 import { SlashCommandInputElement } from "@/components/input/slash-command-input-element";
 import { Editor, EditorContainer } from "@/components/ui/editor";
-import type { MentionableItem } from "@/lib/types/mentions";
+import { MentionElement } from "@/components/ui/mention-node";
 import type { Skill } from "@/hooks/use-skills";
 import { parsePlateMentionValue } from "@/lib/plate/mention-config";
+import type { MentionableItem } from "@/lib/types/mentions";
 import { cn } from "@/lib/utils";
 
-export type PlateChatInputProps = {
-  value: string;
+const triggerPreviousCharPattern = /^$|^[\s"']$/;
+
+export interface PlateChatInputProps {
+  autoFocus?: boolean;
+  className?: string;
+  disabled?: boolean;
+  mentionableItems: MentionableItem[];
   onChange: (value: string) => void;
   onMentionsChange?: (mentions: MentionableItem["mention"][]) => void;
   onSkillSelect?: (skill: Skill) => void;
-  mentionableItems: MentionableItem[];
-  placeholder?: string;
-  className?: string;
-  disabled?: boolean;
-  autoFocus?: boolean;
   onTriggerMention?: () => void;
-};
+  placeholder?: string;
+  value: string;
+}
 
-export type PlateChatInputRef = {
+export interface PlateChatInputRef {
+  removeMentionByIndex: (index: number) => void;
   triggerMention: () => void;
   triggerSlashCommand: () => void;
-  removeMentionByIndex: (index: number) => void;
-};
+}
 
 /**
  * Plate-based chat input with @ mention and / slash command support
  */
-export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>(function PlateChatInput({
+export const PlateChatInput = function PlateChatInput({
   value,
   onChange,
   onMentionsChange,
@@ -47,15 +55,16 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   disabled = false,
   autoFocus = false,
   onTriggerMention,
-}, ref) {
+  ref,
+}: PlateChatInputProps & { ref?: RefObject<PlateChatInputRef | null> }) {
   // Convert string value to Plate value format
   // Only initialize once - editor should be mostly uncontrolled
   const initialValue = useMemo(
     () =>
       normalizeNodeId([
         {
-          type: "p",
           children: [{ text: "" }],
+          type: "p",
         },
       ]),
     []
@@ -83,16 +92,16 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
       // @ mentions for data context
       MentionPlugin.configure({
         options: {
-          trigger: "@",
-          triggerPreviousCharPattern: /^$|^[\s"']$/,
           insertSpaceAfterMention: false,
+          trigger: "@",
+          triggerPreviousCharPattern,
         },
       }).withComponent(MentionElement),
       MentionInputPlugin.withComponent(MentionInputElementWithItems),
       // / slash commands for skills
       SlashPlugin.configure({
         options: {
-          triggerPreviousCharPattern: /^$|^[\s"']$/,
+          triggerPreviousCharPattern,
         },
       }),
       SlashInputPlugin.withComponent(SlashInputElementWithCallback),
@@ -101,225 +110,268 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   });
 
   // Expose triggerMention, triggerSlashCommand, and removeMentionByIndex methods via ref
-  useImperativeHandle(ref, () => ({
-    triggerMention: () => {
-      if (!editor || disabled) return;
-      try {
-        // Focus the editor first to ensure it's ready
-        editor.tf.focus();
-        // Insert "@" after a small delay to ensure focus is established
-        // and the mention plugin can properly detect the trigger
-        requestAnimationFrame(() => {
-          try {
-            editor.tf.insertText("@");
-            // Call the callback if provided
-            onTriggerMention?.();
-          } catch (error) {
-            console.warn("Error inserting mention trigger:", error);
-          }
-        });
-      } catch (error) {
-        console.warn("Error triggering mention:", error);
-      }
-    },
-    triggerSlashCommand: () => {
-      if (!editor || disabled) return;
-      try {
-        // Focus the editor first to ensure it's ready
-        editor.tf.focus();
-        // Insert "/" after a small delay to ensure focus is established
-        // and the slash command plugin can properly detect the trigger
-        requestAnimationFrame(() => {
-          try {
-            editor.tf.insertText("/");
-          } catch (error) {
-            console.warn("Error inserting slash command trigger:", error);
-          }
-        });
-      } catch (error) {
-        console.warn("Error triggering slash command:", error);
-      }
-    },
-    removeMentionByIndex: (index: number) => {
-      if (!editor) return;
-      try {
-        // Find all mention nodes in the editor
-        const mentionNodes: Array<{ path: number[]; node: unknown }> = [];
-        
-        function findMentions(children: unknown[], parentPath: number[] = []) {
-          for (const [idx, child] of (children as Array<Record<string, unknown>>).entries()) {
-            const currentPath = [...parentPath, idx];
-            if (child && typeof child === "object") {
-              if ("type" in child && child.type === "mention") {
-                mentionNodes.push({ path: currentPath, node: child });
-              }
-              if ("children" in child && Array.isArray(child.children)) {
-                findMentions(child.children, currentPath);
+  useImperativeHandle(
+    ref,
+    () => ({
+      removeMentionByIndex: (index: number) => {
+        if (!editor) {
+          return;
+        }
+        try {
+          // Find all mention nodes in the editor
+          const mentionNodes: Array<{ path: number[]; node: unknown }> = [];
+
+          function findMentions(
+            children: unknown[],
+            parentPath: number[] = []
+          ) {
+            for (const [idx, child] of (
+              children as Record<string, unknown>[]
+            ).entries()) {
+              const currentPath = [...parentPath, idx];
+              if (child && typeof child === "object") {
+                if ("type" in child && child.type === "mention") {
+                  mentionNodes.push({ node: child, path: currentPath });
+                }
+                if ("children" in child && Array.isArray(child.children)) {
+                  findMentions(child.children, currentPath);
+                }
               }
             }
           }
+
+          findMentions(editor.children);
+
+          // Remove the mention at the specified index
+          if (index >= 0 && index < mentionNodes.length) {
+            const { path } = mentionNodes[index];
+            editor.tf.removeNodes({ at: path });
+          }
+        } catch (error) {
+          console.warn("Error removing mention:", error);
         }
-        
-        findMentions(editor.children);
-        
-        // Remove the mention at the specified index
-        if (index >= 0 && index < mentionNodes.length) {
-          const { path } = mentionNodes[index];
-          editor.tf.removeNodes({ at: path });
+      },
+      triggerMention: () => {
+        if (!editor || disabled) {
+          return;
         }
-      } catch (error) {
-        console.warn("Error removing mention:", error);
-      }
-    },
-  }), [editor, disabled, onTriggerMention]);
+        try {
+          // Focus the editor first to ensure it's ready
+          editor.tf.focus();
+          // Insert "@" after a small delay to ensure focus is established
+          // and the mention plugin can properly detect the trigger
+          requestAnimationFrame(() => {
+            try {
+              editor.tf.insertText("@");
+              // Call the callback if provided
+              onTriggerMention?.();
+            } catch (error) {
+              console.warn("Error inserting mention trigger:", error);
+            }
+          });
+        } catch (error) {
+          console.warn("Error triggering mention:", error);
+        }
+      },
+      triggerSlashCommand: () => {
+        if (!editor || disabled) {
+          return;
+        }
+        try {
+          // Focus the editor first to ensure it's ready
+          editor.tf.focus();
+          // Insert "/" after a small delay to ensure focus is established
+          // and the slash command plugin can properly detect the trigger
+          requestAnimationFrame(() => {
+            try {
+              editor.tf.insertText("/");
+            } catch (error) {
+              console.warn("Error inserting slash command trigger:", error);
+            }
+          });
+        } catch (error) {
+          console.warn("Error triggering slash command:", error);
+        }
+      },
+    }),
+    [editor, disabled, onTriggerMention]
+  );
 
   // Track if we're updating from external value change (to avoid loops)
   const isExternalUpdate = useRef(false);
 
   // Extract text and mentions from editor value
-  const extractContent = useCallback((editorInstance: typeof editor) => {
-    const textParts: string[] = [];
-    const mentions: MentionableItem["mention"][] = [];
+  const extractContent = useCallback(
+    (editorInstance: typeof editor) => {
+      const textParts: string[] = [];
+      const mentions: MentionableItem["mention"][] = [];
 
-    // Get children from editor instance
-    const editorValue = editorInstance.children;
-    if (!Array.isArray(editorValue)) {
-      return { text: "", mentions: [] };
-    }
+      // Get children from editor instance
+      const editorValue = editorInstance.children;
+      if (!Array.isArray(editorValue)) {
+        return { mentions: [], text: "" };
+      }
 
-    // Create a lookup map for mentionable items by key and text
-    const mentionableByKey = new Map(mentionableItems.map(item => [item.key, item.mention]));
-    const mentionableByText = new Map(mentionableItems.map(item => [item.text, item.mention]));
+      // Create a lookup map for mentionable items by key and text
+      const mentionableByKey = new Map(
+        mentionableItems.map((item) => [item.key, item.mention])
+      );
+      const mentionableByText = new Map(
+        mentionableItems.map((item) => [item.text, item.mention])
+      );
 
-    function traverseChildren(children: unknown[]): void {
-      children.forEach((child) => {
-        if (typeof child !== "object" || child === null) return;
+      function traverseChildren(children: unknown[]): void {
+        for (const child of children) {
+          if (typeof child !== "object" || child === null) {
+            continue;
+          }
 
+          // Check if it's a mention node
+          // Plate mentions can have type "mention" or be identified by having a "value" property
+          // that contains JSON stringified mention data
+          const hasValue = "value" in child && child.value !== null;
+          const isMentionType =
+            "type" in child &&
+            (child.type === "mention" || child.type === "mention_input");
 
-        // Check if it's a mention node
-        // Plate mentions can have type "mention" or be identified by having a "value" property
-        // that contains JSON stringified mention data
-        const hasValue = "value" in child && child.value != null;
-        const isMentionType = "type" in child && (child.type === "mention" || child.type === "mention_input");
-        
-        // Try to parse as mention if it has a value (even if type doesn't match, in case structure is different)
-        if (hasValue || isMentionType) {
-          try {
-            const valueStr = String((hasValue && "value" in child) ? child.value : "");
-            let mentionValue: MentionableItem["mention"] | null = null;
-            
-            // First, try to parse as JSON (mention values should be JSON stringified)
+          // Try to parse as mention if it has a value (even if type doesn't match, in case structure is different)
+          if (hasValue || isMentionType) {
             try {
-              mentionValue = parsePlateMentionValue(valueStr);
-            } catch (e) {
-              // JSON parsing failed, will try lookup below
-            }
-            
-            // If parsing returned null or failed, try to look up by key or text
-            if (!mentionValue && isMentionType) {
-              // Try to find by key first
-              if ("key" in child && typeof child.key === "string") {
-                mentionValue = mentionableByKey.get(child.key) || null;
+              const valueStr = String(
+                hasValue && "value" in child ? child.value : ""
+              );
+              let mentionValue: MentionableItem["mention"] | null = null;
+
+              // First, try to parse as JSON (mention values should be JSON stringified)
+              try {
+                mentionValue = parsePlateMentionValue(valueStr);
+              } catch {
+                // JSON parsing failed, will try lookup below
               }
-              
-              // If not found by key, try to find by the value text (without @)
-              if (!mentionValue && valueStr) {
-                const textWithoutAt = valueStr.startsWith("@") ? valueStr.slice(1) : valueStr;
-                mentionValue = mentionableByText.get(textWithoutAt) || null;
-              }
-              
-              // Last resort: try to find by any text in children
-              if (!mentionValue && "children" in child && Array.isArray(child.children)) {
-                for (const c of child.children) {
-                  if (typeof c === "object" && c !== null && "text" in c) {
-                    const childText = String(c.text);
-                    const textWithoutAt = childText.startsWith("@") ? childText.slice(1) : childText;
-                    mentionValue = mentionableByText.get(textWithoutAt) || null;
-                    if (mentionValue) break;
-                  }
+
+              // If parsing returned null or failed, try to look up by key or text
+              if (!mentionValue && isMentionType) {
+                // Try to find by key first
+                if ("key" in child && typeof child.key === "string") {
+                  mentionValue = mentionableByKey.get(child.key) || null;
                 }
-              }
-            }
-            
-            if (mentionValue) {
-              mentions.push(mentionValue);
-              // Add mention text to output - try multiple ways to get the text
-              let mentionText = "";
-              
-              // Try to get text from children first
-              if ("children" in child && Array.isArray(child.children)) {
-                mentionText = child.children
-                  .map((c) => {
+
+                // If not found by key, try to find by the value text (without @)
+                if (!mentionValue && valueStr) {
+                  const textWithoutAt = valueStr.startsWith("@")
+                    ? valueStr.slice(1)
+                    : valueStr;
+                  mentionValue = mentionableByText.get(textWithoutAt) || null;
+                }
+
+                // Last resort: try to find by any text in children
+                if (
+                  !mentionValue &&
+                  "children" in child &&
+                  Array.isArray(child.children)
+                ) {
+                  for (const c of child.children) {
                     if (typeof c === "object" && c !== null && "text" in c) {
-                      return String(c.text);
+                      const childText = String(c.text);
+                      const textWithoutAt = childText.startsWith("@")
+                        ? childText.slice(1)
+                        : childText;
+                      mentionValue =
+                        mentionableByText.get(textWithoutAt) || null;
+                      if (mentionValue) {
+                        break;
+                      }
                     }
-                    return "";
-                  })
-                  .join("");
-              }
-              
-              // Fallback: try to get text from the mention value or other properties
-              if (!mentionText && "text" in child) {
-                mentionText = String(child.text);
-              }
-              
-              // If we still don't have text, use the label from the mention value
-              if (!mentionText && mentionValue.label) {
-                mentionText = mentionValue.label;
-              }
-              
-              // Last resort: try to extract from the value string itself
-              if (!mentionText && valueStr) {
-                try {
-                  const parsed = JSON.parse(valueStr);
-                  if (parsed && typeof parsed === "object" && "label" in parsed) {
-                    mentionText = String(parsed.label);
                   }
-                } catch (e) {
-                  // Not JSON, ignore
                 }
               }
-              
-              if (mentionText) {
-                // Don't add @ prefix here - it's already in the mention element
-                textParts.push(mentionText);
+
+              if (mentionValue) {
+                mentions.push(mentionValue);
+                // Add mention text to output - try multiple ways to get the text
+                let mentionText = "";
+
+                // Try to get text from children first
+                if ("children" in child && Array.isArray(child.children)) {
+                  mentionText = child.children
+                    .map((c) => {
+                      if (typeof c === "object" && c !== null && "text" in c) {
+                        return String(c.text);
+                      }
+                      return "";
+                    })
+                    .join("");
+                }
+
+                // Fallback: try to get text from the mention value or other properties
+                if (!mentionText && "text" in child) {
+                  mentionText = String(child.text);
+                }
+
+                // If we still don't have text, use the label from the mention value
+                if (!mentionText && mentionValue.label) {
+                  mentionText = mentionValue.label;
+                }
+
+                // Last resort: try to extract from the value string itself
+                if (!mentionText && valueStr) {
+                  try {
+                    const parsed = JSON.parse(valueStr);
+                    if (
+                      parsed &&
+                      typeof parsed === "object" &&
+                      "label" in parsed
+                    ) {
+                      mentionText = String(parsed.label);
+                    }
+                  } catch {
+                    // Not JSON, ignore
+                  }
+                }
+
+                if (mentionText) {
+                  // Don't add @ prefix here - it's already in the mention element
+                  textParts.push(mentionText);
+                }
               }
-              
-              // Skip further processing of this node's children since we've handled it
-              return;
+            } catch {
+              // Not a mention, continue processing
             }
-          } catch (error) {
-            // Not a mention, continue processing
+          }
+
+          // Check if it's a text node (but not inside a mention)
+          else if (
+            "text" in child &&
+            typeof child.text === "string" &&
+            !("type" in child && child.type === "mention")
+          ) {
+            textParts.push(child.text);
+          }
+          // If it has children, traverse them
+          else if ("children" in child && Array.isArray(child.children)) {
+            traverseChildren(child.children);
           }
         }
-        
-        // Check if it's a text node (but not inside a mention)
-        else if ("text" in child && typeof child.text === "string" && !("type" in child && child.type === "mention")) {
-          textParts.push(child.text);
-        }
-        // If it has children, traverse them
-        else if ("children" in child && Array.isArray(child.children)) {
-          traverseChildren(child.children);
-        }
-      });
-    }
-
-    // Traverse all top-level nodes (usually paragraphs)
-    editorValue.forEach((node) => {
-      if (
-        typeof node === "object" &&
-        node !== null &&
-        "children" in node &&
-        Array.isArray(node.children)
-      ) {
-        traverseChildren(node.children);
       }
-    });
 
-    const text = textParts.join("").trim();
+      // Traverse all top-level nodes (usually paragraphs)
+      for (const node of editorValue) {
+        if (
+          typeof node === "object" &&
+          node !== null &&
+          "children" in node &&
+          Array.isArray(node.children)
+        ) {
+          traverseChildren(node.children);
+        }
+      }
 
-    return { text, mentions };
-  }, [mentionableItems]);
+      const text = textParts.join("").trim();
+
+      return { mentions, text };
+    },
+    [mentionableItems]
+  );
 
   // Handle editor changes via Plate's onChange
   // Plate's onChange receives the editor instance
@@ -333,7 +385,7 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
     }
 
     const { text, mentions } = extractContent(editor);
-    
+
     onChange(text);
     onMentionsChange?.(mentions);
   }, [editor, onChange, onMentionsChange, extractContent]);
@@ -344,7 +396,9 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   // Sync external value changes to editor (only when value is cleared externally)
   // This happens after form submission
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
 
     // Only reset if value was cleared externally (went from non-empty to empty)
     const wasCleared = prevValueRef.current !== "" && value === "";
@@ -357,14 +411,17 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
         try {
           editor.tf.setValue(initialValue);
           // Clear any selection and ensure editor is focused
-          editor.tf.select({ anchor: { path: [0, 0], offset: 0 }, focus: { path: [0, 0], offset: 0 } });
+          editor.tf.select({
+            anchor: { offset: 0, path: [0, 0] },
+            focus: { offset: 0, path: [0, 0] },
+          });
           // Ensure editor is enabled and ready
           if (!disabled) {
             // Small delay to ensure editor is fully reset before focusing
             setTimeout(() => {
               try {
                 editor.tf.focus();
-              } catch (focusError) {
+              } catch {
                 // Ignore focus errors
               }
             }, 0);
@@ -379,8 +436,10 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
   // Focus editor when it becomes enabled (status returns to "ready")
   // Also focus after reset to ensure it's ready for input
   useEffect(() => {
-    if (!editor || disabled) return;
-    
+    if (!editor || disabled) {
+      return;
+    }
+
     // Use requestAnimationFrame for better timing
     let timeoutId: NodeJS.Timeout | null = null;
     const rafId = requestAnimationFrame(() => {
@@ -392,7 +451,7 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
           if (text === "" || text.trim() === "") {
             editor.tf.focus();
           }
-        } catch (error) {
+        } catch {
           // Ignore focus errors (editor might not be ready)
         }
       }, 100);
@@ -404,24 +463,23 @@ export const PlateChatInput = forwardRef<PlateChatInputRef, PlateChatInputProps>
         clearTimeout(timeoutId);
       }
     };
-  // Note: extractContent intentionally omitted - focus should only re-run when disabled changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, disabled]);
+    // Note: extractContent intentionally omitted - focus should only re-run when disabled changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, disabled, extractContent]);
 
   return (
-    <div className={cn("w-full min-h-[80px] flex items-start", className)}>
+    <div className={cn("flex min-h-[80px] w-full items-start", className)}>
       <Plate editor={editor} onChange={handleChange}>
-        <EditorContainer variant="select" className="min-h-[80px] flex-1">
+        <EditorContainer className="min-h-[80px] flex-1" variant="select">
           <Editor
-            variant="select"
-            placeholder={placeholder}
-            disabled={disabled}
             autoFocus={autoFocus}
             className="min-h-[80px] py-2"
+            disabled={disabled}
+            placeholder={placeholder}
+            variant="select"
           />
         </EditorContainer>
       </Plate>
     </div>
   );
-});
-
+};

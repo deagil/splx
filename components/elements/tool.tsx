@@ -28,31 +28,31 @@ export const Tool = ({ className, ...props }: ToolProps) => (
   />
 );
 
-export type ToolHeaderProps = {
-  type: ToolUIPart["type"];
-  state: ToolUIPart["state"];
+export interface ToolHeaderProps {
   className?: string;
-};
+  state: ToolUIPart["state"];
+  type: ToolUIPart["type"];
+}
 
 const getStatusBadge = (status: ToolUIPart["state"]) => {
   const labels = {
-    "input-streaming": "Pending",
-    "input-available": "Running",
     "approval-requested": "Awaiting Approval",
     "approval-responded": "Approval Responded",
+    "input-available": "Running",
+    "input-streaming": "Pending",
     "output-available": "Completed",
-    "output-error": "Error",
     "output-denied": "Denied",
+    "output-error": "Error",
   } as const;
 
   const icons = {
-    "input-streaming": <CircleIcon className="size-4" />,
-    "input-available": <ClockIcon className="size-4 animate-pulse" />,
     "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
     "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
+    "input-available": <ClockIcon className="size-4 animate-pulse" />,
+    "input-streaming": <CircleIcon className="size-4" />,
     "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
-    "output-error": <XCircleIcon className="size-4 text-red-600" />,
     "output-denied": <XCircleIcon className="size-4 text-red-600" />,
+    "output-error": <XCircleIcon className="size-4 text-red-600" />,
   } as const;
 
   return (
@@ -145,8 +145,8 @@ export const ToolOutput = ({
             : "bg-muted/50 text-foreground"
         )}
       >
-        {errorText && <div>{errorText}</div>}
-        {output && <div>{output}</div>}
+        {!!errorText && <div>{errorText}</div>}
+        {!!output && <div>{output}</div>}
       </div>
     </div>
   );

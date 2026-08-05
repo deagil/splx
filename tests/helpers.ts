@@ -11,11 +11,11 @@ import { generateId } from "ai";
 import { getUnixTime } from "date-fns";
 import { ChatPage } from "./pages/chat";
 
-export type UserContext = {
+export interface UserContext {
   context: BrowserContext;
   page: Page;
   request: APIRequestContext;
-};
+}
 
 export async function createAuthenticatedContext({
   browser,
@@ -24,7 +24,7 @@ export async function createAuthenticatedContext({
   browser: Browser;
   name: string;
 }): Promise<UserContext> {
-  const directory = path.join(__dirname, "../playwright/.sessions");
+  const directory = path.join(import.meta.dirname, "../playwright/.sessions");
 
   if (!fs.existsSync(directory)) {
     fs.mkdirSync(directory, { recursive: true });

@@ -1,17 +1,14 @@
 import Script from "next/script";
 import { Suspense } from "react";
-import { DataStreamProvider } from "@/components/shared/data-stream-provider";
-import { ChatSidebarWrapper } from "@/components/sidebar/chat-sidebar-wrapper";
-import { CHAT_SIDEBAR_SIDE } from "@/components/sidebar/chat-sidebar-side";
-import { SidebarWidthManager } from "@/components/sidebar/sidebar-width-manager";
-import { ChatSidebarTrigger } from "@/components/sidebar/chat-sidebar-trigger";
 import TopNav from "@/components/custom/topnav";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { DataStreamProvider } from "@/components/shared/data-stream-provider";
+import { CHAT_SIDEBAR_SIDE } from "@/components/sidebar/chat-sidebar-side";
+import { ChatSidebarTrigger } from "@/components/sidebar/chat-sidebar-trigger";
+import { ChatSidebarWrapper } from "@/components/sidebar/chat-sidebar-wrapper";
+import { SidebarWidthManager } from "@/components/sidebar/sidebar-width-manager";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import type { User } from "@/lib/types";
 
 async function AuthenticatedSidebar() {
@@ -22,8 +19,8 @@ async function AuthenticatedSidebar() {
   }
 
   const user: User = {
-    id: authUser.id,
     email: authUser.email ?? null,
+    id: authUser.id,
     name: authUser.email?.split("@")[0] ?? null,
     type: "regular" as const,
   };
@@ -31,11 +28,7 @@ async function AuthenticatedSidebar() {
   return <ChatSidebarWrapper user={user} />;
 }
 
-export default function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   // Keep auth/cookies inside Suspense and render {children} as a sibling so
   // Instant can ship the page shell without waiting on getUser().
   return (
@@ -70,7 +63,7 @@ export default function Layout({
           >
             <header className="flex h-16 shrink-0 items-center gap-2 px-3.5">
               {CHAT_SIDEBAR_SIDE === "left" ? <ChatSidebarTrigger /> : null}
-              <div className="mx-auto flex min-w-0 w-full max-w-6xl items-center">
+              <div className="mx-auto flex w-full min-w-0 max-w-6xl items-center">
                 <TopNav />
               </div>
               {CHAT_SIDEBAR_SIDE === "right" ? <ChatSidebarTrigger /> : null}

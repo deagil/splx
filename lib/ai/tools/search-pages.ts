@@ -1,20 +1,11 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { listPages } from "@/lib/server/pages/repository";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
+
+const whitespaceSplitRegex = /\s+/;
 
 const inputSchema = z.object({
-  query: z
-    .string()
-    .optional()
-    .describe(
-      "Search term for page name or description. Leave empty to list all pages."
-    ),
-  includeParams: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe("Include URL parameter requirements in results (default true)"),
   includeBlocks: z
     .boolean()
     .optional()
@@ -22,18 +13,20 @@ const inputSchema = z.object({
     .describe(
       "Include block information to understand what data sources the page uses (default false)"
     ),
+  includeParams: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Include URL parameter requirements in results (default true)"),
+  query: z
+    .string()
+    .optional()
+    .describe(
+      "Search term for page name or description. Leave empty to list all pages."
+    ),
 });
 
-export type PageSearchResult = {
-  id: string;
-  name: string;
-  description: string | null;
-  url: string;
-  urlParams?: Array<{
-    name: string;
-    required: boolean;
-    description?: string;
-  }>;
+export interface PageSearchResult {
   blocks?: Array<{
     id: string;
     type: string;
@@ -42,7 +35,16 @@ export type PageSearchResult = {
       [key: string]: unknown;
     };
   }>;
-};
+  description: string | null;
+  id: string;
+  name: string;
+  url: string;
+  urlParams?: Array<{
+    name: string;
+    required: boolean;
+    description?: string;
+  }>;
+}
 
 /**
  * AI Tool: Search pages in the current workspace
@@ -58,9 +60,13 @@ export type PageSearchResult = {
  * - Uses existing pages repository (respects workspace isolation)
  */
 export const searchPages = tool({
-  description: `Search for pages in the current workspace. Returns page metadata including URL parameters that may be required. Use this to find pages before navigating, especially when you need to know what parameters a page requires (like userId for a profile page).`,
-  inputSchema,
-  execute: async ({ query, includeParams, includeBlocks }): Promise<{
+  description:
+    "Search for pages in the current workspace. Returns page metadata including URL parameters that may be required. Use this to find pages before navigating, especially when you need to know what parameters a page requires (like userId for a profile page).",
+  execute: async ({
+    query,
+    includeParams,
+    includeBlocks,
+  }): Promise<{
     pages: PageSearchResult[];
     totalCount: number;
     message: string;
@@ -71,9 +77,9 @@ export const searchPages = tool({
     let results = allPages;
 
     // Filter by search query if provided
-    if (query && query.trim()) {
+    if (query?.trim()) {
       const searchLower = query.toLowerCase().trim();
-      const searchWords = searchLower.split(/\s+/);
+      const searchWords = searchLower.split(whitespaceSplitRegex);
 
       results = allPages.filter((page) => {
         const nameLower = page.name.toLowerCase();
@@ -91,20 +97,26 @@ export const searchPages = tool({
         const bNameLower = b.name.toLowerCase();
 
         // Exact match first
-        if (aNameLower === searchLower && bNameLower !== searchLower) return -1;
-        if (bNameLower === searchLower && aNameLower !== searchLower) return 1;
+        if (aNameLower === searchLower && bNameLower !== searchLower) {
+          return -1;
+        }
+        if (bNameLower === searchLower && aNameLower !== searchLower) {
+          return 1;
+        }
 
         // Starts with second
         if (
           aNameLower.startsWith(searchLower) &&
           !bNameLower.startsWith(searchLower)
-        )
+        ) {
           return -1;
+        }
         if (
           bNameLower.startsWith(searchLower) &&
           !aNameLower.startsWith(searchLower)
-        )
+        ) {
           return 1;
+        }
 
         // Otherwise alphabetical
         return aNameLower.localeCompare(bNameLower);
@@ -114,9 +126,9 @@ export const searchPages = tool({
     // Map to result format
     const pages: PageSearchResult[] = results.map((page) => {
       const result: PageSearchResult = {
+        description: page.description,
         id: page.id,
         name: page.name,
-        description: page.description,
         url: `/app/pages/${page.id}`,
       };
 
@@ -125,9 +137,9 @@ export const searchPages = tool({
         const urlParams = page.settings?.urlParams;
         if (urlParams && Array.isArray(urlParams)) {
           result.urlParams = urlParams.map((param) => ({
+            description: param.description,
             name: param.name,
             required: param.required ?? true,
-            description: param.description,
           }));
         } else {
           result.urlParams = [];
@@ -137,9 +149,9 @@ export const searchPages = tool({
       // Include block info if requested
       if (includeBlocks && page.blocks) {
         result.blocks = page.blocks.map((block) => ({
+          dataSource: block.dataSource as { tableName?: string } | undefined,
           id: block.id,
           type: block.type,
-          dataSource: block.dataSource as { tableName?: string } | undefined,
         }));
       }
 
@@ -151,9 +163,10 @@ export const searchPages = tool({
       : `Found ${pages.length} page(s) in workspace`;
 
     return {
+      message,
       pages,
       totalCount: pages.length,
-      message,
     };
   },
+  inputSchema,
 });

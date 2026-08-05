@@ -2,38 +2,38 @@ import { eq } from "drizzle-orm";
 import { role, workspace } from "@/lib/db/schema";
 import type { DbClient } from "./context";
 
-type RoleDefinition = {
+interface RoleDefinition {
+  description: string;
   id: string;
   label: string;
-  description: string;
   level: number;
-};
+}
 
 export const DEFAULT_ROLE_DEFINITIONS: RoleDefinition[] = [
   {
+    description: "Full access to all workspace features",
     id: "admin",
     label: "Admin",
-    description: "Full access to all workspace features",
     level: 100,
   },
   {
-    id: "builder",
-    label: "Builder",
     description:
       "Builder access for creating pages, data models, and automations; limited billing/workspace settings",
+    id: "builder",
+    label: "Builder",
     level: 80,
   },
   {
-    id: "user",
-    label: "User",
     description:
       "Standard member access for using configured pages, buttons, and tools without changing core systems",
+    id: "user",
+    label: "User",
     level: 50,
   },
   {
+    description: "Read-only access to workspace data and pages",
     id: "viewer",
     label: "Viewer",
-    description: "Read-only access to workspace data and pages",
     level: 10,
   },
 ];
@@ -55,12 +55,12 @@ export async function seedDefaultRoles(db: DbClient, workspaceId: string) {
       .insert(role)
       .values(
         DEFAULT_ROLE_DEFINITIONS.map((definition) => ({
-          workspace_id: workspaceId,
+          description: definition.description,
           id: definition.id,
           label: definition.label,
-          description: definition.description,
           level: definition.level,
-        })),
+          workspace_id: workspaceId,
+        }))
       )
       .onConflictDoNothing();
   } catch (error) {

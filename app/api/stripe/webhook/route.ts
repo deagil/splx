@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { workspace } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { type NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import type Stripe from "stripe";
+import { workspace } from "@/lib/db/schema";
 import { getAppMode } from "@/lib/server/tenant/context";
-import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import Stripe from "stripe";
+import { stripe } from "@/lib/stripe";
 
 const relevantEvents = new Set([
   "checkout.session.completed",
@@ -80,7 +79,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session
+) {
   const workspaceId = session.metadata?.workspaceId;
   if (!workspaceId) {
     console.error("No workspace ID in checkout session metadata");
@@ -103,7 +104,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Retrieve subscription to get trial end and current period end
-  const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscriptionResponse =
+    await stripe.subscriptions.retrieve(subscriptionId);
   const subscriptionData = subscriptionResponse as unknown as {
     items: { data: Array<{ price: { id: string } }> };
     current_period_end: number | null;
@@ -112,13 +114,17 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   };
 
   await updateWorkspaceSubscription(workspaceId, {
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subscriptionId,
-    stripe_price_id: subscriptionData.items.data[0]?.price.id ?? null,
+    plan:
+      subscriptionData.status === "trialing" ||
+      subscriptionData.status === "active"
+        ? "plus"
+        : "lite",
     stripe_current_period_end: subscriptionData.current_period_end
       ? new Date(subscriptionData.current_period_end * 1000)
       : null,
-    plan: subscriptionData.status === "trialing" || subscriptionData.status === "active" ? "plus" : "lite",
+    stripe_customer_id: customerId,
+    stripe_price_id: subscriptionData.items.data[0]?.price.id ?? null,
+    stripe_subscription_id: subscriptionId,
   });
 }
 
@@ -132,9 +138,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       ? invoiceData.subscription
       : invoiceData.subscription?.id;
 
-  if (!subscriptionId) return;
+  if (!subscriptionId) {
+    return;
+  }
 
-  const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscriptionResponse =
+    await stripe.subscriptions.retrieve(subscriptionId);
   const subscriptionData = subscriptionResponse as unknown as {
     current_period_end: number | null;
     metadata?: { workspaceId?: string };
@@ -148,14 +157,14 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   }
 
   await updateWorkspaceSubscription(workspaceId, {
+    plan: "plus",
     stripe_current_period_end: subscriptionData.current_period_end
       ? new Date(subscriptionData.current_period_end * 1000)
       : null,
-    plan: "plus",
   });
 }
 
-async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   // Log payment failure - you may want to send email notifications
   console.error("Invoice payment failed:", invoice.id);
   // Optionally downgrade the workspace or set a flag
@@ -169,18 +178,21 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     current_period_end: number | null;
   };
   const workspaceId = subscriptionData.metadata?.workspaceId;
-  if (!workspaceId) return;
+  if (!workspaceId) {
+    return;
+  }
 
   const plan =
-    subscriptionData.status === "active" || subscriptionData.status === "trialing"
+    subscriptionData.status === "active" ||
+    subscriptionData.status === "trialing"
       ? "plus"
       : "lite";
 
   await updateWorkspaceSubscription(workspaceId, {
+    plan,
     stripe_current_period_end: subscriptionData.current_period_end
       ? new Date(subscriptionData.current_period_end * 1000)
       : null,
-    plan,
   });
 }
 
@@ -189,13 +201,15 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     metadata?: { workspaceId?: string };
   };
   const workspaceId = subscriptionData.metadata?.workspaceId;
-  if (!workspaceId) return;
+  if (!workspaceId) {
+    return;
+  }
 
   await updateWorkspaceSubscription(workspaceId, {
-    stripe_subscription_id: null,
-    stripe_price_id: null,
-    stripe_current_period_end: null,
     plan: "lite",
+    stripe_current_period_end: null,
+    stripe_price_id: null,
+    stripe_subscription_id: null,
   });
 }
 

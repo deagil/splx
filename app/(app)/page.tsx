@@ -1,13 +1,13 @@
-import { redirect } from "next/navigation";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
-import { user } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { redirect } from "next/navigation";
 import postgres from "postgres";
 import MarketingPage from "@/components/marketing/landing-page";
-import DashboardContent from "../dashboard-content";
+import { type User, user } from "@/lib/db/schema";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import DashboardContent from "../dashboard-content";
 
 async function RootPageContent() {
   const authUser = await getAuthenticatedUser();
@@ -20,15 +20,19 @@ async function RootPageContent() {
   // If authenticated, check onboarding status
   // In hosted mode, user is a system table in main database
   // In local mode, it's in tenant database via resource store
-  let userRecord;
+  let userRecord: User | undefined;
   const mode = getAppMode();
-  
+
   try {
     if (mode === "hosted") {
       // Query from main database directly
-      const sql = postgres(process.env.POSTGRES_URL!);
+      const postgresUrl = process.env.POSTGRES_URL;
+      if (!postgresUrl) {
+        throw new Error("POSTGRES_URL is not set");
+      }
+      const sql = postgres(postgresUrl);
       const db = drizzle(sql);
-      
+
       try {
         [userRecord] = await db
           .select()
@@ -66,4 +70,3 @@ async function RootPageContent() {
 export default function RootPage() {
   return <RootPageContent />;
 }
-

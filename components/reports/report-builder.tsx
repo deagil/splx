@@ -1,51 +1,44 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { BarChart3 } from "lucide-react";
-import { toast } from "@/components/shared/toast";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
   AIWizardLayout,
+  useAIWizardStream,
   WizardConversationPanel,
-  WizardPreviewPanel,
-  WizardStepRenderer,
   WizardInput,
   WizardLoading,
-  useAIWizardStream,
+  WizardPreviewPanel,
+  WizardStepRenderer,
 } from "@/components/ai-wizard";
-import { ReportPreview } from "./report-preview";
+import { toast } from "@/components/shared/toast";
 import { Button } from "@/components/ui/button";
-import type { ReportUI, ReportData } from "@/lib/ai/reports-ui-schema";
+import type { ReportData, ReportUI } from "@/lib/ai/reports-ui-schema";
+import { ReportPreview } from "./report-preview";
 
 export function ReportBuilder() {
   const router = useRouter();
   const [isStarted, setIsStarted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [queryResult, setQueryResult] = useState<Array<Record<string, unknown>>>();
-  const [isExecutingQuery, setIsExecutingQuery] = useState(false);
+  const [queryResult, setQueryResult] = useState<Record<string, unknown>[]>();
+  const [_isExecutingQuery, setIsExecutingQuery] = useState(false);
 
-  const {
-    start,
-    respond,
-    reset,
-    isStreaming,
-    currentUI,
-    previewData,
-    error,
-  } = useAIWizardStream<ReportUI, ReportData>({
-    endpoint: "/api/reports/generate",
-    eventType: "report-ui",
-    getPreviewFromUI: (ui) => ui.report,
-  });
+  const { start, respond, reset, isStreaming, currentUI, previewData, error } =
+    useAIWizardStream<ReportUI, ReportData>({
+      endpoint: "/api/reports/generate",
+      eventType: "report-ui",
+      getPreviewFromUI: (ui) => ui.report,
+    });
 
   // Execute query when previewData changes
   useEffect(() => {
     if (previewData?.sql && !isStreaming) {
       setIsExecutingQuery(true);
       fetch("/api/reports/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sql: previewData.sql }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       })
         .then((res) => res.json())
         .then((result) => {
@@ -70,8 +63,8 @@ export function ReportBuilder() {
       } catch {
         // Error is already set in the hook
         toast({
-          type: "error",
           description: error || "Failed to start report generation",
+          type: "error",
         });
       }
     },
@@ -84,8 +77,8 @@ export function ReportBuilder() {
         await respond(response);
       } catch {
         toast({
-          type: "error",
           description: error || "Failed to process response",
+          type: "error",
         });
       }
     },
@@ -98,30 +91,32 @@ export function ReportBuilder() {
   }, [reset]);
 
   const handleSave = useCallback(async () => {
-    if (!previewData) return;
+    if (!previewData) {
+      return;
+    }
 
     // Generate a unique ID from the title
     const baseId = previewData.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .substring(0, 50);
-    const uniqueSuffix = Math.random().toString(36).substring(2, 8);
+      .slice(0, 50);
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
     const reportId = `${baseId}-${uniqueSuffix}`;
 
     setIsSaving(true);
     try {
       const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: reportId,
-          title: previewData.title,
-          description: previewData.description,
-          sql: previewData.sql,
-          chart_type: previewData.chart_type,
           chart_config: previewData.chart_config,
+          chart_type: previewData.chart_type,
+          description: previewData.description,
+          id: reportId,
+          sql: previewData.sql,
+          title: previewData.title,
         }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -131,15 +126,15 @@ export function ReportBuilder() {
 
       const data = await response.json();
       toast({
-        type: "success",
         description: "Report saved successfully",
+        type: "success",
       });
 
       router.push(`/data/reports/${data.report?.id || data.id}`);
     } catch (e) {
       toast({
-        type: "error",
         description: e instanceof Error ? e.message : "Failed to save report",
+        type: "error",
       });
     } finally {
       setIsSaving(false);
@@ -147,13 +142,15 @@ export function ReportBuilder() {
   }, [previewData, router]);
 
   const handleImprove = useCallback(async () => {
-    if (!previewData) return;
+    if (!previewData) {
+      return;
+    }
     try {
       await start("Please improve this report further", "refine", previewData);
     } catch {
       toast({
-        type: "error",
         description: "Failed to request improvement",
+        type: "error",
       });
     }
   }, [previewData, start]);
@@ -167,15 +164,16 @@ export function ReportBuilder() {
             <div className="mb-4 inline-flex rounded-full bg-primary/10 p-4">
               <BarChart3 className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold">Create a New Report</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Describe the insight you want to visualize and AI will generate the SQL and chart configuration.
+            <h3 className="font-semibold text-lg">Create a New Report</h3>
+            <p className="mt-2 text-muted-foreground text-sm">
+              Describe the insight you want to visualize and AI will generate
+              the SQL and chart configuration.
             </p>
           </div>
           <WizardInput
+            onSubmit={handleStart}
             placeholder="e.g., Show total order value by status for the last 6 months..."
             submitLabel="Generate Report"
-            onSubmit={handleStart}
           />
         </div>
       );
@@ -185,8 +183,8 @@ export function ReportBuilder() {
     if (isStreaming) {
       return (
         <WizardLoading
-          title="Generating report..."
           description="AI is analyzing your request and creating the report"
+          title="Generating report..."
         />
       );
     }
@@ -196,9 +194,9 @@ export function ReportBuilder() {
       return (
         <div className="space-y-4">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            <p className="font-medium text-destructive text-sm">{error}</p>
           </div>
-          <Button variant="outline" onClick={handleCancel} className="w-full">
+          <Button className="w-full" onClick={handleCancel} variant="outline">
             Start Over
           </Button>
         </div>
@@ -212,22 +210,24 @@ export function ReportBuilder() {
       if (type === "final-report" && previewData) {
         return (
           <WizardStepRenderer
-            type="final"
-            message={message}
             data={previewData}
+            improveLabel="Improve Further"
+            isSaving={isSaving}
+            message={message}
+            onImprove={handleImprove}
+            onSave={handleSave}
             renderPreview={(data) => (
               <div className="space-y-2">
                 <p className="font-medium">{data.title}</p>
-                {data.description && (
-                  <p className="text-xs text-muted-foreground">{data.description}</p>
+                {!!data.description && (
+                  <p className="text-muted-foreground text-xs">
+                    {data.description}
+                  </p>
                 )}
               </div>
             )}
-            onSave={handleSave}
-            onImprove={handleImprove}
-            isSaving={isSaving}
             saveLabel="Save & View Report"
-            improveLabel="Improve Further"
+            type="final"
           />
         );
       }
@@ -235,9 +235,9 @@ export function ReportBuilder() {
       if (type === "clarification") {
         return (
           <WizardStepRenderer
-            type="clarification"
             message={message}
             onSubmit={handleRespond}
+            type="clarification"
           />
         );
       }
@@ -245,10 +245,12 @@ export function ReportBuilder() {
       if (type === "variants") {
         return (
           <WizardStepRenderer
-            type="variants"
             message={message}
-            options={options?.map((o) => ({ label: o.label, value: o.value })) ?? []}
             onSelect={handleRespond}
+            options={
+              options?.map((o) => ({ label: o.label, value: o.value })) ?? []
+            }
+            type="variants"
           />
         );
       }
@@ -256,10 +258,12 @@ export function ReportBuilder() {
       // Default to question type
       return (
         <WizardStepRenderer
-          type="question"
           message={message}
-          options={options?.map((o) => ({ label: o.label, value: o.value })) ?? []}
           onSelect={handleRespond}
+          options={
+            options?.map((o) => ({ label: o.label, value: o.value })) ?? []
+          }
+          type="question"
         />
       );
     }
@@ -271,21 +275,25 @@ export function ReportBuilder() {
     <AIWizardLayout
       conversationPanel={
         <WizardConversationPanel
-          title="Report Builder"
           description="Describe the insight you need and AI will create the report for you."
           onCancel={isStarted ? handleCancel : undefined}
+          title="Report Builder"
         >
           {renderConversationContent()}
         </WizardConversationPanel>
       }
       previewPanel={
         <WizardPreviewPanel
-          isEmpty={!previewData && !isStreaming}
+          emptyDescription="Describe what you want to analyze and the report will appear here as it's being generated."
           emptyIcon={<BarChart3 className="h-8 w-8 text-muted-foreground" />}
           emptyMessage="Report preview"
-          emptyDescription="Describe what you want to analyze and the report will appear here as it's being generated."
+          isEmpty={!previewData && !isStreaming}
         >
-          <ReportPreview report={previewData} isLoading={isStreaming} queryResult={queryResult} />
+          <ReportPreview
+            isLoading={isStreaming}
+            queryResult={queryResult}
+            report={previewData}
+          />
         </WizardPreviewPanel>
       }
     />

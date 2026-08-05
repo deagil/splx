@@ -48,4 +48,3 @@ export function filterMentionableItems(
       item.description?.toLowerCase().includes(lowerSearch)
   );
 }
-

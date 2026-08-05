@@ -1,20 +1,22 @@
-import { notFound } from "next/navigation";
+import { ArrowLeft, BarChart3, Code2, Table2 } from "lucide-react";
 import Link from "next/link";
-import { ArrowLeft, Code2, BarChart3, Table2 } from "lucide-react";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
-import { requireCapability } from "@/lib/server/tenant/permissions";
-import { getReport } from "@/lib/server/reports/repository";
-import { runReportQuery } from "@/lib/server/reports/run-query";
+import { notFound } from "next/navigation";
 import { ReportChart } from "@/components/reports/report-chart";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { getReport } from "@/lib/server/reports/repository";
+import { runReportQuery } from "@/lib/server/reports/run-query";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
+import { requireCapability } from "@/lib/server/tenant/permissions";
 
-type ReportDetailPageProps = {
+interface ReportDetailPageProps {
   params: Promise<{ reportId: string }>;
-};
+}
 
-export default async function ReportDetailPage({ params }: ReportDetailPageProps) {
+export default async function ReportDetailPage({
+  params,
+}: ReportDetailPageProps) {
   const tenant = await resolveTenantContext();
   requireCapability(tenant, "tables.view");
 
@@ -25,7 +27,7 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
     notFound();
   }
 
-  let data: Array<Record<string, unknown>> = [];
+  let data: Record<string, unknown>[] = [];
   let queryError: string | null = null;
 
   try {
@@ -42,19 +44,19 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+            <Button asChild className="h-8 w-8" size="icon" variant="ghost">
               <Link href="/data/reports">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold">{report.title}</h1>
+            <h1 className="font-bold text-2xl">{report.title}</h1>
           </div>
-          {report.description && (
+          {!!report.description && (
             <p className="ml-11 text-muted-foreground">{report.description}</p>
           )}
         </div>
-        {report.chart_type && (
-          <Badge variant="secondary" className="gap-1.5">
+        {!!report.chart_type && (
+          <Badge className="gap-1.5" variant="secondary">
             <BarChart3 className="h-3 w-3" />
             {report.chart_type}
           </Badge>
@@ -72,17 +74,19 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
         <CardContent>
           {queryError ? (
             <div className="flex h-64 items-center justify-center rounded-lg border border-destructive/50 bg-destructive/10">
-              <p className="text-sm text-destructive">{queryError}</p>
+              <p className="text-destructive text-sm">{queryError}</p>
             </div>
           ) : data.length === 0 ? (
             <div className="flex h-64 items-center justify-center rounded-lg border bg-muted/30">
-              <p className="text-sm text-muted-foreground">No data returned by query</p>
+              <p className="text-muted-foreground text-sm">
+                No data returned by query
+              </p>
             </div>
           ) : (
             <ReportChart
-              data={data}
-              chartType={report.chart_type}
               chartConfig={report.chart_config}
+              chartType={report.chart_type}
+              data={data}
             />
           )}
         </CardContent>
@@ -98,7 +102,7 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
         </CardHeader>
         <CardContent>
           <div className="rounded-md border bg-muted/50 p-4">
-            <pre className="overflow-x-auto text-sm font-mono text-foreground whitespace-pre-wrap">
+            <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-foreground text-sm">
               {report.sql}
             </pre>
           </div>
@@ -112,7 +116,7 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
             <Table2 className="h-4 w-4 text-muted-foreground" />
             Data
             {data.length > 0 && (
-              <Badge variant="outline" className="ml-2 text-xs font-normal">
+              <Badge className="ml-2 font-normal text-xs" variant="outline">
                 {data.length} {data.length === 1 ? "row" : "rows"}
               </Badge>
             )}
@@ -121,11 +125,13 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
         <CardContent>
           {queryError ? (
             <div className="flex h-32 items-center justify-center rounded-lg border border-destructive/50 bg-destructive/10">
-              <p className="text-sm text-destructive">{queryError}</p>
+              <p className="text-destructive text-sm">{queryError}</p>
             </div>
           ) : data.length === 0 ? (
             <div className="flex h-32 items-center justify-center rounded-lg border bg-muted/30">
-              <p className="text-sm text-muted-foreground">No data returned by query</p>
+              <p className="text-muted-foreground text-sm">
+                No data returned by query
+              </p>
             </div>
           ) : (
             <div className="max-h-96 overflow-auto rounded-md border">
@@ -134,8 +140,8 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
                   <tr>
                     {columns.map((col) => (
                       <th
-                        key={col}
                         className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground"
+                        key={col}
                       >
                         {col}
                       </th>
@@ -144,9 +150,9 @@ export default async function ReportDetailPage({ params }: ReportDetailPageProps
                 </thead>
                 <tbody>
                   {data.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="border-b last:border-0">
+                    <tr className="border-b last:border-0" key={rowIndex}>
                       {columns.map((col) => (
-                        <td key={col} className="whitespace-nowrap px-4 py-3">
+                        <td className="whitespace-nowrap px-4 py-3" key={col}>
                           {formatCellValue(row[col])}
                         </td>
                       ))}

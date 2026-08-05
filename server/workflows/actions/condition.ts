@@ -50,20 +50,20 @@ export function evaluateCondition(input: ConditionInput): boolean {
 }
 
 export const conditionAction: WorkflowAction<typeof conditionInputSchema> = {
-  type: "condition",
-  schema: conditionInputSchema,
   async execute(input) {
     const result = evaluateCondition(input);
     return {
       output: {
-        result,
         evaluated: {
           left: input.left,
           operator: input.operator,
           right: input.right ?? null,
         },
+        result,
       },
       stop: !result,
     };
   },
+  schema: conditionInputSchema,
+  type: "condition",
 };

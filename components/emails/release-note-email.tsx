@@ -1,30 +1,29 @@
 import {
-  Html,
-  Head,
-  Preview,
   Body,
   Container,
-  Section,
+  Head,
   Heading,
-  Text,
-  Img,
-  Link,
   Hr,
-} from '@react-email/components'
-import type { ReleaseNote } from '@/lib/types/releases'
-import { EmailContentBlocks } from './email-content-block'
+  Html,
+  Link,
+  Preview,
+  Section,
+  Text,
+} from "@react-email/components";
+import type { ReleaseNote } from "@/lib/types/releases";
+import { EmailContentBlocks } from "./email-content-block";
 
-type ReleaseNoteEmailProps = {
-  release: ReleaseNote
-  baseUrl?: string
+interface ReleaseNoteEmailProps {
+  baseUrl?: string;
+  release: ReleaseNote;
 }
 
 export function ReleaseNoteEmail({
   release,
-  baseUrl = 'https://suplex.studio',
+  baseUrl = "https://suplex.studio",
 }: ReleaseNoteEmailProps) {
   const previewText =
-    release.emailPreviewText ?? `${release.title} - ${release.publicationName}`
+    release.emailPreviewText ?? `${release.title} - ${release.publicationName}`;
 
   return (
     <Html>
@@ -47,7 +46,7 @@ export function ReleaseNoteEmail({
             <Heading as="h1" style={titleStyle}>
               {release.title}
             </Heading>
-            {release.subtitle && (
+            {!!release.subtitle && (
               <Text style={subtitleStyle}>{release.subtitle}</Text>
             )}
           </Section>
@@ -56,7 +55,7 @@ export function ReleaseNoteEmail({
 
           {/* Content Sections */}
           <Section style={contentSectionStyle}>
-            <EmailContentBlocks sections={release.sections} baseUrl={baseUrl} />
+            <EmailContentBlocks baseUrl={baseUrl} sections={release.sections} />
           </Section>
 
           <Hr style={dividerStyle} />
@@ -68,10 +67,13 @@ export function ReleaseNoteEmail({
               Weekly.
             </Text>
             <Text style={footerLinksStyle}>
-              <Link href={`${baseUrl}/whats-new/${release.slug}`} style={linkStyle}>
+              <Link
+                href={`${baseUrl}/whats-new/${release.slug}`}
+                style={linkStyle}
+              >
                 View in browser
               </Link>
-              {' • '}
+              {" • "}
               <Link href={`${baseUrl}/unsubscribe`} style={linkStyle}>
                 Unsubscribe
               </Link>
@@ -83,107 +85,107 @@ export function ReleaseNoteEmail({
         </Container>
       </Body>
     </Html>
-  )
+  );
 }
 
 // Styles
 const bodyStyle = {
-  backgroundColor: '#f6f9fc',
+  backgroundColor: "#f6f9fc",
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  margin: '0',
-  padding: '40px 0',
-}
+  margin: "0",
+  padding: "40px 0",
+};
 
 const containerStyle = {
-  backgroundColor: '#ffffff',
-  margin: '0 auto',
-  maxWidth: '600px',
-  borderRadius: '8px',
-  overflow: 'hidden' as const,
-  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-}
+  backgroundColor: "#ffffff",
+  borderRadius: "8px",
+  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+  margin: "0 auto",
+  maxWidth: "600px",
+  overflow: "hidden" as const,
+};
 
 const headerStyle = {
-  padding: '32px 40px 16px',
-  textAlign: 'center' as const,
-}
+  padding: "32px 40px 16px",
+  textAlign: "center" as const,
+};
 
 const publicationNameStyle = {
-  fontSize: '14px',
-  fontWeight: '600' as const,
-  color: '#6b7280',
-  letterSpacing: '0.05em',
-  textTransform: 'uppercase' as const,
-  margin: '0 0 8px 0',
-}
+  color: "#6b7280",
+  fontSize: "14px",
+  fontWeight: "600" as const,
+  letterSpacing: "0.05em",
+  margin: "0 0 8px 0",
+  textTransform: "uppercase" as const,
+};
 
 const issueInfoStyle = {
-  fontSize: '13px',
-  color: '#9ca3af',
-  margin: '0',
-}
+  color: "#9ca3af",
+  fontSize: "13px",
+  margin: "0",
+};
 
 const titleSectionStyle = {
-  padding: '16px 40px 24px',
-  textAlign: 'center' as const,
-}
+  padding: "16px 40px 24px",
+  textAlign: "center" as const,
+};
 
 const titleStyle = {
-  fontSize: '32px',
-  lineHeight: '40px',
-  fontWeight: '700' as const,
-  color: '#1a1a1a',
-  margin: '0 0 12px 0',
-}
+  color: "#1a1a1a",
+  fontSize: "32px",
+  fontWeight: "700" as const,
+  lineHeight: "40px",
+  margin: "0 0 12px 0",
+};
 
 const subtitleStyle = {
-  fontSize: '18px',
-  lineHeight: '26px',
-  color: '#6b7280',
-  margin: '0',
-}
+  color: "#6b7280",
+  fontSize: "18px",
+  lineHeight: "26px",
+  margin: "0",
+};
 
 const dividerStyle = {
-  borderColor: '#e5e7eb',
-  borderTopWidth: '1px',
-  margin: '0 40px',
-}
+  borderColor: "#e5e7eb",
+  borderTopWidth: "1px",
+  margin: "0 40px",
+};
 
 const contentSectionStyle = {
-  padding: '32px 40px',
-}
+  padding: "32px 40px",
+};
 
 const footerStyle = {
-  padding: '24px 40px 32px',
-  textAlign: 'center' as const,
-  backgroundColor: '#f9fafb',
-}
+  backgroundColor: "#f9fafb",
+  padding: "24px 40px 32px",
+  textAlign: "center" as const,
+};
 
 const footerTextStyle = {
-  fontSize: '13px',
-  lineHeight: '20px',
-  color: '#9ca3af',
-  margin: '0 0 12px 0',
-}
+  color: "#9ca3af",
+  fontSize: "13px",
+  lineHeight: "20px",
+  margin: "0 0 12px 0",
+};
 
 const footerLinksStyle = {
-  fontSize: '13px',
-  lineHeight: '20px',
-  color: '#6b7280',
-  margin: '0 0 16px 0',
-}
+  color: "#6b7280",
+  fontSize: "13px",
+  lineHeight: "20px",
+  margin: "0 0 16px 0",
+};
 
 const linkStyle = {
-  color: '#3b82f6',
-  textDecoration: 'underline',
-}
+  color: "#3b82f6",
+  textDecoration: "underline",
+};
 
 const copyrightStyle = {
-  fontSize: '12px',
-  color: '#9ca3af',
-  margin: '0',
-}
+  color: "#9ca3af",
+  fontSize: "12px",
+  margin: "0",
+};
 
 // Export default for direct import
-export default ReleaseNoteEmail
+export default ReleaseNoteEmail;

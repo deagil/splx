@@ -15,15 +15,15 @@ export type SystemEventName =
   | `db.${string}.updated`
   | `db.${string}.deleted`;
 
-export type EventInput = {
-  workspaceId: string;
-  eventName: SystemEventName | string;
-  payload?: Record<string, unknown>;
+export interface EventInput {
   actorUserId?: string | null;
-  requestId?: string | null;
   /** When set, schedule rows inherit depth + 1 for the recursion guard. */
   causedByRunId?: string | null;
-};
+  eventName: SystemEventName | string;
+  payload?: Record<string, unknown>;
+  requestId?: string | null;
+  workspaceId: string;
+}
 
 /**
  * Inserts a fact into `event_logs` and fans out matching enabled workflows into
@@ -41,16 +41,16 @@ export async function emitEvent(event: EventInput): Promise<void> {
       const [inserted] = await tx
         .insert(eventLog)
         .values({
-          workspace_id: event.workspaceId,
+          actor_user_id: event.actorUserId ?? null,
+          caused_by_run_id: event.causedByRunId ?? null,
           event_name: event.eventName,
           payload: event.payload ?? {},
-          actor_user_id: event.actorUserId ?? null,
           request_id: event.requestId ?? null,
-          caused_by_run_id: event.causedByRunId ?? null,
+          workspace_id: event.workspaceId,
         })
         .returning({
-          id: eventLog.id,
           causedByRunId: eventLog.caused_by_run_id,
+          id: eventLog.id,
         });
 
       if (!inserted) {
@@ -92,11 +92,7 @@ export async function emitEvent(event: EventInput): Promise<void> {
         await tx
           .insert(workflowSchedule)
           .values({
-            workspace_id: event.workspaceId,
-            workflow_id: match.id,
-            event_id: inserted.id,
-            status: "pending",
-            trigger_source: "event",
+            actor_user_id: event.actorUserId ?? null,
             context: {
               event: {
                 id: inserted.id,
@@ -106,8 +102,12 @@ export async function emitEvent(event: EventInput): Promise<void> {
               steps: [],
             },
             depth,
-            actor_user_id: event.actorUserId ?? null,
+            event_id: inserted.id,
             request_id: event.requestId ?? null,
+            status: "pending",
+            trigger_source: "event",
+            workflow_id: match.id,
+            workspace_id: event.workspaceId,
           })
           .onConflictDoNothing();
       }
@@ -116,9 +116,9 @@ export async function emitEvent(event: EventInput): Promise<void> {
     scheduleTick();
   } catch (error) {
     console.error("[events] failed to emit event", {
+      error: error instanceof Error ? error.message : String(error),
       eventName: event.eventName,
       requestId: event.requestId,
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }

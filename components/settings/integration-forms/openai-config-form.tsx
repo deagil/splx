@@ -13,22 +13,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type OpenAiFormState = {
+interface OpenAiFormState {
   apiKey: string;
   organization: string;
-};
+}
 
 const OPENAI_DEFAULT_STATE: OpenAiFormState = {
   apiKey: "",
   organization: "",
 };
 
-type OpenAIConfigFormProps = {
-  metadata?: Record<string, unknown>;
-  onSuccess?: () => void;
-  onCancel?: () => void;
+interface OpenAIConfigFormProps {
   className?: string;
-};
+  metadata?: Record<string, unknown>;
+  onCancel?: () => void;
+  onSuccess?: () => void;
+}
 
 export function OpenAIConfigForm({
   metadata,
@@ -36,7 +36,9 @@ export function OpenAIConfigForm({
   onCancel,
   className,
 }: OpenAIConfigFormProps) {
-  const [form, setForm] = useState<OpenAiFormState>(deriveOpenAiState(metadata));
+  const [form, setForm] = useState<OpenAiFormState>(
+    deriveOpenAiState(metadata)
+  );
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -56,15 +58,15 @@ export function OpenAIConfigForm({
       };
 
       const response = await fetch("/api/workspace-apps/openai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to save OpenAI key");
       }
 
@@ -93,15 +95,6 @@ export function OpenAIConfigForm({
           <Input
             id="openai-key"
             name="openai-key"
-            placeholder="sk-..."
-            required
-            value={dirty ? form.apiKey : maskedKey ?? form.apiKey}
-            onFocus={() => {
-              if (!dirty) {
-                setDirty(true);
-                setForm((prev) => ({ ...prev, apiKey: "" }));
-              }
-            }}
             onChange={(event) => {
               setDirty(true);
               setForm((prev) => ({
@@ -109,6 +102,15 @@ export function OpenAIConfigForm({
                 apiKey: event.target.value,
               }));
             }}
+            onFocus={() => {
+              if (!dirty) {
+                setDirty(true);
+                setForm((prev) => ({ ...prev, apiKey: "" }));
+              }
+            }}
+            placeholder="sk-..."
+            required
+            value={dirty ? form.apiKey : (maskedKey ?? form.apiKey)}
           />
           <FieldDescription>
             We never display stored keys. Enter a new key to rotate credentials.
@@ -121,8 +123,6 @@ export function OpenAIConfigForm({
           <Input
             id="openai-org"
             name="openai-org"
-            placeholder="org-..."
-            value={form.organization}
             onChange={(event) => {
               setDirty(true);
               setForm((prev) => ({
@@ -130,19 +130,19 @@ export function OpenAIConfigForm({
                 organization: event.target.value,
               }));
             }}
+            placeholder="org-..."
+            value={form.organization}
           />
         </Field>
       </FieldGroup>
 
       <div className="flex flex-wrap justify-end gap-3 pt-2">
         {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button onClick={onCancel} type="button" variant="ghost">
             Cancel
           </Button>
         ) : (
           <Button
-            type="button"
-            variant="ghost"
             disabled={saving}
             onClick={() => {
               setDirty(false);
@@ -151,13 +151,15 @@ export function OpenAIConfigForm({
                 apiKey: "",
               });
             }}
+            type="button"
+            variant="ghost"
           >
             Reset
           </Button>
         )}
         <Button
-          type="submit"
           disabled={saving || !dirty || form.apiKey.trim().length < 8}
+          type="submit"
         >
           {saving ? "Saving..." : "Save credentials"}
         </Button>
@@ -166,7 +168,9 @@ export function OpenAIConfigForm({
   );
 }
 
-function deriveOpenAiState(metadata?: Record<string, unknown>): OpenAiFormState {
+function deriveOpenAiState(
+  metadata?: Record<string, unknown>
+): OpenAiFormState {
   if (!metadata) {
     return OPENAI_DEFAULT_STATE;
   }
@@ -176,21 +180,3 @@ function deriveOpenAiState(metadata?: Record<string, unknown>): OpenAiFormState 
     organization: (metadata.organization as string) ?? "",
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

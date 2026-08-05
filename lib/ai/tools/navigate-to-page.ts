@@ -1,29 +1,31 @@
 import { tool, type UIMessageStreamWriter } from "ai";
 import { z } from "zod";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { getPageById, listPages } from "@/lib/server/pages/repository";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
 import type { ChatMessage } from "@/lib/types";
 
-type NavigateToPageProps = {
+const whitespaceSplitRegex = /\s+/;
+
+interface NavigateToPageProps {
   dataStream: UIMessageStreamWriter<ChatMessage>;
-};
+}
 
 const inputSchema = z.object({
-  pageName: z
-    .string()
-    .optional()
-    .describe("The name of the page to navigate to (case-insensitive search)"),
   pageId: z
     .string()
     .optional()
     .describe(
-      "The ID of the page to navigate to (takes precedence over pageName)",
+      "The ID of the page to navigate to (takes precedence over pageName)"
     ),
+  pageName: z
+    .string()
+    .optional()
+    .describe("The name of the page to navigate to (case-insensitive search)"),
   params: z
     .record(z.string(), z.string())
     .optional()
     .describe(
-      "URL parameters to pass to the page (e.g., { userId: '123', view: 'edit' }). Use searchPages first to find what parameters a page requires.",
+      "URL parameters to pass to the page (e.g., { userId: '123', view: 'edit' }). Use searchPages first to find what parameters a page requires."
     ),
 });
 
@@ -45,8 +47,7 @@ const inputSchema = z.object({
 export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
   tool({
     description:
-      `Navigate the user to a specific page in the app with optional URL parameters. Use searchPages first if you need to know what parameters a page requires. Provide either a page name (for search) or page ID (for direct lookup).`,
-    inputSchema,
+      "Navigate the user to a specific page in the app with optional URL parameters. Use searchPages first if you need to know what parameters a page requires. Provide either a page name (for search) or page ID (for direct lookup).",
     execute: async ({ pageName, pageId, params }) => {
       // Validate that at least one of pageName or pageId is provided
       if (!pageName && !pageId) {
@@ -87,48 +88,48 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
           .map((p) => p.name);
         const providedParams = params ? Object.keys(params) : [];
         const missingParams = requiredParams.filter(
-          (p) => !providedParams.includes(p),
+          (p) => !providedParams.includes(p)
         );
 
         if (missingParams.length > 0) {
           return {
             found: true,
+            message: `Found page "${page.name}" but it requires parameters: ${missingParams.join(
+              ", "
+            )}. Use queryUserTable to find the appropriate IDs first.`,
+            navigated: false,
             pageId: page.id,
             pageName: page.name,
-            url,
-            navigated: false,
-            warning:
-              `Page "${page.name}" requires parameters that were not provided: ${
-                missingParams.join(", ")
-              }`,
             requiredParams: page.settings?.urlParams ?? [],
-            message: `Found page "${page.name}" but it requires parameters: ${
-              missingParams.join(", ")
-            }. Use queryUserTable to find the appropriate IDs first.`,
+            url,
+            warning: `Page "${page.name}" requires parameters that were not provided: ${missingParams.join(
+              ", "
+            )}`,
           };
         }
 
         // Write navigation event to dataStream
         dataStream.write({
-          type: "data-navigate",
           data: {
-            url,
             pageId: page.id,
             pageName: page.name,
+            url,
           },
+          type: "data-navigate",
         });
 
         return {
+          description: page.description,
           found: true,
+          message:
+            params && Object.keys(params).length > 0
+              ? `Navigating to "${page.name}" with parameters.`
+              : `Navigating to "${page.name}".`,
+          navigated: true,
           pageId: page.id,
           pageName: page.name,
-          description: page.description,
-          url,
-          navigated: true,
           params: params ?? {},
-          message: params && Object.keys(params).length > 0
-            ? `Navigating to "${page.name}" with parameters.`
-            : `Navigating to "${page.name}".`,
+          url,
         };
       }
 
@@ -139,7 +140,7 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
 
         // Try exact match first (case-insensitive)
         let matchedPage = pages.find(
-          (p) => p.name.toLowerCase() === searchTerm,
+          (p) => p.name.toLowerCase() === searchTerm
         );
 
         // If no exact match, try partial match
@@ -151,7 +152,7 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
 
         // If still no match, try matching individual words
         if (!matchedPage) {
-          const searchWords = searchTerm.split(/\s+/);
+          const searchWords = searchTerm.split(whitespaceSplitRegex);
           matchedPage = pages.find((p) => {
             const pageNameLower = p.name.toLowerCase();
             return searchWords.every((word) => pageNameLower.includes(word));
@@ -166,14 +167,15 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
           }));
 
           return {
+            availablePages,
             found: false,
             message: `No page found matching "${pageName}".`,
-            suggestions: availablePages.length > 0
-              ? `Available pages: ${
-                availablePages.map((p) => p.name).join(", ")
-              }`
-              : "No pages available in this workspace.",
-            availablePages,
+            suggestions:
+              availablePages.length > 0
+                ? `Available pages: ${availablePages
+                    .map((p) => p.name)
+                    .join(", ")}`
+                : "No pages available in this workspace.",
           };
         }
 
@@ -185,49 +187,48 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
           .map((p) => p.name);
         const providedParams = params ? Object.keys(params) : [];
         const missingParams = requiredParams.filter(
-          (p) => !providedParams.includes(p),
+          (p) => !providedParams.includes(p)
         );
 
         if (missingParams.length > 0) {
           return {
             found: true,
+            message: `Found page "${matchedPage.name}" but it requires parameters: ${missingParams.join(
+              ", "
+            )}. Use queryUserTable to find the appropriate IDs first.`,
+            navigated: false,
             pageId: matchedPage.id,
             pageName: matchedPage.name,
-            url,
-            navigated: false,
-            warning:
-              `Page "${matchedPage.name}" requires parameters that were not provided: ${
-                missingParams.join(", ")
-              }`,
             requiredParams: matchedPage.settings?.urlParams ?? [],
-            message:
-              `Found page "${matchedPage.name}" but it requires parameters: ${
-                missingParams.join(", ")
-              }. Use queryUserTable to find the appropriate IDs first.`,
+            url,
+            warning: `Page "${matchedPage.name}" requires parameters that were not provided: ${missingParams.join(
+              ", "
+            )}`,
           };
         }
 
         // Write navigation event to dataStream
         dataStream.write({
-          type: "data-navigate",
           data: {
-            url,
             pageId: matchedPage.id,
             pageName: matchedPage.name,
+            url,
           },
+          type: "data-navigate",
         });
 
         return {
+          description: matchedPage.description,
           found: true,
+          message:
+            params && Object.keys(params).length > 0
+              ? `Navigating to "${matchedPage.name}" with parameters.`
+              : `Navigating to "${matchedPage.name}".`,
+          navigated: true,
           pageId: matchedPage.id,
           pageName: matchedPage.name,
-          description: matchedPage.description,
-          url,
-          navigated: true,
           params: params ?? {},
-          message: params && Object.keys(params).length > 0
-            ? `Navigating to "${matchedPage.name}" with parameters.`
-            : `Navigating to "${matchedPage.name}".`,
+          url,
         };
       }
 
@@ -237,4 +238,5 @@ export const navigateToPage = ({ dataStream }: NavigateToPageProps) =>
         message: "Either pageName or pageId must be provided.",
       };
     },
+    inputSchema,
   });

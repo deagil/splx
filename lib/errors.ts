@@ -23,32 +23,33 @@ export type ErrorCode = `${ErrorType}:${Surface}`;
 export type ErrorVisibility = "response" | "log" | "none";
 
 export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
-  database: "log",
-  chat: "response",
-  auth: "response",
-  stream: "response",
-  api: "response",
-  history: "response",
-  vote: "response",
-  document: "response",
-  suggestions: "response",
   activate_gateway: "response",
+  api: "response",
+  auth: "response",
+  chat: "response",
+  database: "log",
+  document: "response",
+  history: "response",
+  stream: "response",
+  suggestions: "response",
+  vote: "response",
 };
 
 export class ChatSDKError extends Error {
   type: ErrorType;
   surface: Surface;
   statusCode: number;
+  /** Client-facing detail returned as JSON `cause` (distinct from Error.cause). */
+  causeDetail?: string;
 
-  constructor(errorCode: ErrorCode, cause?: string) {
-    super();
+  constructor(errorCode: ErrorCode, cause?: string, options?: ErrorOptions) {
+    super(getMessageByErrorCode(errorCode), options);
 
     const [type, surface] = errorCode.split(":");
 
     this.type = type as ErrorType;
-    this.cause = cause;
+    this.causeDetail = cause;
     this.surface = surface as Surface;
-    this.message = getMessageByErrorCode(errorCode);
     this.statusCode = getStatusCodeByType(this.type);
   }
 
@@ -56,13 +57,13 @@ export class ChatSDKError extends Error {
     const code: ErrorCode = `${this.type}:${this.surface}`;
     const visibility = visibilityBySurface[this.surface];
 
-    const { message, cause, statusCode } = this;
+    const { message, causeDetail: cause, statusCode } = this;
 
     if (visibility === "log") {
       console.error({
+        cause,
         code,
         message,
-        cause,
       });
 
       return Response.json(
@@ -71,7 +72,7 @@ export class ChatSDKError extends Error {
       );
     }
 
-    return Response.json({ code, message, cause }, { status: statusCode });
+    return Response.json({ cause, code, message }, { status: statusCode });
   }
 }
 

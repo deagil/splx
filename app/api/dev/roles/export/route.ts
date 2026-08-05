@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
-import { 
-  generateMigrationSql, 
-  generateMigrationFilename, 
-  type PermissionChange 
+import { type NextRequest, NextResponse } from "next/server";
+import {
+  generateMigrationFilename,
+  generateMigrationSql,
+  type PermissionChange,
 } from "@/lib/server/roles/generate-migration";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,10 +31,9 @@ export async function POST(req: NextRequest) {
     const filename = generateMigrationFilename();
 
     return NextResponse.json({
+      content: sql,
       filename,
-      content: sql
     });
-
   } catch (error) {
     console.error("Error generating migration:", error);
     return NextResponse.json(

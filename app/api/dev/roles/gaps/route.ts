@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { NextResponse } from "next/server";
 import postgres from "postgres";
 import { analyzeGaps } from "@/lib/server/roles/introspect-policies";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
 
 export async function GET() {
   try {

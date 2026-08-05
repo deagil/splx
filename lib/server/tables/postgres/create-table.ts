@@ -1,26 +1,26 @@
 import { sql } from "drizzle-orm";
 import type { DbClient } from "@/lib/server/tenant/context";
-import type { TableConfig, FieldMetadata } from "../schema";
+import type { FieldMetadata, TableConfig } from "../schema";
 
-export type ColumnDefinition = {
-  name: string;
-  type: string;
-  nullable?: boolean;
+export interface ColumnDefinition {
   default?: string;
+  name: string;
+  nullable?: boolean;
   primaryKey?: boolean;
+  type: string;
   unique?: boolean;
-};
+}
 
-export type CreateTableOptions = {
-  tableName: string;
+export interface CreateTableOptions {
   columns: ColumnDefinition[];
-  primaryKey?: string | string[];
   indexes?: Array<{
     columns: string[];
     unique?: boolean;
     name?: string;
   }>;
-};
+  primaryKey?: string | string[];
+  tableName: string;
+}
 
 /**
  * Escapes SQL identifiers to prevent injection
@@ -58,7 +58,6 @@ function mapColumnType(field: FieldMetadata): string {
       return "json";
     case "jsonb":
       return "jsonb";
-    case "text":
     default:
       return "text";
   }
@@ -127,16 +126,18 @@ export async function createPostgresTable(
   const primaryKeyColumn = config.primary_key_column ?? "id";
 
   // Ensure id column exists if using default primary key
-  const hasIdColumn = fieldMetadata.some((f) => f.field_name === primaryKeyColumn);
+  const hasIdColumn = fieldMetadata.some(
+    (f) => f.field_name === primaryKeyColumn
+  );
   const columns: ColumnDefinition[] = [];
 
   if (!hasIdColumn && primaryKeyColumn === "id") {
     columns.push({
-      name: "id",
-      type: "uuid",
-      nullable: false,
       default: "gen_random_uuid()",
+      name: "id",
+      nullable: false,
       primaryKey: true,
+      type: "uuid",
     });
   }
 
@@ -144,23 +145,19 @@ export async function createPostgresTable(
   for (const field of fieldMetadata) {
     if (field.field_name === primaryKeyColumn && hasIdColumn) {
       columns.push({
+        default: field.default_value ? String(field.default_value) : undefined,
         name: field.field_name,
-        type: mapColumnType(field),
         nullable: !field.is_required,
-        default: field.default_value
-          ? String(field.default_value)
-          : undefined,
         primaryKey: true,
+        type: mapColumnType(field),
         unique: field.is_unique,
       });
     } else {
       columns.push({
+        default: field.default_value ? String(field.default_value) : undefined,
         name: field.field_name,
-        type: mapColumnType(field),
         nullable: !field.is_required,
-        default: field.default_value
-          ? String(field.default_value)
-          : undefined,
+        type: mapColumnType(field),
         unique: field.is_unique,
       });
     }
@@ -171,10 +168,10 @@ export async function createPostgresTable(
     : undefined;
 
   const ddl = generateCreateTableDDL({
-    tableName,
     columns,
-    primaryKey,
     indexes: config.indexes,
+    primaryKey,
+    tableName,
   });
 
   await db.execute(sql.raw(ddl));
@@ -193,4 +190,3 @@ export async function dropPostgresTable(
   const ddl = `DROP TABLE IF EXISTS ${escapedTableName}${cascadeClause};`;
   await db.execute(sql.raw(ddl));
 }
-

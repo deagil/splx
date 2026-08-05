@@ -1,49 +1,48 @@
-import { eq, desc, and, count, gte, sql as drizzleSql } from "drizzle-orm";
-import { 
-  chat, 
-  document as documentSchema, 
-  page, 
-  workspaceApp,
-  user as userSchema,
+import { and, count, desc, eq, gte } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import {
   type Chat,
+  chat,
   type Document,
+  document as documentSchema,
   type Page,
-  type User
+  page,
+  type User,
+  user as userSchema,
+  workspaceApp,
 } from "@/lib/db/schema";
 import { getAppMode, resolveTenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 
-export type DashboardStats = {
-  documentsCreatedToday: number;
+export interface DashboardStats {
   chatsStartedToday: number;
-};
+  documentsCreatedToday: number;
+}
 
-export type ActivityItem = 
+export type ActivityItem =
   | { type: "chat"; data: Chat }
   | { type: "document"; data: Document }
   | { type: "page"; data: Page };
 
-export type OnboardingStatus = {
-  hasConnectedApps: boolean;
+export interface OnboardingStatus {
   hasActivity: boolean;
-};
+  hasConnectedApps: boolean;
+}
 
 async function getDb() {
   const mode = getAppMode();
   if (mode === "hosted") {
     const sql = postgres(process.env.POSTGRES_URL!);
     return { db: drizzle(sql), dispose: async () => await sql.end() };
-  } else {
-    const tenant = await resolveTenantContext();
-    const store = await getResourceStore(tenant);
-    return { 
-      db: null, 
-      store, 
-      dispose: async () => await store.dispose() 
-    };
   }
+  const tenant = await resolveTenantContext();
+  const store = await getResourceStore(tenant);
+  return {
+    db: null,
+    dispose: async () => await store.dispose(),
+    store,
+  };
 }
 
 // Helper to execute query based on mode (same pattern as page.tsx but abstracted)
@@ -52,7 +51,8 @@ async function withDb<T>(callback: (db: any) => Promise<T>): Promise<T> {
   try {
     if (db) {
       return await callback(db);
-    } else if (store) {
+    }
+    if (store) {
       return await store.withSqlClient(callback);
     }
     throw new Error("No database connection available");
@@ -61,7 +61,10 @@ async function withDb<T>(callback: (db: any) => Promise<T>): Promise<T> {
   }
 }
 
-export async function getDashboardStats(userId: string, workspaceId: string): Promise<DashboardStats> {
+export async function getDashboardStats(
+  userId: string,
+  workspaceId: string
+): Promise<DashboardStats> {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
@@ -89,24 +92,22 @@ export async function getDashboardStats(userId: string, workspaceId: string): Pr
       );
 
     return {
-      documentsCreatedToday: docs?.count || 0,
       chatsStartedToday: chats?.count || 0,
+      documentsCreatedToday: docs?.count || 0,
     };
   });
 }
 
-export async function getRecentActivity(userId: string, workspaceId: string): Promise<ActivityItem[]> {
+export async function getRecentActivity(
+  userId: string,
+  workspaceId: string
+): Promise<ActivityItem[]> {
   return await withDb(async (db) => {
     // Fetch top 5 of each type recently
     const recentChats = await db
       .select()
       .from(chat)
-      .where(
-        and(
-          eq(chat.workspace_id, workspaceId),
-          eq(chat.user_id, userId)
-        )
-      )
+      .where(and(eq(chat.workspace_id, workspaceId), eq(chat.user_id, userId)))
       .orderBy(desc(chat.created_at))
       .limit(5);
 
@@ -125,15 +126,18 @@ export async function getRecentActivity(userId: string, workspaceId: string): Pr
     const recentPages = await db
       .select()
       .from(page)
-      .where(eq(page.workspace_id, workspaceId)) 
+      .where(eq(page.workspace_id, workspaceId))
       .orderBy(desc(page.created_at))
       .limit(5);
 
     // Combine and sort
     const combined: ActivityItem[] = [
-      ...recentChats.map((c: Chat) => ({ type: "chat" as const, data: c })),
-      ...recentDocs.map((d: Document) => ({ type: "document" as const, data: d })),
-      ...recentPages.map((p: Page) => ({ type: "page" as const, data: p })),
+      ...recentChats.map((c: Chat) => ({ data: c, type: "chat" as const })),
+      ...recentDocs.map((d: Document) => ({
+        data: d,
+        type: "document" as const,
+      })),
+      ...recentPages.map((p: Page) => ({ data: p, type: "page" as const })),
     ];
 
     return combined
@@ -146,7 +150,9 @@ export async function getRecentActivity(userId: string, workspaceId: string): Pr
   });
 }
 
-export async function getOnboardingStatus(workspaceId: string): Promise<OnboardingStatus> {
+export async function getOnboardingStatus(
+  workspaceId: string
+): Promise<OnboardingStatus> {
   return await withDb(async (db) => {
     const [appCount] = await db
       .select({ count: count() })
@@ -157,20 +163,22 @@ export async function getOnboardingStatus(workspaceId: string): Promise<Onboardi
       .select({ count: count() })
       .from(documentSchema)
       .where(eq(documentSchema.workspace_id, workspaceId));
-      
+
     const [chatCount] = await db
       .select({ count: count() })
       .from(chat)
       .where(eq(chat.workspace_id, workspaceId));
 
     return {
-      hasConnectedApps: (appCount?.count || 0) > 0,
       hasActivity: (docCount?.count || 0) > 0 || (chatCount?.count || 0) > 0,
+      hasConnectedApps: (appCount?.count || 0) > 0,
     };
   });
 }
 
-export async function getUserProfile(userId: string): Promise<Partial<User> | null> {
+export async function getUserProfile(
+  userId: string
+): Promise<Partial<User> | null> {
   return await withDb(async (db) => {
     const [user] = await db
       .select()

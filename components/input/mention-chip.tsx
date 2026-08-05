@@ -1,8 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { MentionMetadata } from "@/lib/types/mentions";
 import { Button } from "@/components/ui/button";
+import type { MentionMetadata } from "@/lib/types/mentions";
 import { cn } from "@/lib/utils";
 
 export function MentionChip({
@@ -43,19 +43,19 @@ export function MentionChip({
     >
       <span className="text-sm leading-none">{getIcon()}</span>
       <span className="font-medium">{mention.label}</span>
-      {mention.description && (
-        <span className="text-[10px] text-muted-foreground max-w-[200px] truncate">
+      {!!mention.description && (
+        <span className="max-w-[200px] truncate text-[10px] text-muted-foreground">
           {mention.description}
         </span>
       )}
       {!readOnly && (
         <Button
+          className="ml-1 h-4 w-4 p-0 hover:bg-destructive/10 hover:text-destructive"
+          onClick={onRemove}
+          size="sm"
+          title="Remove mention"
           type="button"
           variant="ghost"
-          size="sm"
-          className="h-4 w-4 p-0 hover:bg-destructive/10 hover:text-destructive ml-1"
-          onClick={onRemove}
-          title="Remove mention"
         >
           <X className="h-3 w-3" />
         </Button>

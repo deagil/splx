@@ -1,14 +1,13 @@
 export type {
-  TableId,
+  CreateTableInput,
+  FieldMetadata,
   LabelFieldConfig,
   RelationshipConfig,
-  FieldMetadata,
-  RLSPolicyTemplate,
   RLSPolicyGroup,
-  VersioningConfig,
+  RLSPolicyTemplate,
   TableConfig,
-  CreateTableInput,
-  UpdateTableInput,
+  TableId,
   TableRecord,
+  UpdateTableInput,
+  VersioningConfig,
 } from "./schema";
-

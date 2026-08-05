@@ -1,8 +1,8 @@
 "use client";
 
+import { AnimatedMarkdown } from "flowtoken";
 import { type ComponentProps, memo } from "react";
 import { Streamdown } from "streamdown";
-import { AnimatedMarkdown } from "flowtoken";
 import { cn } from "@/lib/utils";
 
 type ResponseProps = ComponentProps<typeof Streamdown> & {
@@ -13,7 +13,7 @@ type ResponseProps = ComponentProps<typeof Streamdown> & {
 export const Response = memo(
   ({ className, isStreaming = false, children, ...props }: ResponseProps) => {
     const content = typeof children === "string" ? children : "";
-    
+
     // Use FlowToken's AnimatedMarkdown for streaming content with smooth fade-in
     if (isStreaming && content) {
       return (
@@ -25,16 +25,16 @@ export const Response = memo(
           data-streaming="true"
         >
           <AnimatedMarkdown
-            content={content}
             animation="fadeIn"
             animationDuration="0.6s"
             animationTimingFunction="ease-in-out"
+            content={content}
             sep="word"
           />
         </div>
       );
     }
-    
+
     // Use Streamdown for non-streaming content (completed messages)
     return (
       <Streamdown
@@ -48,8 +48,8 @@ export const Response = memo(
       </Streamdown>
     );
   },
-  (prevProps, nextProps) => 
-    prevProps.children === nextProps.children && 
+  (prevProps, nextProps) =>
+    prevProps.children === nextProps.children &&
     prevProps.isStreaming === nextProps.isStreaming
 );
 

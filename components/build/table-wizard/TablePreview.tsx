@@ -1,25 +1,33 @@
 "use client";
 
-import { Database, Table2, Link2, Shield } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Database, Link2, Shield, Table2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { WizardState } from "@/lib/build/table-wizard/types";
 
-type TablePreviewProps = {
+interface TablePreviewProps {
   state: WizardState;
-};
+}
 
 export function TablePreview({ state }: TablePreviewProps) {
-  const { currentStep, tableType, name, description, fields, relationships, policyGroup } = state;
+  const {
+    currentStep,
+    tableType,
+    name,
+    description,
+    fields,
+    relationships,
+    policyGroup,
+  } = state;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2 flex items-center gap-2">
-          <Database className="w-6 h-6" />
+        <h2 className="mb-2 flex items-center gap-2 font-semibold text-2xl">
+          <Database className="h-6 w-6" />
           {name || "New Table"}
         </h2>
-        {description && (
+        {!!description && (
           <p className="text-muted-foreground text-sm">{description}</p>
         )}
       </div>
@@ -28,7 +36,7 @@ export function TablePreview({ state }: TablePreviewProps) {
       {currentStep >= 1 && tableType && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Table Type</CardTitle>
+            <CardTitle className="font-medium text-sm">Table Type</CardTitle>
           </CardHeader>
           <CardContent>
             <Badge variant="secondary">
@@ -44,8 +52,8 @@ export function TablePreview({ state }: TablePreviewProps) {
       {currentStep >= 3 && fields.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Table2 className="w-4 h-4" />
+            <CardTitle className="flex items-center gap-2 font-medium text-sm">
+              <Table2 className="h-4 w-4" />
               Schema
             </CardTitle>
           </CardHeader>
@@ -53,30 +61,30 @@ export function TablePreview({ state }: TablePreviewProps) {
             <div className="space-y-2">
               {fields.map((field, index) => (
                 <div
+                  className="flex items-center justify-between rounded-md border border-border bg-background p-2"
                   key={index}
-                  className="flex items-center justify-between p-2 rounded-md bg-background border border-border"
                 >
                   <div className="flex-1">
-                    <div className="font-mono text-sm font-medium">
+                    <div className="font-medium font-mono text-sm">
                       {field.field_name}
                     </div>
-                    {field.display_name && (
-                      <div className="text-xs text-muted-foreground">
+                    {!!field.display_name && (
+                      <div className="text-muted-foreground text-xs">
                         {field.display_name}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge className="text-xs" variant="outline">
                       {field.data_type || "text"}
                     </Badge>
-                    {field.is_required && (
-                      <Badge variant="secondary" className="text-xs">
+                    {!!field.is_required && (
+                      <Badge className="text-xs" variant="secondary">
                         Required
                       </Badge>
                     )}
-                    {field.is_unique && (
-                      <Badge variant="secondary" className="text-xs">
+                    {!!field.is_unique && (
+                      <Badge className="text-xs" variant="secondary">
                         Unique
                       </Badge>
                     )}
@@ -92,8 +100,8 @@ export function TablePreview({ state }: TablePreviewProps) {
       {currentStep >= 4 && relationships.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Link2 className="w-4 h-4" />
+            <CardTitle className="flex items-center gap-2 font-medium text-sm">
+              <Link2 className="h-4 w-4" />
               Relationships
             </CardTitle>
           </CardHeader>
@@ -101,13 +109,13 @@ export function TablePreview({ state }: TablePreviewProps) {
             <div className="space-y-2">
               {relationships.map((rel, index) => (
                 <div
+                  className="rounded-md border border-border bg-background p-2"
                   key={index}
-                  className="p-2 rounded-md bg-background border border-border"
                 >
-                  <div className="text-sm font-medium">
+                  <div className="font-medium text-sm">
                     {rel.foreign_key_column} → {rel.referenced_table}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-muted-foreground text-xs">
                     {rel.relationship_type || "one-to-many"}
                   </div>
                 </div>
@@ -121,8 +129,8 @@ export function TablePreview({ state }: TablePreviewProps) {
       {currentStep >= 5 && policyGroup && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="w-4 h-4" />
+            <CardTitle className="flex items-center gap-2 font-medium text-sm">
+              <Shield className="h-4 w-4" />
               Access Policies
             </CardTitle>
           </CardHeader>
@@ -147,4 +155,3 @@ export function TablePreview({ state }: TablePreviewProps) {
     </div>
   );
 }
-

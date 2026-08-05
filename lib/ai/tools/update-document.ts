@@ -1,27 +1,18 @@
 import { tool, type UIMessageStreamWriter } from "ai";
-import type { Session } from "@/lib/artifacts/server";
 import { z } from "zod";
+import type { Session } from "@/lib/artifacts/server";
 import { documentHandlersByArtifactKind } from "@/lib/artifacts/server";
 import { getDocumentById } from "@/lib/db/queries";
 import type { ChatMessage } from "@/lib/types";
 
-type UpdateDocumentProps = {
-  session: Session;
+interface UpdateDocumentProps {
   dataStream: UIMessageStreamWriter<ChatMessage>;
-};
+  session: Session;
+}
 
 export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
   tool({
     description: "Update a document with the given description.",
-    inputSchema: z.object({
-      id: z.string().describe("The ID of the document to update"),
-      description: z
-        .string()
-        .describe("The description of changes that need to be made"),
-    }),
-    // Require user approval before executing document updates
-    // This provides a safety layer for operations that modify user data
-    needsApproval: true,
     execute: async ({ id, description }) => {
       const document = await getDocumentById({ id });
 
@@ -32,14 +23,14 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
       }
 
       dataStream.write({
-        type: "data-clear",
         data: null,
         transient: true,
+        type: "data-clear",
       });
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === document.kind,
+          documentHandlerByArtifactKind.kind === document.kind
       );
 
       if (!documentHandler) {
@@ -47,19 +38,28 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
       }
 
       await documentHandler.onUpdateDocument({
-        document,
-        description,
         dataStream,
+        description,
+        document,
         session,
       });
 
-      dataStream.write({ type: "data-finish", data: null, transient: true });
+      dataStream.write({ data: null, transient: true, type: "data-finish" });
 
       return {
-        id,
-        title: document.title,
-        kind: document.kind,
         content: "The document has been updated successfully.",
+        id,
+        kind: document.kind,
+        title: document.title,
       };
     },
+    inputSchema: z.object({
+      description: z
+        .string()
+        .describe("The description of changes that need to be made"),
+      id: z.string().describe("The ID of the document to update"),
+    }),
+    // Require user approval before executing document updates
+    // This provides a safety layer for operations that modify user data
+    needsApproval: true,
   });

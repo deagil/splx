@@ -1,7 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import {
   customProvider,
-  extractReasoningMiddleware,
   type LanguageModelMiddleware,
   wrapLanguageModel,
 } from "ai";
@@ -41,56 +40,59 @@ try {
  */
 export const myProvider = isTestEnvironment
   ? (() => {
-    const {
-      artifactModel,
-      chatModel,
-      reasoningModel,
-      titleModel,
-    } = require("./models.mock");
-    return customProvider({
+      const {
+        artifactModel,
+        chatModel,
+        reasoningModel,
+        titleModel,
+      } = require("./models.mock");
+      return customProvider({
+        languageModels: {
+          "artifact-model": artifactModel,
+          "chat-model": chatModel,
+          "chat-model-reasoning": reasoningModel,
+          "title-model": titleModel,
+        },
+      });
+    })()
+  : customProvider({
       languageModels: {
-        "chat-model": chatModel,
-        "chat-model-reasoning": reasoningModel,
-        "title-model": titleModel,
-        "artifact-model": artifactModel,
+        // Artifact/document generation model
+        "artifact-model": wrapLanguageModel({
+          middleware:
+            !isProductionEnvironment && devToolsMiddlewareFn
+              ? devToolsMiddlewareFn()
+              : [],
+          model: openai("gpt-5-mini"),
+        }),
+        // Default chat model with vision and text capabilities
+        "chat-model": wrapLanguageModel({
+          // Enable DevTools in development for debugging LLM calls
+          middleware:
+            !isProductionEnvironment && devToolsMiddlewareFn
+              ? devToolsMiddlewareFn()
+              : [],
+          model: openai("gpt-5-mini"),
+        }),
+
+        // Reasoning model - uses OpenAI's native reasoning support
+        // Reasoning visibility is controlled via providerOptions.reasoningSummary
+        // Remove extractReasoningMiddleware as OpenAI handles reasoning natively
+        "chat-model-reasoning": wrapLanguageModel({
+          middleware:
+            !isProductionEnvironment && devToolsMiddlewareFn
+              ? devToolsMiddlewareFn()
+              : [],
+          model: openai("gpt-5-mini"),
+        }),
+
+        // Title generation model (optimized for concise output)
+        "title-model": wrapLanguageModel({
+          middleware:
+            !isProductionEnvironment && devToolsMiddlewareFn
+              ? devToolsMiddlewareFn()
+              : [],
+          model: openai("gpt-5-nano"),
+        }),
       },
     });
-  })()
-  : customProvider({
-    languageModels: {
-      // Default chat model with vision and text capabilities
-      "chat-model": wrapLanguageModel({
-        model: openai("gpt-5-mini"),
-        // Enable DevTools in development for debugging LLM calls
-        middleware: !isProductionEnvironment && devToolsMiddlewareFn
-          ? devToolsMiddlewareFn()
-          : [],
-      }),
-
-      // Reasoning model - uses OpenAI's native reasoning support
-      // Reasoning visibility is controlled via providerOptions.reasoningSummary
-      // Remove extractReasoningMiddleware as OpenAI handles reasoning natively
-      "chat-model-reasoning": wrapLanguageModel({
-        model: openai("gpt-5-mini"),
-        middleware: !isProductionEnvironment && devToolsMiddlewareFn
-          ? devToolsMiddlewareFn()
-          : [],
-      }),
-
-      // Title generation model (optimized for concise output)
-      "title-model": wrapLanguageModel({
-        model: openai("gpt-5-nano"),
-        middleware: !isProductionEnvironment && devToolsMiddlewareFn
-          ? devToolsMiddlewareFn()
-          : [],
-      }),
-
-      // Artifact/document generation model
-      "artifact-model": wrapLanguageModel({
-        model: openai("gpt-5-mini"),
-        middleware: !isProductionEnvironment && devToolsMiddlewareFn
-          ? devToolsMiddlewareFn()
-          : [],
-      }),
-    },
-  });

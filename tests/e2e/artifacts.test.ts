@@ -14,7 +14,7 @@ test.describe("Artifacts activity", () => {
   });
 
   test("Create a text artifact", async () => {
-    test.fixme();
+    test();
     await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
@@ -26,7 +26,7 @@ test.describe("Artifacts activity", () => {
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
     expect(assistantMessage).not.toBeNull();
-    expect(assistantMessage!.content).toBe(
+    expect(assistantMessage?.content).toBe(
       "A document was created and is now visible to the user."
     );
 
@@ -34,7 +34,7 @@ test.describe("Artifacts activity", () => {
   });
 
   test("Toggle artifact visibility", async () => {
-    test.fixme();
+    test();
     await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
@@ -46,7 +46,7 @@ test.describe("Artifacts activity", () => {
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
     expect(assistantMessage).not.toBeNull();
-    expect(assistantMessage!.content).toBe(
+    expect(assistantMessage?.content).toBe(
       "A document was created and is now visible to the user."
     );
 
@@ -55,7 +55,7 @@ test.describe("Artifacts activity", () => {
   });
 
   test("Send follow up message after generation", async () => {
-    test.fixme();
+    test();
     await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
@@ -67,7 +67,7 @@ test.describe("Artifacts activity", () => {
 
     const assistantMessage = await artifactPage.getRecentAssistantMessage();
     expect(assistantMessage).not.toBeNull();
-    expect(assistantMessage!.content).toBe(
+    expect(assistantMessage?.content).toBe(
       "A document was created and is now visible to the user."
     );
 
@@ -76,6 +76,6 @@ test.describe("Artifacts activity", () => {
 
     const secondAssistantMessage = await chatPage.getRecentAssistantMessage();
     expect(secondAssistantMessage).not.toBeNull();
-    expect(secondAssistantMessage!.content).toBe("You're welcome!");
+    expect(secondAssistantMessage?.content).toBe("You're welcome!");
   });
 });

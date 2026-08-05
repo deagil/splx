@@ -1,30 +1,32 @@
 "use client";
 
+import { Trigger } from "@radix-ui/react-select";
+import { SignatureIcon } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { ContextIcon } from "@/components/elements/context";
+import {
+  PromptInputModelSelect,
+  PromptInputModelSelectContent,
+} from "@/components/elements/prompt-input";
 import { PersonalizationPanel } from "@/components/sidebar/personalization-panel";
+import { Button } from "@/components/ui/button";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { SelectItem } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { chatModels } from "@/lib/ai/models";
-import { PromptInputModelSelect, PromptInputModelSelectContent } from "@/components/elements/prompt-input";
-import { Trigger } from "@radix-ui/react-select";
-import { ContextIcon } from "@/components/elements/context";
-import { CpuIcon, PenIcon } from "@/components/shared/icons";
-import { SignatureIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { AppUsage } from "@/lib/usage";
+import { cn } from "@/lib/utils";
 
-type InfoRowProps = {
+interface InfoRowProps {
+  costText?: string;
   label: string;
   tokens?: number;
-  costText?: string;
-};
+}
 
 function InfoRow({ label, tokens, costText }: InfoRowProps) {
   return (
@@ -46,7 +48,7 @@ function InfoRow({ label, tokens, costText }: InfoRowProps) {
   );
 }
 
-function ContextUsageButton({ usage }: { usage?: AppUsage }) {
+function _ContextUsageButton({ usage }: { usage?: AppUsage }) {
   const used = usage?.totalTokens ?? 0;
   const max =
     usage?.context?.totalMax ??
@@ -64,14 +66,14 @@ function ContextUsageButton({ usage }: { usage?: AppUsage }) {
     <HoverCard>
       <HoverCardTrigger asChild>
         <Button
-          className="h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2"
+          className="h-8 p-1 text-muted-foreground text-xs hover:text-foreground md:h-fit md:p-2"
           type="button"
           variant="ghost"
         >
           <div className="size-3.5 [&>svg]:size-3.5">
             <ContextIcon percent={usedPercent} />
           </div>
-          <span className="ml-1 hidden sm:inline text-[10px]">
+          <span className="ml-1 hidden text-[10px] sm:inline">
             {usedPercent.toFixed(0)}%
           </span>
         </Button>
@@ -88,13 +90,14 @@ function ContextUsageButton({ usage }: { usage?: AppUsage }) {
             <Progress className="h-2 bg-muted" value={usedPercent} />
           </div>
           <div className="mt-1 space-y-1">
-            {usage?.inputTokenDetails?.cacheReadTokens && usage.inputTokenDetails.cacheReadTokens > 0 && (
-              <InfoRow
-                costText={usage?.costUSD?.cacheReadUSD?.toString()}
-                label="Cache Hits"
-                tokens={usage?.inputTokenDetails?.cacheReadTokens}
-              />
-            )}
+            {usage?.inputTokenDetails?.cacheReadTokens &&
+              usage.inputTokenDetails.cacheReadTokens > 0 && (
+                <InfoRow
+                  costText={usage?.costUSD?.cacheReadUSD?.toString()}
+                  label="Cache Hits"
+                  tokens={usage?.inputTokenDetails?.cacheReadTokens}
+                />
+              )}
             <InfoRow
               costText={usage?.costUSD?.inputUSD?.toString()}
               label="Input"
@@ -109,7 +112,8 @@ function ContextUsageButton({ usage }: { usage?: AppUsage }) {
               costText={usage?.costUSD?.reasoningUSD?.toString()}
               label="Reasoning"
               tokens={
-                usage?.outputTokenDetails?.reasoningTokens && usage.outputTokenDetails.reasoningTokens > 0
+                usage?.outputTokenDetails?.reasoningTokens &&
+                usage.outputTokenDetails.reasoningTokens > 0
                   ? usage.outputTokenDetails.reasoningTokens
                   : undefined
               }
@@ -135,14 +139,16 @@ function ContextUsageButton({ usage }: { usage?: AppUsage }) {
           </div>
           <Separator className="mt-2" />
           <Button
-            className="w-full h-7 text-xs"
+            className="h-7 w-full text-xs"
+            disabled
             onClick={handleCompress}
             size="sm"
             variant="outline"
-            disabled
           >
             Compress Context
-            <span className="ml-1 text-[10px] text-muted-foreground">(Coming Soon)</span>
+            <span className="ml-1 text-[10px] text-muted-foreground">
+              (Coming Soon)
+            </span>
           </Button>
         </div>
       </HoverCardContent>
@@ -157,7 +163,9 @@ function ModelSelectorButton({
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
 }) {
-  const selectedModel = chatModels.find((model) => model.id === selectedModelId);
+  const selectedModel = chatModels.find(
+    (model) => model.id === selectedModelId
+  );
   const IconComponent = selectedModel?.icon;
 
   return (
@@ -175,7 +183,7 @@ function ModelSelectorButton({
       <Trigger asChild>
         <Button
           className={cn(
-            "h-8 p-1 text-sm text-muted-foreground hover:text-foreground md:h-fit md:p-2",
+            "h-8 p-1 text-muted-foreground text-sm hover:text-foreground md:h-fit md:p-2",
             "rounded-md transition-colors",
             selectedModelId === "chat-model"
               ? "bg-muted hover:bg-muted"
@@ -184,12 +192,14 @@ function ModelSelectorButton({
           type="button"
           variant="ghost"
         >
-          {IconComponent && <IconComponent size={12} className="mr-0.5" />}
-          <span className="hidden sm:inline text-[10px]">{selectedModel?.name}</span>
+          {!!IconComponent && <IconComponent className="mr-0.5" size={12} />}
+          <span className="hidden text-[10px] sm:inline">
+            {selectedModel?.name}
+          </span>
         </Button>
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[280px] p-1">
-        <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+        <div className="mb-1 px-2 py-1 font-medium text-[10px] text-muted-foreground">
           What are you working on?
         </div>
         <div className="flex flex-col gap-0.5">
@@ -197,13 +207,13 @@ function ModelSelectorButton({
             const ModelIcon = model.icon;
             return (
               <SelectItem
+                className="cursor-pointer"
                 key={model.id}
                 value={model.name}
-                className="cursor-pointer"
               >
                 <div className="flex items-start gap-2 py-0.5">
-                  <ModelIcon size={14} className="mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
+                  <ModelIcon className="mt-0.5 shrink-0" size={14} />
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-xs">{model.name}</span>
                       <span className="text-[10px] text-muted-foreground">
@@ -234,9 +244,9 @@ function PersonalizationButton() {
   const [showPanel, setShowPanel] = useState(false);
   const [preferences, setPreferences] = useState({
     ai_context: null as string | null,
-    proficiency: null as string | null,
-    ai_tone: null as string | null,
     ai_guidance: null as string | null,
+    ai_tone: null as string | null,
+    proficiency: null as string | null,
   });
   const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
 
@@ -265,22 +275,20 @@ function PersonalizationButton() {
   return (
     <>
       <Button
-        className="h-8 p-1 text-xs text-muted-foreground hover:text-foreground md:h-fit md:p-2"
+        className="h-8 p-1 text-muted-foreground text-xs hover:text-foreground md:h-fit md:p-2"
+        onClick={handleOpenPanel}
         type="button"
         variant="ghost"
-        onClick={handleOpenPanel}
       >
-        <SignatureIcon size={12} className="mr-0.5" />
-        <span className="hidden sm:inline text-[10px]">
-          Personalise
-        </span>
+        <SignatureIcon className="mr-0.5" size={12} />
+        <span className="hidden text-[10px] sm:inline">Personalise</span>
       </Button>
 
       <PersonalizationPanel
-        open={showPanel}
         onOpenChange={setShowPanel}
-        personalizationEnabled={isEnabled}
         onPersonalizationToggle={handlePersonalizationToggle}
+        open={showPanel}
+        personalizationEnabled={isEnabled}
         {...preferences}
       />
     </>
@@ -315,4 +323,3 @@ export function ChatStatusBar({
     </div>
   );
 }
-

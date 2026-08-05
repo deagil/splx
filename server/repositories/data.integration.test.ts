@@ -1,5 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+const unknownColumnRegex = /is_admin/;
+const managedByServerRegex = /managed by the server/;
+const tableConfigNotFoundRegex = /Table configuration not found/;
+
 /**
  * Integration tests for the data repository against a real Postgres.
  *
@@ -38,14 +42,18 @@ vi.mock("@/lib/server/tables", async (importOriginal) => {
         return null;
       }
       return {
-        id: tableId,
-        workspace_id: WORKSPACE_A,
-        name: tableId,
-        description: null,
-        config: { primary_key_column: "id", relationships: [], label_fields: [] },
-        created_by: ACTOR,
+        config: {
+          label_fields: [],
+          primary_key_column: "id",
+          relationships: [],
+        },
         created_at: new Date().toISOString(),
+        created_by: ACTOR,
+        description: null,
+        id: tableId,
+        name: tableId,
         updated_at: new Date().toISOString(),
+        workspace_id: WORKSPACE_A,
       };
     }),
   };
@@ -58,11 +66,11 @@ const { getControlPlaneDb, closeControlPlaneDb } = await import(
 
 function tenant(workspaceId: string) {
   return {
-    mode: "local" as const,
-    workspaceId,
-    userId: ACTOR,
-    roles: ["admin"],
     connectionId: null,
+    mode: "local" as const,
+    roles: ["admin"],
+    userId: ACTOR,
+    workspaceId,
   };
 }
 
@@ -70,7 +78,7 @@ const INJECTION = ["1); DROP TABLE contacts; --"];
 
 describeIfDb("dataRepository (integration)", () => {
   const repo = () =>
-    dataRepository({ tenant: tenant(WORKSPACE_A), requestId: "test-req" });
+    dataRepository({ requestId: "test-req", tenant: tenant(WORKSPACE_A) });
 
   beforeEach(async () => {
     const db = getControlPlaneDb();
@@ -102,7 +110,7 @@ describeIfDb("dataRepository (integration)", () => {
 
     const audit = (await db.execute(
       sql`SELECT action, resource_type, request_id FROM public.audit_logs`
-    )) as Array<Record<string, unknown>>;
+    )) as Record<string, unknown>[];
     expect(audit).toHaveLength(1);
     expect(audit[0].action).toBe("data.created");
     expect(audit[0].resource_type).toBe("contacts");
@@ -110,7 +118,7 @@ describeIfDb("dataRepository (integration)", () => {
 
     const events = (await db.execute(
       sql`SELECT event_name FROM public.event_logs`
-    )) as Array<Record<string, unknown>>;
+    )) as Record<string, unknown>[];
     expect(events).toHaveLength(1);
     expect(events[0].event_name).toBe("db.contacts.created");
   });
@@ -134,14 +142,14 @@ describeIfDb("dataRepository (integration)", () => {
 
   it("rejects unknown columns", async () => {
     await expect(
-      repo().create("contacts", { name: "Ada", is_admin: true })
-    ).rejects.toThrow(/is_admin/);
+      repo().create("contacts", { is_admin: true, name: "Ada" })
+    ).rejects.toThrow(unknownColumnRegex);
   });
 
   it("refuses a caller-supplied workspace_id", async () => {
     await expect(
       repo().create("contacts", { name: "Ada", workspace_id: WORKSPACE_B })
-    ).rejects.toThrow(/managed by the server/);
+    ).rejects.toThrow(managedByServerRegex);
   });
 
   it("does not update a row belonging to another workspace", async () => {
@@ -174,9 +182,9 @@ describeIfDb("dataRepository (integration)", () => {
       sql`UPDATE public.contacts SET workspace_id = ${WORKSPACE_B} WHERE id = ${mine.id as string}`
     );
 
-    await expect(
-      repo().remove("contacts", mine.id as string)
-    ).resolves.toBe(false);
+    await expect(repo().remove("contacts", mine.id as string)).resolves.toBe(
+      false
+    );
 
     const rows = (await db.execute(
       sql`SELECT count(*)::int AS n FROM public.contacts`
@@ -219,11 +227,11 @@ describeIfDb("dataRepository (integration)", () => {
     );
 
     const { records, total } = await repo().list("contacts", {
+      filters: {},
+      includeLabels: false,
       limit: 50,
       offset: 0,
       orderDirection: "asc",
-      includeLabels: false,
-      filters: {},
     });
 
     expect(total).toBe(1);
@@ -232,7 +240,7 @@ describeIfDb("dataRepository (integration)", () => {
 
   it("404s for a table that is not in the config registry", async () => {
     await expect(repo().create("nope", { name: "x" })).rejects.toThrow(
-      /Table configuration not found/
+      tableConfigNotFoundRegex
     );
   });
 });

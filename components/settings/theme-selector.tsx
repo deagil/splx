@@ -1,54 +1,62 @@
 "use client";
 
-import { useColorTheme, type ColorTheme } from "@/hooks/use-color-theme";
+import { CheckIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckIcon } from "lucide-react";
+import { type ColorTheme, useColorTheme } from "@/hooks/use-color-theme";
 import { cn } from "@/lib/utils";
 
-const COLOR_THEMES: { value: ColorTheme; label: string; description: string }[] = [
+const COLOR_THEMES: {
+  value: ColorTheme;
+  label: string;
+  description: string;
+}[] = [
   {
-    value: "default",
-    label: "Default",
     description: "Classic neutral theme",
+    label: "Default",
+    value: "default",
   },
   {
-    value: "slate",
-    label: "Slate",
     description: "Cool and professional",
+    label: "Slate",
+    value: "slate",
   },
   {
-    value: "blue",
-    label: "Blue",
     description: "Calm and trustworthy",
+    label: "Blue",
+    value: "blue",
   },
   {
-    value: "violet",
-    label: "Violet",
     description: "Creative and modern",
+    label: "Violet",
+    value: "violet",
   },
   {
-    value: "green",
-    label: "Green",
     description: "Fresh and natural",
+    label: "Green",
+    value: "green",
   },
   {
-    value: "rose",
-    label: "Rose",
     description: "Warm and energetic",
+    label: "Rose",
+    value: "rose",
   },
 ];
 
 const APPEARANCE_MODES = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "System" },
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+  { label: "System", value: "system" },
 ] as const;
 
 export function ThemeSelector() {
-  const { theme: colorTheme, setTheme: setColorTheme, mounted } = useColorTheme();
+  const {
+    theme: colorTheme,
+    setTheme: setColorTheme,
+    mounted,
+  } = useColorTheme();
   const { theme: appearanceMode, setTheme: setAppearanceMode } = useTheme();
 
   // Prevent flash of wrong theme
@@ -71,24 +79,24 @@ export function ThemeSelector() {
         </FieldDescription>
         <RadioGroup
           className="mt-3 grid grid-cols-3 gap-2"
-          value={appearanceMode}
           onValueChange={setAppearanceMode}
+          value={appearanceMode}
         >
           {APPEARANCE_MODES.map((mode) => (
             <Label
-              key={mode.value}
-              htmlFor={`appearance-${mode.value}`}
               className={cn(
                 "flex cursor-pointer items-center justify-center rounded-lg border px-4 py-3 text-center transition-colors",
                 appearanceMode === mode.value
                   ? "border-primary bg-primary/5"
                   : "border-muted-foreground/20 hover:border-muted-foreground/40"
               )}
+              htmlFor={`appearance-${mode.value}`}
+              key={mode.value}
             >
               <RadioGroupItem
+                className="sr-only"
                 id={`appearance-${mode.value}`}
                 value={mode.value}
-                className="sr-only"
               />
               <span className="font-medium text-sm">{mode.label}</span>
               {appearanceMode === mode.value && (
@@ -107,24 +115,24 @@ export function ThemeSelector() {
         </FieldDescription>
         <RadioGroup
           className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3"
-          value={colorTheme}
           onValueChange={(value) => setColorTheme(value as ColorTheme)}
+          value={colorTheme}
         >
           {COLOR_THEMES.map((theme) => (
             <Label
-              key={theme.value}
-              htmlFor={`theme-${theme.value}`}
               className={cn(
                 "flex cursor-pointer flex-col gap-1.5 rounded-lg border p-4 transition-colors",
                 colorTheme === theme.value
                   ? "border-primary bg-primary/5"
                   : "border-muted-foreground/20 hover:border-muted-foreground/40"
               )}
+              htmlFor={`theme-${theme.value}`}
+              key={theme.value}
             >
               <RadioGroupItem
+                className="sr-only"
                 id={`theme-${theme.value}`}
                 value={theme.value}
-                className="sr-only"
               />
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm">{theme.label}</span>
@@ -157,35 +165,35 @@ function ThemePreviewDot({
   type: "primary" | "secondary" | "accent";
 }) {
   const colors: Record<ColorTheme, Record<string, string>> = {
-    default: {
-      primary: "hsl(240 5.9% 10%)",
-      secondary: "hsl(240 4.8% 93%)",
-      accent: "hsl(240 4.8% 90%)",
-    },
-    slate: {
-      primary: "hsl(215 20% 25%)",
-      secondary: "hsl(215 15% 92%)",
-      accent: "hsl(215 20% 88%)",
-    },
     blue: {
+      accent: "hsl(210 50% 88%)",
       primary: "hsl(210 100% 40%)",
       secondary: "hsl(210 40% 92%)",
-      accent: "hsl(210 50% 88%)",
     },
-    violet: {
-      primary: "hsl(262 83% 58%)",
-      secondary: "hsl(262 30% 92%)",
-      accent: "hsl(262 40% 88%)",
+    default: {
+      accent: "hsl(240 4.8% 90%)",
+      primary: "hsl(240 5.9% 10%)",
+      secondary: "hsl(240 4.8% 93%)",
     },
     green: {
+      accent: "hsl(142 40% 88%)",
       primary: "hsl(142 76% 36%)",
       secondary: "hsl(142 30% 92%)",
-      accent: "hsl(142 40% 88%)",
     },
     rose: {
+      accent: "hsl(350 40% 88%)",
       primary: "hsl(350 89% 48%)",
       secondary: "hsl(350 30% 92%)",
-      accent: "hsl(350 40% 88%)",
+    },
+    slate: {
+      accent: "hsl(215 20% 88%)",
+      primary: "hsl(215 20% 25%)",
+      secondary: "hsl(215 15% 92%)",
+    },
+    violet: {
+      accent: "hsl(262 40% 88%)",
+      primary: "hsl(262 83% 58%)",
+      secondary: "hsl(262 30% 92%)",
     },
   };
 

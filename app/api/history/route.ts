@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
-import { getChatsByUserId, deleteAllChatsByUserId } from "@/lib/db/queries";
+import { deleteAllChatsByUserId, getChatsByUserId } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
   }
 
   const chats = await getChatsByUserId({
+    endingBefore,
     id: authUser.id,
     limit,
     startingAfter,
-    endingBefore,
   });
 
   return Response.json(chats);

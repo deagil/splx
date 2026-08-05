@@ -1,5 +1,8 @@
 import type { WizardState } from "./types";
 
+const tableIdRegex = /^[a-z0-9_-]+$/;
+const fieldNameRegex = /^[a-z0-9_]+$/;
+
 export function validateStep(step: number, state: WizardState): string[] {
   const errors: string[] = [];
 
@@ -16,7 +19,7 @@ export function validateStep(step: number, state: WizardState): string[] {
     case 2:
       if (!state.id || state.id.trim() === "") {
         errors.push("Table ID is required");
-      } else if (!/^[a-z0-9_-]+$/.test(state.id)) {
+      } else if (!tableIdRegex.test(state.id)) {
         errors.push(
           "Table ID must use lowercase alphanumerics, hyphens, or underscores"
         );
@@ -43,7 +46,7 @@ export function validateStep(step: number, state: WizardState): string[] {
       for (const field of state.fields) {
         if (!field.field_name || field.field_name.trim() === "") {
           errors.push("All fields must have a name");
-        } else if (!/^[a-z0-9_]+$/.test(field.field_name)) {
+        } else if (!fieldNameRegex.test(field.field_name)) {
           errors.push(
             `Field "${field.field_name}" must use lowercase alphanumerics and underscores`
           );
@@ -54,7 +57,11 @@ export function validateStep(step: number, state: WizardState): string[] {
     case 4:
       // Relationships are optional, but if added, they must be valid
       for (const rel of state.relationships) {
-        if (!rel.table_name || !rel.foreign_key_column || !rel.referenced_table) {
+        if (
+          !rel.table_name ||
+          !rel.foreign_key_column ||
+          !rel.referenced_table
+        ) {
           errors.push("All relationships must have complete information");
         }
       }
@@ -65,15 +72,21 @@ export function validateStep(step: number, state: WizardState): string[] {
       // No validation needed here as policies are optional
       break;
 
-    case 6:
+    case 6: {
       // Final validation - check all previous steps
       const step1Errors = validateStep(1, state);
       const step2Errors = validateStep(2, state);
       const step3Errors = validateStep(3, state);
       const step4Errors = validateStep(4, state);
 
-      errors.push(...step1Errors, ...step2Errors, ...step3Errors, ...step4Errors);
+      errors.push(
+        ...step1Errors,
+        ...step2Errors,
+        ...step3Errors,
+        ...step4Errors
+      );
       break;
+    }
   }
 
   return errors;
@@ -86,4 +99,3 @@ export function canProceedToNextStep(
   const errors = validateStep(currentStep, state);
   return errors.length === 0;
 }
-

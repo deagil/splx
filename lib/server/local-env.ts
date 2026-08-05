@@ -3,6 +3,11 @@ import path from "node:path";
 
 import { parse } from "dotenv";
 
+const newlineSplitRegex = /\r?\n/;
+const trailingNewlineRegex = /\n?$/;
+const envKeyLineRegex = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=.*$/;
+const unquotedEnvValueRegex = /^[A-Za-z0-9_@./:-]+$/;
+
 const ENV_FILE = path.join(process.cwd(), ".env.local");
 
 type EnvUpdates = Record<string, string | undefined>;
@@ -27,7 +32,7 @@ export async function upsertLocalEnv(updates: EnvUpdates): Promise<void> {
   }
 
   const content = await readEnvFile();
-  const lines = content.length > 0 ? content.split(/\r?\n/) : [];
+  const lines = content.length > 0 ? content.split(newlineSplitRegex) : [];
   const keyIndex = buildKeyIndex(lines);
 
   for (const [key, value] of Object.entries(updates)) {
@@ -36,19 +41,19 @@ export async function upsertLocalEnv(updates: EnvUpdates): Promise<void> {
     }
 
     const formatted = `${key}=${formatEnvValue(value)}`;
-    if (keyIndex.has(key)) {
-      const index = keyIndex.get(key)!;
-      lines[index] = formatted;
-    } else {
-      if (lines.length > 0 && lines[lines.length - 1].trim() !== "") {
+    const index = keyIndex.get(key);
+    if (index === undefined) {
+      if (lines.length > 0 && lines.at(-1).trim() !== "") {
         lines.push("");
       }
       keyIndex.set(key, lines.length);
       lines.push(formatted);
+    } else {
+      lines[index] = formatted;
     }
   }
 
-  const nextContent = lines.join("\n").replace(/\n?$/, "\n");
+  const nextContent = lines.join("\n").replace(trailingNewlineRegex, "\n");
   await fs.writeFile(ENV_FILE, nextContent, "utf8");
 }
 
@@ -65,10 +70,8 @@ async function readEnvFile(): Promise<string> {
 
 function buildKeyIndex(lines: string[]): Map<string, number> {
   const index = new Map<string, number>();
-  const pattern = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=.*$/;
-
   lines.forEach((line, i) => {
-    const match = line.match(pattern);
+    const match = line.match(envKeyLineRegex);
     if (match) {
       index.set(match[1], i);
     }
@@ -78,13 +81,10 @@ function buildKeyIndex(lines: string[]): Map<string, number> {
 }
 
 function formatEnvValue(value: string): string {
-  if (/^[A-Za-z0-9_@./:-]+$/.test(value)) {
+  if (unquotedEnvValueRegex.test(value)) {
     return value;
   }
 
   const escaped = value.replace(/"/g, '\\"');
   return `"${escaped}"`;
 }
-
-
-

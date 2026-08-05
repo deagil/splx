@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import {
-  BaseSqlAdapter,
   type AdapterContext,
+  BaseSqlAdapter,
   type ResourceAdapterKind,
 } from "./base";
 
@@ -63,8 +63,3 @@ export class PostgresResourceAdapter extends BaseSqlAdapter {
     throw new Error("Unable to resolve Postgres connection string");
   }
 }
-
-
-
-
-

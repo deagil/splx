@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import { DevBar } from "@/components/shared/dev-bar";
 import {
   isDevelopmentEnvironment,
   isStagingEnvironment,
@@ -11,14 +10,16 @@ import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
-
-const sitename = process.env.NODE_ENV === "production" ? "Suplex Studio" : "[DEV] Suplex Studio";
+const sitename =
+  process.env.NODE_ENV === "production"
+    ? "Suplex Studio"
+    : "[DEV] Suplex Studio";
 
 export const metadata: Metadata = {
+  description: "AI tag team partner for your systems.",
   metadataBase: new URL("https://chat.vercel.ai"),
   //todo add env prefix to title
   title: sitename,
-  description: "AI tag team partner for your systems.",
 };
 
 export const viewport = {
@@ -26,14 +27,14 @@ export const viewport = {
 };
 
 const geist = Geist({
-  subsets: ["latin"],
   display: "swap",
+  subsets: ["latin"],
   variable: "--font-geist",
 });
 
 const geistMono = Geist_Mono({
-  subsets: ["latin"],
   display: "swap",
+  subsets: ["latin"],
   variable: "--font-geist-mono",
 });
 
@@ -98,8 +99,8 @@ export default function RootLayout({
       </head>
       <body
         className={cn(
-          "bg-background min-h-dvh overflow-hidden antialiased",
-          (isDevelopmentEnvironment || isStagingEnvironment)
+          "min-h-dvh overflow-hidden bg-background antialiased",
+          isDevelopmentEnvironment || isStagingEnvironment
         )}
       >
         <ThemeProvider
@@ -108,10 +109,10 @@ export default function RootLayout({
           disableTransitionOnChange
           enableSystem
         >
-          <Toaster position="top-center" richColors/>
+          <Toaster position="top-center" richColors />
           {children}
-            {/* <div className="pb-7"></div> */}
-            {/* <DevBar /> */}
+          {/* <div className="pb-7"></div> */}
+          {/* <DevBar /> */}
         </ThemeProvider>
       </body>
     </html>

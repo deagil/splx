@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import { NextResponse } from "next/server";
+import postgres from "postgres";
 import { user } from "@/lib/db/schema";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 
@@ -25,9 +25,9 @@ export async function PATCH(request: Request) {
         .update(user)
         .set({
           ai_context: ai_context || null,
-          proficiency: proficiency || "regular",
-          ai_tone: ai_tone || "balanced",
           ai_guidance: ai_guidance || null,
+          ai_tone: ai_tone || "balanced",
+          proficiency: proficiency || "regular",
         })
         .where(eq(user.id, authUser.id));
 
@@ -59,9 +59,9 @@ export async function GET() {
       const [userData] = await db
         .select({
           ai_context: user.ai_context,
-          proficiency: user.proficiency,
-          ai_tone: user.ai_tone,
           ai_guidance: user.ai_guidance,
+          ai_tone: user.ai_tone,
+          proficiency: user.proficiency,
         })
         .from(user)
         .where(eq(user.id, authUser.id))

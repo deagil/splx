@@ -1,20 +1,24 @@
 import { type Dispatch, memo, type SetStateAction, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { artifactDefinitions, type UIArtifact } from "./artifact";
 import type { ArtifactActionContext } from "./create-artifact";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-type ArtifactActionsProps = {
+interface ArtifactActionsProps {
   artifact: UIArtifact;
-  handleVersionChange: (type: "next" | "prev" | "toggle" | "latest") => void;
   currentVersionIndex: number;
+  handleVersionChange: (type: "next" | "prev" | "toggle" | "latest") => void;
   isCurrentVersion: boolean;
-  mode: "edit" | "diff";
   metadata: any;
+  mode: "edit" | "diff";
   setMetadata: Dispatch<SetStateAction<any>>;
-};
+}
 
 function PureArtifactActions({
   artifact,
@@ -37,11 +41,11 @@ function PureArtifactActions({
 
   const actionContext: ArtifactActionContext = {
     content: artifact.content,
-    handleVersionChange,
     currentVersionIndex,
+    handleVersionChange,
     isCurrentVersion,
-    mode,
     metadata,
+    mode,
     setMetadata,
   };
 
@@ -67,7 +71,7 @@ function PureArtifactActions({
 
                 try {
                   await Promise.resolve(action.onClick(actionContext));
-                } catch (_error) {
+                } catch {
                   toast.error("Failed to execute action");
                 } finally {
                   setIsLoading(false);

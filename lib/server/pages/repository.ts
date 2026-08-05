@@ -1,12 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import type { TenantContext } from "@/lib/server/tenant/context";
+import { createClient } from "@/lib/supabase/server";
 import {
   createPageSchema,
+  type PageRecord,
   pageIdSchema,
   pageRecordSchema,
-  updatePageSchema,
-  type PageRecord,
   type UpdatePageInput,
+  updatePageSchema,
 } from "./schema";
 
 export class PageNotFoundError extends Error {
@@ -26,9 +26,9 @@ function normalizePageRow(row: RawPageRow): PageRecord {
   const parsed = pageRecordSchema.safeParse({
     ...row,
     blocks: parseJsonValue(row.blocks, []),
-    settings: parseJsonValue(row.settings, {}),
-    layout: parseJsonValue(row.layout, {}),
     created_at: coerceDateString(row.created_at),
+    layout: parseJsonValue(row.layout, {}),
+    settings: parseJsonValue(row.settings, {}),
     updated_at: coerceDateString(row.updated_at),
   });
 
@@ -128,14 +128,14 @@ export async function createPage(
   const { data, error } = await supabase
     .from("pages")
     .insert({
-      id: input.id,
-      workspace_id: tenant.workspaceId,
-      name: input.name,
-      description: input.description ?? null,
-      layout: input.layout ?? {},
       blocks: input.blocks ?? [],
-      settings: input.settings ?? {},
       created_by: tenant.userId,
+      description: input.description ?? null,
+      id: input.id,
+      layout: input.layout ?? {},
+      name: input.name,
+      settings: input.settings ?? {},
+      workspace_id: tenant.workspaceId,
     })
     .select("*")
     .single();
@@ -160,12 +160,12 @@ export async function updatePage(
   const { data, error } = await supabase
     .from("pages")
     .update({
-      id: targetId,
-      name: input.name,
+      blocks: input.blocks ?? [],
       description:
         input.description === undefined ? undefined : input.description,
+      id: targetId,
       layout: input.layout ?? {},
-      blocks: input.blocks ?? [],
+      name: input.name,
       settings: input.settings ?? {},
       updated_at: new Date().toISOString(),
     })
@@ -244,15 +244,15 @@ export async function getOrCreateSystemPage(
   const { data, error } = await supabase
     .from("pages")
     .insert({
-      id,
-      workspace_id: tenant.workspaceId,
-      name: pageDefinition.name,
-      description: pageDefinition.description ?? null,
-      layout: pageDefinition.layout ?? {},
       blocks: pageDefinition.blocks,
-      settings: pageDefinition.settings ?? {},
-      is_system: true,
       created_by: null, // System pages have no creator
+      description: pageDefinition.description ?? null,
+      id,
+      is_system: true,
+      layout: pageDefinition.layout ?? {},
+      name: pageDefinition.name,
+      settings: pageDefinition.settings ?? {},
+      workspace_id: tenant.workspaceId,
     })
     .select("*")
     .single();
@@ -263,4 +263,3 @@ export async function getOrCreateSystemPage(
 
   return normalizePageRow(data as RawPageRow);
 }
-

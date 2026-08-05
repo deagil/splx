@@ -1,58 +1,62 @@
 "use client";
 
+import { Eye, Hammer, Shield, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Shield, Hammer, Eye } from "lucide-react";
 
-type RoleDef = {
+interface RoleDef {
+  color: "default" | "secondary" | "destructive" | "outline";
+  count: number;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
   id: string;
   label: string;
-  description: string;
-  count: number;
-  color: "default" | "secondary" | "destructive" | "outline";
-  icon: React.ComponentType<{ className?: string }>;
-};
+}
 
 const ROLE_META: Record<string, Omit<RoleDef, "id" | "count">> = {
   admin: {
-    label: "Admin",
-    description: "Full access to all resources and settings.",
     color: "destructive",
+    description: "Full access to all resources and settings.",
     icon: Shield,
+    label: "Admin",
   },
   builder: {
-    label: "Builder",
-    description: "Can manage schema, data, and pages. meaningful access.",
     color: "default",
+    description: "Can manage schema, data, and pages. meaningful access.",
     icon: Hammer,
+    label: "Builder",
   },
   user: {
-    label: "User",
-    description: "Standard access to view and edit data.",
     color: "secondary",
+    description: "Standard access to view and edit data.",
     icon: User,
+    label: "User",
   },
   viewer: {
-    label: "Viewer",
-    description: "Read-only access to published resources.",
     color: "outline",
+    description: "Read-only access to published resources.",
     icon: Eye,
+    label: "Viewer",
   },
 };
 
 interface RolesOverviewProps {
-  roles?: string[];
-  permissions?: Array<{ role_id: string }>;
   isLoading: boolean;
+  permissions?: Array<{ role_id: string }>;
+  roles?: string[];
 }
 
-export function RolesOverview({ roles, permissions, isLoading }: RolesOverviewProps) {
+export function RolesOverview({
+  roles,
+  permissions,
+  isLoading,
+}: RolesOverviewProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" key={i} />
         ))}
       </div>
     );
@@ -60,43 +64,44 @@ export function RolesOverview({ roles, permissions, isLoading }: RolesOverviewPr
 
   const roleStats = roles?.map((roleId) => {
     const meta = ROLE_META[roleId] || {
-      label: roleId,
-      description: "Custom role",
       color: "outline",
+      description: "Custom role",
       icon: User,
+      label: roleId,
     };
-    
+
     // For admin, we show '*', otherwise count explicit permissions
     // Note: This logic might need refinement if we fetch '*' literally for admin
-    const count = roleId === 'admin' 
-      ? 'All' 
-      : permissions?.filter(p => p.role_id === roleId).length ?? 0;
+    const count =
+      roleId === "admin"
+        ? "All"
+        : (permissions?.filter((p) => p.role_id === roleId).length ?? 0);
 
     return {
-      id: roleId,
       count,
+      id: roleId,
       ...meta,
     };
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       {roleStats?.map((role) => (
         <Card key={role.id}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {role.label}
-            </CardTitle>
+            <CardTitle className="font-medium text-sm">{role.label}</CardTitle>
             <role.icon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{role.count}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="font-bold text-2xl">{role.count}</div>
+            <p className="mt-1 text-muted-foreground text-xs">
               {role.description}
             </p>
             <div className="mt-3">
-              <Badge variant={role.color === 'default' ? 'primary' : role.color}>
-                 {role.id}
+              <Badge
+                variant={role.color === "default" ? "primary" : role.color}
+              >
+                {role.id}
               </Badge>
             </div>
           </CardContent>

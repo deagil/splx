@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -11,16 +12,14 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { updateWorkspace, type UpdateWorkspaceState } from "./actions";
-import { useEffect } from "react";
-import { toast } from "sonner";
 import type { Workspace } from "@/lib/db/schema";
+import { type UpdateWorkspaceState, updateWorkspace } from "./actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button disabled={pending} type="submit">
       {pending ? "Saving..." : "Save workspace profile"}
     </Button>
   );
@@ -39,16 +38,16 @@ export function WorkspaceProfileForm({ workspace }: { workspace: Workspace }) {
   }, [state]);
 
   return (
-    <form className="space-y-6" action={formAction}>
+    <form action={formAction} className="space-y-6">
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="workspace-name">Workspace name</FieldLabel>
           <Input
+            defaultValue={workspace.name}
             id="workspace-name"
             name="name"
-            type="text"
-            defaultValue={workspace.name}
             required
+            type="text"
           />
           <FieldDescription>
             Displayed to all members and in shared documents.
@@ -59,21 +58,21 @@ export function WorkspaceProfileForm({ workspace }: { workspace: Workspace }) {
             Business description
           </FieldLabel>
           <Textarea
+            defaultValue={workspace.description ?? ""}
             id="workspace-description"
             name="description"
-            rows={4}
-            defaultValue={workspace.description ?? ""}
             placeholder="Describe the work your organisation does to help teammates and AI features understand the context."
+            rows={4}
           />
         </Field>
         <Field>
           <FieldLabel htmlFor="workspace-slug">Workspace URL</FieldLabel>
           <Input
+            defaultValue={workspace.slug ?? ""}
             id="workspace-slug"
             name="slug"
-            type="text"
-            defaultValue={workspace.slug ?? ""}
             placeholder="your-workspace-slug"
+            type="text"
           />
           <FieldDescription>
             Used for invite links and connecting integrations.
@@ -84,11 +83,11 @@ export function WorkspaceProfileForm({ workspace }: { workspace: Workspace }) {
             Workspace avatar URL
           </FieldLabel>
           <Input
+            defaultValue={workspace.avatar_url ?? ""}
             id="workspace-avatar"
             name="avatar_url"
-            type="url"
-            defaultValue={workspace.avatar_url ?? ""}
             placeholder="https://example.com/logo.png"
+            type="url"
           />
           <FieldDescription>
             Logo or icon representing your workspace.

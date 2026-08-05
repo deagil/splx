@@ -10,29 +10,31 @@ export const tableIdSchema = z
   );
 
 export const labelFieldConfigSchema = z.object({
-  field_name: z.string().min(1, "Field name is required"),
   display_name: z.string().optional(),
+  field_name: z.string().min(1, "Field name is required"),
 });
 
 export const relationshipConfigSchema = z.object({
-  table_name: z.string().min(1, "Table name is required"),
   foreign_key_column: z.string().min(1, "Foreign key column is required"),
-  referenced_table: z.string().min(1, "Referenced table is required"),
-  referenced_column: z.string().min(1, "Referenced column is required"),
   label_field: z.string().optional(),
-  relationship_type: z.enum(["one_to_one", "one_to_many", "many_to_many"]).optional(),
+  referenced_column: z.string().min(1, "Referenced column is required"),
+  referenced_table: z.string().min(1, "Referenced table is required"),
+  relationship_type: z
+    .enum(["one_to_one", "one_to_many", "many_to_many"])
+    .optional(),
+  table_name: z.string().min(1, "Table name is required"),
 });
 
 export const fieldMetadataSchema = z.object({
-  field_name: z.string().min(1, "Field name is required"),
-  display_name: z.string().optional(),
-  description: z.string().optional(),
   data_type: z.string().optional(),
+  default_value: z.unknown().optional(),
+  description: z.string().optional(),
+  display_name: z.string().optional(),
+  field_name: z.string().min(1, "Field name is required"),
   is_required: z.boolean().optional(),
   is_unique: z.boolean().optional(),
-  default_value: z.unknown().optional(),
-  validation_rules: z.record(z.string(), z.unknown()).optional(),
   ui_hints: z.record(z.string(), z.unknown()).optional(),
+  validation_rules: z.record(z.string(), z.unknown()).optional(),
   visibility_rules: z
     .object({
       roles: z.array(z.string()).optional(),
@@ -42,19 +44,19 @@ export const fieldMetadataSchema = z.object({
 });
 
 export const rlsPolicyTemplateSchema = z.object({
+  description: z.string().optional(),
+  expression: z.string().min(1, "Policy expression is required"),
   id: z.string().min(1, "Policy ID is required"),
   name: z.string().min(1, "Policy name is required"),
-  description: z.string().optional(),
   policy_type: z.enum(["select", "insert", "update", "delete"]),
-  expression: z.string().min(1, "Policy expression is required"),
   using_expression: z.string().optional(),
   with_check_expression: z.string().optional(),
 });
 
 export const rlsPolicyGroupSchema = z.object({
+  description: z.string().optional(),
   id: z.string().min(1, "Group ID is required"),
   name: z.string().min(1, "Group name is required"),
-  description: z.string().optional(),
   policies: z.array(rlsPolicyTemplateSchema),
 });
 
@@ -66,70 +68,70 @@ export const versioningConfigSchema = z.object({
 });
 
 export const tableConfigSchema = z.object({
-  label_fields: z.array(labelFieldConfigSchema).optional().default([]),
-  relationships: z.array(relationshipConfigSchema).optional().default([]),
   field_metadata: z.array(fieldMetadataSchema).optional().default([]),
-  rls_policy_templates: z.array(rlsPolicyTemplateSchema).optional().default([]),
-  rls_policy_groups: z.array(rlsPolicyGroupSchema).optional().default([]),
-  versioning: versioningConfigSchema.optional(),
-  table_type: z.enum(["base_table", "view"]).optional().default("base_table"),
-  primary_key_column: z.string().optional(),
   indexes: z
     .array(
       z.object({
         columns: z.array(z.string()).min(1),
-        unique: z.boolean().optional().default(false),
         name: z.string().optional(),
+        unique: z.boolean().optional().default(false),
       })
     )
     .optional()
     .default([]),
+  label_fields: z.array(labelFieldConfigSchema).optional().default([]),
+  primary_key_column: z.string().optional(),
+  relationships: z.array(relationshipConfigSchema).optional().default([]),
+  rls_policy_groups: z.array(rlsPolicyGroupSchema).optional().default([]),
+  rls_policy_templates: z.array(rlsPolicyTemplateSchema).optional().default([]),
+  table_type: z.enum(["base_table", "view"]).optional().default("base_table"),
+  versioning: versioningConfigSchema.optional(),
 });
 
 export const createTableSchema = z.object({
+  config: tableConfigSchema.optional().default(() => ({
+    field_metadata: [],
+    indexes: [],
+    label_fields: [],
+    relationships: [],
+    rls_policy_groups: [],
+    rls_policy_templates: [],
+    table_type: "base_table" as const,
+  })),
+  description: z
+    .string()
+    .max(512, "Description must be 512 characters or fewer")
+    .optional(),
   id: tableIdSchema,
   name: z
     .string()
     .min(1, "Name is required")
     .max(120, "Name must be 120 characters or fewer"),
-  description: z
-    .string()
-    .max(512, "Description must be 512 characters or fewer")
-    .optional(),
-  config: tableConfigSchema.optional().default(() => ({
-    label_fields: [],
-    relationships: [],
-    field_metadata: [],
-    rls_policy_templates: [],
-    rls_policy_groups: [],
-    table_type: "base_table" as const,
-    indexes: [],
-  })),
 });
 
 export const updateTableSchema = z.object({
-  id: tableIdSchema.optional(),
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .max(120, "Name must be 120 characters or fewer"),
+  config: tableConfigSchema.optional(),
   description: z
     .string()
     .max(512, "Description must be 512 characters or fewer")
     .nullable()
     .optional(),
-  config: tableConfigSchema.optional(),
+  id: tableIdSchema.optional(),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(120, "Name must be 120 characters or fewer"),
 });
 
 export const tableRecordSchema = z.object({
-  id: tableIdSchema,
-  workspace_id: z.string().uuid(),
-  name: z.string(),
-  description: z.string().nullable(),
   config: tableConfigSchema,
-  created_by: z.string().uuid().nullable(),
   created_at: z.string(),
+  created_by: z.string().uuid().nullable(),
+  description: z.string().nullable(),
+  id: tableIdSchema,
+  name: z.string(),
   updated_at: z.string(),
+  workspace_id: z.string().uuid(),
 });
 
 export type TableId = z.infer<typeof tableIdSchema>;
@@ -143,4 +145,3 @@ export type TableConfig = z.infer<typeof tableConfigSchema>;
 export type CreateTableInput = z.infer<typeof createTableSchema>;
 export type UpdateTableInput = z.infer<typeof updateTableSchema>;
 export type TableRecord = z.infer<typeof tableRecordSchema>;
-

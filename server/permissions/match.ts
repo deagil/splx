@@ -2,11 +2,11 @@ import { canonicalizePermission } from "./definitions";
 
 export type RolePermissionMap = Record<string, string[]>;
 
-export type RolePermissionRow = {
-  role_id: string;
+export interface RolePermissionRow {
   permission: string;
+  role_id: string;
   workspace_id: string | null;
-};
+}
 
 /**
  * Resolves `role_permissions` rows into an effective role → permissions map for

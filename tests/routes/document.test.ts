@@ -37,9 +37,9 @@ test.describe
       const documentId = generateUUID();
 
       const draftDocument = {
-        title: "Ada's Document",
-        kind: "text",
         content: "Created by Ada",
+        kind: "text",
+        title: "Ada's Document",
       };
 
       const response = await adaContext.request.post(
@@ -77,9 +77,9 @@ test.describe
       const [firstDocument] = documentsCreatedByAda;
 
       const draftDocument = {
-        title: "Ada's Document",
-        kind: "text",
         content: "Updated by Ada",
+        kind: "text",
+        title: "Ada's Document",
       };
 
       const response = await adaContext.request.post(
@@ -179,9 +179,9 @@ test.describe
       const [firstDocument] = documentsCreatedByAda;
 
       const draftDocument = {
-        title: "Babbage's Document",
-        kind: "text",
         content: "Created by Babbage",
+        kind: "text",
+        title: "Babbage's Document",
       };
 
       const response = await babbageContext.request.post(

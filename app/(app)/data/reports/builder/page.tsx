@@ -1,6 +1,6 @@
+import { ReportBuilder } from "@/components/reports/report-builder";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
-import { ReportBuilder } from "@/components/reports/report-builder";
 
 export default async function ReportBuilderPage() {
   const tenant = await resolveTenantContext();
@@ -12,15 +12,3 @@ export default async function ReportBuilderPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

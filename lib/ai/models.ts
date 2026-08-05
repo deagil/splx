@@ -1,32 +1,32 @@
-import { Glasses, Sparkles, Telescope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Sparkles, Telescope } from "lucide-react";
 
 export const DEFAULT_CHAT_MODEL: string = "chat-model";
 
-export type ChatModel = {
-  id: string;
-  name: string;
+export interface ChatModel {
   description: string;
   icon: LucideIcon;
-  useCases: string;
+  id: string;
+  name: string;
   speed: "fast" | "thorough";
-};
+  useCases: string;
+}
 
 export const chatModels: ChatModel[] = [
   {
-    id: "chat-model",
-    name: "Assist",
     description: "All-round agent for work",
     icon: Sparkles,
-    useCases: "Quick answers, code writing, general questions",
+    id: "chat-model",
+    name: "Assist",
     speed: "fast",
+    useCases: "Quick answers, code writing, general questions",
   },
   {
-    id: "chat-model-reasoning",
-    name: "Plan",
     description: "Think through problems and ideas",
     icon: Telescope,
-    useCases: "Multi-step planning, deep analysis, tough debugging",
+    id: "chat-model-reasoning",
+    name: "Plan",
     speed: "thorough",
+    useCases: "Multi-step planning, deep analysis, tough debugging",
   },
 ];

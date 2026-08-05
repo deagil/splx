@@ -16,6 +16,7 @@ function logUI(label: string, data?: Record<string, unknown>) {
     console.log(`[Chat UI] ${timestamp} | ${label}`);
   }
 }
+
 import { ChatHeader } from "@/components/chat/chat-header";
 import {
   AlertDialog,
@@ -30,20 +31,20 @@ import {
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
+import { chatModels } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 import { Artifact } from "../artifact/artifact";
-import { useDataStream } from "../shared/data-stream-provider";
-import { Messages } from "./messages";
 import { MultimodalInput } from "../input/multimodal-input";
-import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
+import { useDataStream } from "../shared/data-stream-provider";
 import { toast } from "../shared/toast";
 import type { VisibilityType } from "../shared/visibility-selector";
 import { ChatStatusBar } from "../sidebar/chat-status-bar";
-import { chatModels } from "@/lib/ai/models";
+import { getChatHistoryPaginationKey } from "../sidebar/sidebar-history";
+import { Messages } from "./messages";
 
 export function Chat({
   id,
@@ -85,19 +86,38 @@ export function Chat({
     console.log("[Chat] Keyboard shortcut listener mounted");
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("[Chat] Key pressed:", event.key, "ctrlKey:", event.ctrlKey, "metaKey:", event.metaKey);
+      console.log(
+        "[Chat] Key pressed:",
+        event.key,
+        "ctrlKey:",
+        event.ctrlKey,
+        "metaKey:",
+        event.metaKey
+      );
 
       // Ctrl + M to cycle through models (Control key on both Mac and Windows)
-      if (event.key === "m" && event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      if (
+        event.key === "m" &&
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey
+      ) {
         console.log("[Chat] Ctrl+M detected! Cycling models...");
         event.preventDefault();
 
         // Find current model index and cycle to next
-        const currentIndex = chatModels.findIndex((m) => m.id === currentModelId);
+        const currentIndex = chatModels.findIndex(
+          (m) => m.id === currentModelId
+        );
         const nextIndex = (currentIndex + 1) % chatModels.length;
         const nextModel = chatModels[nextIndex];
 
-        console.log("[Chat] Current model:", currentModelId, "Next model:", nextModel?.id);
+        console.log(
+          "[Chat] Current model:",
+          currentModelId,
+          "Next model:",
+          nextModel?.id
+        );
 
         if (nextModel) {
           setCurrentModelId(nextModel.id);
@@ -136,16 +156,61 @@ export function Chat({
     resumeStream,
     addToolApprovalResponse,
   } = useChat<ChatMessage>({
-    id,
-    messages: initialMessages,
     experimental_throttle: 100,
     generateId: generateUUID,
+    id,
+    messages: initialMessages,
+    onData: (dataPart) => {
+      // Log first chunk received
+      if (!firstChunkTimeRef.current && streamStartTimeRef.current) {
+        firstChunkTimeRef.current = Date.now();
+        logUI("📨 First chunk received (TTFB)", {
+          timeToFirstByte: `${firstChunkTimeRef.current - streamStartTimeRef.current}ms`,
+          type: dataPart.type,
+        });
+      }
+      setDataStream((ds) => (ds ? [...ds, dataPart] : []));
+      if (dataPart.type === "data-usage") {
+        setUsage(dataPart.data);
+        logUI("📊 Usage data received", {
+          totalTokens: (dataPart.data as AppUsage).totalTokens,
+        });
+      }
+    },
+    onError: (error) => {
+      logUI("❌ Stream error", { error: error.message });
+      if (error instanceof ChatSDKError) {
+        // Check if it's a credit card error
+        if (
+          error.message?.includes("AI Gateway requires a valid credit card")
+        ) {
+          setShowCreditCardAlert(true);
+        } else {
+          toast({
+            description: error.message,
+            type: "error",
+          });
+        }
+      }
+    },
+    onFinish: () => {
+      const totalTime = messageSubmitTimeRef.current
+        ? Date.now() - messageSubmitTimeRef.current
+        : undefined;
+      logUI("✅ Stream finished", {
+        totalRoundTrip: totalTime ? `${totalTime}ms` : undefined,
+      });
+      mutate(unstable_serialize(getChatHistoryPaginationKey));
+      // Reset timing refs
+      firstChunkTimeRef.current = null;
+      streamStartTimeRef.current = null;
+    },
     transport: new DefaultChatTransport({
       api: "/api/chat",
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
-        logUI("📤 Sending request to API", { 
+        logUI("📤 Sending request to API", {
           chatId: request.id,
           model: currentModelIdRef.current,
         });
@@ -164,71 +229,32 @@ export function Chat({
         };
       },
     }),
-    onData: (dataPart) => {
-      // Log first chunk received
-      if (!firstChunkTimeRef.current && streamStartTimeRef.current) {
-        firstChunkTimeRef.current = Date.now();
-        logUI("📨 First chunk received (TTFB)", { 
-          timeToFirstByte: `${firstChunkTimeRef.current - streamStartTimeRef.current}ms`,
-          type: dataPart.type,
-        });
-      }
-      setDataStream((ds) => (ds ? [...ds, dataPart] : []));
-      if (dataPart.type === "data-usage") {
-        setUsage(dataPart.data);
-        logUI("📊 Usage data received", { 
-          totalTokens: (dataPart.data as AppUsage).totalTokens,
-        });
-      }
-    },
-    onFinish: () => {
-      const totalTime = messageSubmitTimeRef.current 
-        ? Date.now() - messageSubmitTimeRef.current 
-        : undefined;
-      logUI("✅ Stream finished", { 
-        totalRoundTrip: totalTime ? `${totalTime}ms` : undefined,
-      });
-      mutate(unstable_serialize(getChatHistoryPaginationKey));
-      // Reset timing refs
-      firstChunkTimeRef.current = null;
-      streamStartTimeRef.current = null;
-    },
-    onError: (error) => {
-      logUI("❌ Stream error", { error: error.message });
-      if (error instanceof ChatSDKError) {
-        // Check if it's a credit card error
-        if (
-          error.message?.includes("AI Gateway requires a valid credit card")
-        ) {
-          setShowCreditCardAlert(true);
-        } else {
-          toast({
-            type: "error",
-            description: error.message,
-          });
-        }
-      }
-    },
   });
 
   // Wrapped sendMessage to track timing
-  const sendMessage = useCallback((...args: Parameters<typeof originalSendMessage>) => {
-    messageSubmitTimeRef.current = Date.now();
-    streamStartTimeRef.current = Date.now();
-    firstChunkTimeRef.current = null;
-    logUI("📝 User submitting message");
-    return originalSendMessage(...args);
-  }, [originalSendMessage]);
+  const sendMessage = useCallback(
+    (...args: Parameters<typeof originalSendMessage>) => {
+      messageSubmitTimeRef.current = Date.now();
+      streamStartTimeRef.current = Date.now();
+      firstChunkTimeRef.current = null;
+      logUI("📝 User submitting message");
+      return originalSendMessage(...args);
+    },
+    [originalSendMessage]
+  );
 
   // Log status transitions
   useEffect(() => {
     if (prevStatusRef.current !== status) {
-      const duration = messageSubmitTimeRef.current 
-        ? Date.now() - messageSubmitTimeRef.current 
+      const duration = messageSubmitTimeRef.current
+        ? Date.now() - messageSubmitTimeRef.current
         : undefined;
-      logUI(`🔄 Status changed: ${prevStatusRef.current || 'initial'} → ${status}`, {
-        timeSinceSubmit: duration ? `${duration}ms` : undefined,
-      });
+      logUI(
+        `🔄 Status changed: ${prevStatusRef.current || "initial"} → ${status}`,
+        {
+          timeSinceSubmit: duration ? `${duration}ms` : undefined,
+        }
+      );
       prevStatusRef.current = status;
     }
   }, [status]);
@@ -241,8 +267,8 @@ export function Chat({
   useEffect(() => {
     if (query && !hasAppendedQuery) {
       sendMessage({
+        parts: [{ text: query, type: "text" }],
         role: "user" as const,
-        parts: [{ type: "text", text: query }],
       });
 
       setHasAppendedQuery(true);
@@ -277,14 +303,6 @@ export function Chat({
         <Messages
           addToolApprovalResponse={addToolApprovalResponse}
           chatId={id}
-          isArtifactVisible={isArtifactVisible}
-          isReadonly={isReadonly}
-          messages={messages}
-          regenerate={regenerate}
-          selectedModelId={initialChatModel}
-          setMessages={setMessages}
-          status={status}
-          votes={votes}
           inputSlot={
             !isReadonly && (
               <div className="pointer-events-none sticky bottom-0 z-10 mx-auto flex w-full max-w-4xl flex-col">
@@ -317,6 +335,14 @@ export function Chat({
               </div>
             )
           }
+          isArtifactVisible={isArtifactVisible}
+          isReadonly={isReadonly}
+          messages={messages}
+          regenerate={regenerate}
+          selectedModelId={initialChatModel}
+          setMessages={setMessages}
+          status={status}
+          votes={votes}
         />
       </div>
 

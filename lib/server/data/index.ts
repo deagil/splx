@@ -1,8 +1,8 @@
 export {
-  queryUserTable,
+  type FilterOperator,
   listUserTables,
   QueryError,
   type QueryUserTableInput,
   type QueryUserTableResult,
-  type FilterOperator,
+  queryUserTable,
 } from "./query";

@@ -65,8 +65,8 @@ export class ArtifactPage {
       .catch(() => null);
 
     return {
-      element: lastMessageElement,
       content,
+      element: lastMessageElement,
       reasoning: reasoningElement,
       async toggleReasoningVisibility() {
         await lastMessageElement
@@ -100,9 +100,8 @@ export class ArtifactPage {
     const page = this.artifact;
 
     return {
-      element: lastMessageElement,
-      content,
       attachments,
+      content,
       async edit(newMessage: string) {
         await page.getByTestId("message-edit-button").click();
         await page.getByTestId("message-editor").fill(newMessage);
@@ -111,6 +110,7 @@ export class ArtifactPage {
           page.getByTestId("message-editor-send-button")
         ).not.toBeVisible();
       },
+      element: lastMessageElement,
     };
   }
 

@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 /* include utility classes in streamdown */
-@source '../node_modules/streamdown/dist/index.js';
+@source "../node_modules/streamdown/dist/index.js";
 
 /* Add KaTeX CSS for math rendering */
-@import 'katex/dist/katex.min.css';
+@import "katex/dist/katex.min.css";
 
 /* FlowToken animations for streaming text */
-@import 'flowtoken/dist/styles.css';
+@import "flowtoken/dist/styles.css";
 
 /* custom variant for setting dark mode programmatically */
 @custom-variant dark (&:is(.dark, .dark *));
@@ -466,9 +466,9 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    overflow-x: hidden;
     position: relative;
+    overflow-x: hidden;
+    @apply bg-background text-foreground;
   }
 
   html {
@@ -561,8 +561,8 @@
 
 /* firefox scrollbar styling */
 * {
-  scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
 }
 
 /* ============================================================================

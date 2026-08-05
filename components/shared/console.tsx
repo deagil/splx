@@ -6,27 +6,27 @@ import {
   useRef,
   useState,
 } from "react";
+import { Button } from "@/components/ui/button";
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { cn } from "@/lib/utils";
 import { Loader } from "../elements/loader";
 import { CrossSmallIcon, TerminalWindowIcon } from "./icons";
-import { Button } from "@/components/ui/button";
 
-export type ConsoleOutputContent = {
+export interface ConsoleOutputContent {
   type: "text" | "image";
   value: string;
-};
+}
 
-export type ConsoleOutput = {
+export interface ConsoleOutput {
+  contents: ConsoleOutputContent[];
   id: string;
   status: "in_progress" | "loading_packages" | "completed" | "failed";
-  contents: ConsoleOutputContent[];
-};
+}
 
-type ConsoleProps = {
+interface ConsoleProps {
   consoleOutputs: ConsoleOutput[];
   setConsoleOutputs: Dispatch<SetStateAction<ConsoleOutput[]>>;
-};
+}
 
 export function Console({ consoleOutputs, setConsoleOutputs }: ConsoleProps) {
   const [height, setHeight] = useState<number>(300);
@@ -133,11 +133,11 @@ export function Console({ consoleOutputs, setConsoleOutputs }: ConsoleProps) {
             >
               <div
                 className={cn("w-12 shrink-0", {
+                  "text-emerald-500": consoleOutput.status === "completed",
                   "text-muted-foreground": [
                     "in_progress",
                     "loading_packages",
                   ].includes(consoleOutput.status),
-                  "text-emerald-500": consoleOutput.status === "completed",
                   "text-red-400": consoleOutput.status === "failed",
                 })}
               >

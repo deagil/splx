@@ -15,12 +15,12 @@ const CHAT_WIDTH_REM = 30;
 const LAPTOP_SIDEBAR_WIDTH_PERCENT = 33;
 const LARGE_DESKTOP_MAX_PERCENT = 33.33;
 
-export type ChatSidebarResizeContext = {
-  open: boolean;
-  isExpandedMode: boolean;
+export interface ChatSidebarResizeContext {
   isArtifactVisible: boolean;
+  isExpandedMode: boolean;
+  open: boolean;
   screenSize: ScreenSize;
-};
+}
 
 export function canResizeChatSidebar({
   open,
@@ -48,7 +48,7 @@ export function getRegularResizeBounds(viewportWidth: number): {
     minPx,
     Math.min(maxByPercent, maxByRem, maxByMainFloor)
   );
-  return { minPx, maxPx };
+  return { maxPx, minPx };
 }
 
 export function clampSidebarWidthPx(

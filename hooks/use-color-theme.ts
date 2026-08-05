@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-export type ColorTheme = "default" | "slate" | "blue" | "violet" | "green" | "rose";
+export type ColorTheme =
+  | "default"
+  | "slate"
+  | "blue"
+  | "violet"
+  | "green"
+  | "rose";
 
 const STORAGE_KEY = "splx-color-theme";
 
@@ -27,11 +33,13 @@ export function useColorTheme() {
     applyTheme(newTheme);
   };
 
-  return { theme, setTheme: changeTheme, mounted };
+  return { mounted, setTheme: changeTheme, theme };
 }
 
 function isValidTheme(value: string): value is ColorTheme {
-  return ["default", "slate", "blue", "violet", "green", "rose"].includes(value);
+  return ["default", "slate", "blue", "violet", "green", "rose"].includes(
+    value
+  );
 }
 
 function applyTheme(theme: ColorTheme) {

@@ -49,14 +49,13 @@ export function endpoint<TBody = undefined, TParams = unknown, TData = unknown>(
 
     try {
       const user = await resolveEndpointUser(req.headers);
-      userId = user.userId;
-      workspaceId = user.workspaceId;
+      ({ userId, workspaceId } = user);
 
       if (config.permission) {
         await checkPermission({
-          workspaceId: user.workspaceId,
-          roles: user.roles,
           permission: config.permission,
+          roles: user.roles,
+          workspaceId: user.workspaceId,
         });
       }
 
@@ -65,8 +64,10 @@ export function endpoint<TBody = undefined, TParams = unknown, TData = unknown>(
         let raw: unknown;
         try {
           raw = await req.json();
-        } catch {
-          throw new ApiError(400, "Request body must be valid JSON");
+        } catch (error) {
+          const err = new ApiError(400, "Request body must be valid JSON");
+          err.cause = error;
+          throw err;
         }
         body = config.schema.parse(raw);
       }
@@ -74,29 +75,29 @@ export function endpoint<TBody = undefined, TParams = unknown, TData = unknown>(
       const params = await routeContext.params;
 
       const result = await config.handler({
-        user,
-        params,
         body,
+        params,
         query: url.searchParams,
         req,
         requestId,
+        user,
       });
 
       status = result.status ?? 200;
       return success(result.data, { meta: result.meta, status });
     } catch (error) {
       const response = handleError(error, requestId);
-      status = response.status;
+      ({ status } = response);
       return response;
     } finally {
       logRequest({
-        requestId,
+        durationMs: Date.now() - startedAt,
         method: req.method,
         path: url.pathname,
+        requestId,
+        status,
         userId,
         workspaceId,
-        status,
-        durationMs: Date.now() - startedAt,
       });
     }
   };

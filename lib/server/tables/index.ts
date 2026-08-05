@@ -1,23 +1,22 @@
 export {
-  listTableConfigs,
-  getTableConfig,
   createTableConfig,
-  updateTableConfig,
   deleteTableConfig,
-  TableNotFoundError,
+  getTableConfig,
+  listTableConfigs,
   ReservedTableNameError,
+  TableNotFoundError,
+  updateTableConfig,
 } from "./repository";
 export type {
-  TableRecord,
-  TableId,
+  CreateTableInput,
+  FieldMetadata,
   LabelFieldConfig,
   RelationshipConfig,
-  FieldMetadata,
-  RLSPolicyTemplate,
   RLSPolicyGroup,
-  VersioningConfig,
+  RLSPolicyTemplate,
   TableConfig,
-  CreateTableInput,
+  TableId,
+  TableRecord,
   UpdateTableInput,
+  VersioningConfig,
 } from "./schema";
-

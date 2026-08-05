@@ -29,21 +29,21 @@ import { type ArtifactKind, artifactDefinitions } from "../artifact/artifact";
 import type { ArtifactToolbarItem } from "../artifact/create-artifact";
 import { ArrowUpIcon, StopIcon, SummarizeIcon } from "./icons";
 
-type ToolProps = {
+interface ToolProps {
   description: string;
   icon: ReactNode;
-  selectedTool: string | null;
-  setSelectedTool: Dispatch<SetStateAction<string | null>>;
-  isToolbarVisible?: boolean;
-  setIsToolbarVisible?: Dispatch<SetStateAction<boolean>>;
   isAnimating: boolean;
-  sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
+  isToolbarVisible?: boolean;
   onClick: ({
     sendMessage,
   }: {
     sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
   }) => void;
-};
+  selectedTool: string | null;
+  sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
+  setIsToolbarVisible?: Dispatch<SetStateAction<boolean>>;
+  setSelectedTool: Dispatch<SetStateAction<string | null>>;
+}
 
 const Tool = ({
   description,
@@ -76,11 +76,11 @@ const Tool = ({
       return;
     }
 
-    if (selectedTool !== description) {
-      setSelectedTool(description);
-    } else {
+    if (selectedTool === description) {
       setSelectedTool(null);
       onClick({ sendMessage });
+    } else {
+      setSelectedTool(description);
     }
   };
 
@@ -93,11 +93,11 @@ const Tool = ({
             "bg-primary text-primary-foreground!": selectedTool === description,
           })}
           exit={{
-            scale: 0.9,
             opacity: 0,
+            scale: 0.9,
             transition: { duration: 0.1 },
           }}
-          initial={{ scale: 1, opacity: 0 }}
+          initial={{ opacity: 0, scale: 1 }}
           onClick={() => {
             handleSelect();
           }}
@@ -117,7 +117,7 @@ const Tool = ({
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
         >
-          {selectedTool === description ? <ArrowUpIcon /> : icon}
+          {selectedTool === description ? <ArrowUpIcon /> : (icon ?? null)}
         </motion.div>
       </TooltipTrigger>
       <TooltipContent
@@ -190,24 +190,24 @@ const ReadingLevelSelector = ({
               className={cx(
                 "absolute flex flex-row items-center rounded-full border bg-background p-3",
                 {
-                  "bg-primary text-primary-foreground": currentLevel !== 2,
                   "bg-background text-foreground": currentLevel === 2,
+                  "bg-primary text-primary-foreground": currentLevel !== 2,
                 }
               )}
               drag="y"
-              dragConstraints={{ top: -dragConstraints, bottom: 0 }}
+              dragConstraints={{ bottom: 0, top: -dragConstraints }}
               dragElastic={0}
               dragMomentum={false}
               onClick={() => {
                 if (currentLevel !== 2 && hasUserSelectedLevel) {
                   sendMessage({
-                    role: "user",
                     parts: [
                       {
-                        type: "text",
                         text: `Please adjust the reading level to ${LEVELS[currentLevel]} level.`,
+                        type: "text",
                       },
                     ],
+                    role: "user",
                   });
 
                   setSelectedTool(null);
@@ -271,7 +271,7 @@ export const Tools = ({
       initial={{ opacity: 0, scale: 0.95 }}
     >
       <AnimatePresence>
-        {isToolbarVisible &&
+        {!!isToolbarVisible &&
           secondaryTools.map((secondaryTool) => (
             <Tool
               description={secondaryTool.description}
@@ -319,7 +319,9 @@ const PureToolbar = ({
   artifactKind: ArtifactKind;
 }) => {
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -346,13 +348,14 @@ const PureToolbar = ({
     }
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     if (status === "streaming") {
@@ -381,24 +384,24 @@ const PureToolbar = ({
           isToolbarVisible
             ? selectedTool === "adjust-reading-level"
               ? {
-                  opacity: 1,
-                  y: 0,
                   height: 6 * 43,
-                  transition: { delay: 0 },
+                  opacity: 1,
                   scale: 0.95,
+                  transition: { delay: 0 },
+                  y: 0,
                 }
               : {
-                  opacity: 1,
-                  y: 0,
                   height: toolsByArtifactKind.length * 50,
-                  transition: { delay: 0 },
+                  opacity: 1,
                   scale: 1,
+                  transition: { delay: 0 },
+                  y: 0,
                 }
-            : { opacity: 1, y: 0, height: 54, transition: { delay: 0 } }
+            : { height: 54, opacity: 1, transition: { delay: 0 }, y: 0 }
         }
         className="absolute right-6 bottom-6 flex cursor-pointer flex-col justify-end rounded-full border bg-background p-1.5 shadow-lg"
-        exit={{ opacity: 0, y: -20, transition: { duration: 0.1 } }}
-        initial={{ opacity: 0, y: -20, scale: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.1 }, y: -20 }}
+        initial={{ opacity: 0, scale: 1, y: -20 }}
         onAnimationComplete={() => {
           setIsAnimating(false);
         }}
@@ -421,7 +424,7 @@ const PureToolbar = ({
           setIsToolbarVisible(true);
         }}
         ref={toolbarRef}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        transition={{ damping: 25, stiffness: 300, type: "spring" }}
       >
         {status === "streaming" ? (
           <motion.div

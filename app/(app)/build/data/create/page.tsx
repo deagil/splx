@@ -1,11 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -13,15 +10,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function CreateTablePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    description: "",
     id: "",
     name: "",
-    description: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,17 +31,17 @@ export default function CreateTablePage() {
 
     try {
       const response = await fetch("/api/tables", {
-        method: "POST",
+        body: JSON.stringify({
+          config: {},
+          description: formData.description || undefined,
+          id: formData.id,
+          name: formData.name,
+        }),
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          id: formData.id,
-          name: formData.name,
-          description: formData.description || undefined,
-          config: {},
-        }),
+        method: "POST",
       });
 
       if (!response.ok) {
@@ -81,7 +81,7 @@ export default function CreateTablePage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-2xl">
+    <div className="container mx-auto max-w-2xl py-8">
       <Card>
         <CardHeader>
           <CardTitle>Create New Table</CardTitle>
@@ -91,9 +91,9 @@ export default function CreateTablePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {!!error && (
+              <div className="rounded-md bg-destructive/15 p-3 text-destructive text-sm">
                 {error}
               </div>
             )}
@@ -102,17 +102,17 @@ export default function CreateTablePage() {
               <Label htmlFor="id">Table ID</Label>
               <Input
                 id="id"
-                name="id"
-                value={formData.id}
-                onChange={handleChange}
-                placeholder="my_table"
-                pattern="[a-z0-9_-]+"
-                required
                 maxLength={64}
+                name="id"
+                onChange={handleChange}
+                pattern="[a-z0-9_-]+"
+                placeholder="my_table"
+                required
+                value={formData.id}
               />
-              <p className="text-xs text-muted-foreground">
-                Lowercase alphanumerics, hyphens, and underscores only. Used
-                for API routes and internal references.
+              <p className="text-muted-foreground text-xs">
+                Lowercase alphanumerics, hyphens, and underscores only. Used for
+                API routes and internal references.
               </p>
             </div>
 
@@ -120,14 +120,14 @@ export default function CreateTablePage() {
               <Label htmlFor="name">Table Name</Label>
               <Input
                 id="name"
+                maxLength={120}
                 name="name"
-                value={formData.name}
                 onChange={handleChange}
                 placeholder="My Table"
                 required
-                maxLength={120}
+                value={formData.name}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Display name for the table.
               </p>
             </div>
@@ -136,25 +136,25 @@ export default function CreateTablePage() {
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
+                maxLength={512}
                 name="description"
-                value={formData.description}
                 onChange={handleChange}
                 placeholder="A brief description of what this table stores..."
-                maxLength={512}
                 rows={3}
+                value={formData.description}
               />
             </div>
 
             <div className="flex justify-end gap-3">
               <Button
+                disabled={loading}
+                onClick={() => router.back()}
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
-                disabled={loading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button disabled={loading} type="submit">
                 {loading ? "Creating..." : "Create Table"}
               </Button>
             </div>
@@ -164,4 +164,3 @@ export default function CreateTablePage() {
     </div>
   );
 }
-

@@ -1,20 +1,20 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type WizardInputProps = {
+interface WizardInputProps {
+  className?: string;
+  disabled?: boolean;
+  maxLength?: number;
+  minLength?: number;
+  onSubmit: (value: string) => void;
   placeholder?: string;
   submitLabel?: string;
-  onSubmit: (value: string) => void;
-  disabled?: boolean;
-  className?: string;
-  minLength?: number;
-  maxLength?: number;
-};
+}
 
 export function WizardInput({
   placeholder = "Describe what you want to create...",
@@ -45,21 +45,21 @@ export function WizardInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("space-y-3", className)}>
+    <form className={cn("space-y-3", className)} onSubmit={handleSubmit}>
       <Textarea
-        value={value}
+        className="min-h-[120px] resize-none"
+        disabled={disabled}
+        maxLength={maxLength}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        disabled={disabled}
-        className="min-h-[120px] resize-none"
-        maxLength={maxLength}
+        value={value}
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {value.length > 0 && `${value.length}/${maxLength}`}
         </span>
-        <Button type="submit" disabled={disabled || !isValid} size="sm">
+        <Button disabled={disabled || !isValid} size="sm" type="submit">
           <Sparkles className="mr-2 h-3 w-3" />
           {submitLabel}
         </Button>

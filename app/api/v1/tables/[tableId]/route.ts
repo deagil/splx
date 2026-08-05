@@ -9,13 +9,14 @@ import { endpoint } from "@/server/api/endpoint";
 import { ApiError } from "@/server/api/responses";
 import { writeAuditLog } from "@/server/lib/audit";
 
-type Params = { tableId: string };
+interface Params {
+  tableId: string;
+}
 
 const updateTableBodySchema = z.record(z.string(), z.unknown());
 
 export const GET = endpoint<undefined, Params>({
   auth: "required",
-  permission: "tables.view",
   async handler({ user, params }) {
     const table = await getTableConfig(user.tenant, params.tableId);
 
@@ -25,46 +26,47 @@ export const GET = endpoint<undefined, Params>({
 
     return { data: { table } };
   },
+  permission: "tables.view",
 });
 
 export const PATCH = endpoint<Record<string, unknown>, Params>({
   auth: "required",
-  permission: "tables.edit",
-  schema: updateTableBodySchema,
   async handler({ user, params, body, requestId }) {
     const table = await updateTableConfig(user.tenant, params.tableId, body);
     await invalidateTableMetadataCache(user.tenant, params.tableId);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "tables.updated",
-      resourceType: "table",
-      resourceId: params.tableId,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: params.tableId,
+      resourceType: "table",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { table } };
   },
+  permission: "tables.edit",
+  schema: updateTableBodySchema,
 });
 
 export const DELETE = endpoint<undefined, Params>({
   auth: "required",
-  permission: "tables.edit",
   async handler({ user, params, requestId }) {
     await deleteTableConfig(user.tenant, params.tableId);
     await invalidateTableMetadataCache(user.tenant, params.tableId);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "tables.deleted",
-      resourceType: "table",
-      resourceId: params.tableId,
+      actorUserId: user.userId,
       requestId,
+      resourceId: params.tableId,
+      resourceType: "table",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { success: true } };
   },
+  permission: "tables.edit",
 });

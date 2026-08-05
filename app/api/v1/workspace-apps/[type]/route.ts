@@ -8,7 +8,9 @@ import {
 import { endpoint } from "@/server/api/endpoint";
 import { writeAuditLog } from "@/server/lib/audit";
 
-type Params = { type: string };
+interface Params {
+  type: string;
+}
 
 const bodySchema = z.record(z.string(), z.unknown());
 
@@ -21,18 +23,16 @@ const bodySchema = z.record(z.string(), z.unknown());
  */
 export const GET = endpoint<undefined, Params>({
   auth: "required",
-  permission: "workspace.manage",
   async handler({ user, params }) {
     const type = workspaceAppTypeSchema.parse(params.type);
     const app = await getWorkspaceAppSummary(user.tenant, type);
     return { data: { app } };
   },
+  permission: "workspace.manage",
 });
 
 export const POST = endpoint<Record<string, unknown>, Params>({
   auth: "required",
-  permission: "workspace.manage",
-  schema: bodySchema,
   async handler({ user, params, body, requestId }) {
     const type = workspaceAppTypeSchema.parse(params.type);
 
@@ -44,14 +44,16 @@ export const POST = endpoint<Record<string, unknown>, Params>({
     // Deliberately does not record the payload: it carries connection strings
     // and API keys.
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "workspace.app_configured",
-      resourceType: "workspace_app",
-      resourceId: type,
+      actorUserId: user.userId,
       requestId,
+      resourceId: type,
+      resourceType: "workspace_app",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { app } };
   },
+  permission: "workspace.manage",
+  schema: bodySchema,
 });

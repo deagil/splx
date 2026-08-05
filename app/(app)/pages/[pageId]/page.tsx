@@ -1,20 +1,20 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { PageScreen } from "@/components/pages/page-screen";
 import { getPageById } from "@/lib/server/pages";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { hasCapability } from "@/lib/server/tenant/permissions";
 
-type PageRouteParams = {
+interface PageRouteParams {
   pageId: string;
-};
+}
 
 type PageRouteSearchParams = Record<string, string | string[] | undefined>;
 
-type PageRouteProps = {
+interface PageRouteProps {
   params: PageRouteParams | Promise<PageRouteParams>;
   searchParams: PageRouteSearchParams | Promise<PageRouteSearchParams>;
-};
+}
 
 export default async function WorkspacePage({
   params,
@@ -26,10 +26,10 @@ export default async function WorkspacePage({
   const tenant = await resolveTenantContext();
   if (process.env.NODE_ENV !== "production") {
     console.info("[pages] resolved tenant", {
-      workspaceId: tenant.workspaceId,
+      pageId,
       roles: tenant.roles,
       userId: tenant.userId,
-      pageId,
+      workspaceId: tenant.workspaceId,
     });
   }
   if (!hasCapability(tenant, "pages.view")) {
@@ -60,19 +60,19 @@ export default async function WorkspacePage({
 
   if (process.env.NODE_ENV !== "production") {
     console.info("[pages] rendering page", {
-      pageId,
-      mode: effectiveMode,
       canEdit,
+      mode: effectiveMode,
+      pageId,
       urlParams,
     });
   }
 
   return (
     <PageScreen
-      page={page}
-      viewMode={effectiveMode}
-      urlParams={urlParams}
       canEdit={canEdit}
+      page={page}
+      urlParams={urlParams}
+      viewMode={effectiveMode}
     />
   );
 }
@@ -99,8 +99,8 @@ export async function generateMetadata({
     }
 
     return {
-      title: `${page.name} · Pages`,
       description: page.description ?? undefined,
+      title: `${page.name} · Pages`,
     };
   } catch {
     return {
@@ -113,7 +113,7 @@ function resolveViewMode(
   rawMode: string | string[] | undefined
 ): "read" | "edit" {
   if (Array.isArray(rawMode)) {
-    return resolveViewMode(rawMode[rawMode.length - 1]);
+    return resolveViewMode(rawMode.at(-1));
   }
 
   return rawMode === "edit" ? "edit" : "read";
@@ -132,7 +132,7 @@ function extractUrlParams(
     if (typeof value === "string") {
       params[key] = value;
     } else if (Array.isArray(value) && value.length > 0) {
-      const lastValue = value[value.length - 1];
+      const lastValue = value.at(-1);
       if (typeof lastValue === "string") {
         params[key] = lastValue;
       }
@@ -141,4 +141,3 @@ function extractUrlParams(
 
   return params;
 }
-

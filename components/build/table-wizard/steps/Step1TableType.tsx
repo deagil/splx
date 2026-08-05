@@ -1,6 +1,7 @@
 "use client";
 
-import { Database, Layers, Import } from "lucide-react";
+import { Database, Import, Layers } from "lucide-react";
+import useSWR from "swr";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,20 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import useSWR from "swr";
-import type { WizardStepProps, TableType } from "@/lib/build/table-wizard/types";
+import type {
+  TableType,
+  WizardStepProps,
+} from "@/lib/build/table-wizard/types";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url, { credentials: "same-origin" });
-  if (!response.ok) throw new Error("Failed to fetch");
+  if (!response.ok) {
+    throw new Error("Failed to fetch");
+  }
   const data = await response.json();
   return data.tables || [];
 };
 
-export function Step1TableType({
-  state,
-  updateState,
-}: WizardStepProps) {
+export function Step1TableType({ state, updateState }: WizardStepProps) {
   const { data: tables } = useSWR(
     state.tableType === "view" ? "/api/tables?type=config" : null,
     fetcher
@@ -36,39 +38,42 @@ export function Step1TableType({
     icon: React.ComponentType<{ className?: string }>;
   }> = [
     {
-      value: "new",
-      label: "New Object",
       description: "Create a completely new table from scratch",
       icon: Database,
+      label: "New Object",
+      value: "new",
     },
     {
-      value: "view",
-      label: "New Version/View",
       description:
         "Create a view or variant of an existing table (e.g., customer/client/lead from a base 'people' table)",
       icon: Layers,
+      label: "New Version/View",
+      value: "view",
     },
     {
-      value: "import",
-      label: "Import from Schema",
       description: "Import an existing database table and configure it",
       icon: Import,
+      label: "Import from Schema",
+      value: "import",
     },
   ];
 
   const handleTableTypeSelect = (value: TableType) => {
     updateState({
+      baseTableId: value === "view" ? state.baseTableId : null,
       tableType: value,
-      baseTableId: value !== "view" ? null : state.baseTableId,
     });
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold mb-2">What kind of table do you want to create?</h2>
+        <h2 className="mb-2 font-semibold text-2xl">
+          What kind of table do you want to create?
+        </h2>
         <p className="text-muted-foreground">
-          Choose the type of table or object you'd like to create. This determines how we'll set up your table structure.
+          Choose the type of table or object you'd like to create. This
+          determines how we'll set up your table structure.
         </p>
       </div>
 
@@ -79,30 +84,32 @@ export function Step1TableType({
 
           return (
             <Card
-              key={option.value}
               className={`cursor-pointer transition-all hover:border-primary ${
-                isSelected ? "border-primary border-2" : ""
+                isSelected ? "border-2 border-primary" : ""
               }`}
+              key={option.value}
               onClick={() => handleTableTypeSelect(option.value)}
             >
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <div
-                    className={`p-3 rounded-lg ${
-                      isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
+                    className={`rounded-lg p-3 ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
                     }`}
                   >
-                    <Icon className="w-6 h-6" />
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-1">{option.label}</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="mb-1 font-semibold">{option.label}</h3>
+                    <p className="text-muted-foreground text-sm">
                       {option.description}
                     </p>
                   </div>
                   {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                      <div className="h-2 w-2 rounded-full bg-primary-foreground" />
                     </div>
                   )}
                 </div>
@@ -116,8 +123,8 @@ export function Step1TableType({
         <div className="space-y-2">
           <Label htmlFor="base-table">Base Table</Label>
           <Select
-            value={state.baseTableId || ""}
             onValueChange={(value) => updateState({ baseTableId: value })}
+            value={state.baseTableId || ""}
           >
             <SelectTrigger id="base-table">
               <SelectValue placeholder="Select a base table" />
@@ -130,7 +137,7 @@ export function Step1TableType({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Select the existing table to create a view or variant from
           </p>
         </div>
@@ -138,4 +145,3 @@ export function Step1TableType({
     </div>
   );
 }
-

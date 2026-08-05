@@ -12,29 +12,29 @@ const columns: Array<{
   delay: number;
   opacity: number;
 }> = [
-  { x: 3, speed: 4, delay: 0, opacity: 0.4 },
-  { x: 8, speed: 5, delay: 1.2, opacity: 0.6 },
-  { x: 14, speed: 3.5, delay: 0.5, opacity: 0.3 },
-  { x: 20, speed: 4.5, delay: 2, opacity: 0.5 },
-  { x: 26, speed: 3, delay: 0.8, opacity: 0.4 },
-  { x: 32, speed: 5.5, delay: 1.5, opacity: 0.7 },
-  { x: 38, speed: 4, delay: 0.3, opacity: 0.5 },
-  { x: 44, speed: 3.8, delay: 2.5, opacity: 0.4 },
-  { x: 50, speed: 4.2, delay: 0.7, opacity: 0.6 },
-  { x: 56, speed: 3.2, delay: 1.8, opacity: 0.3 },
-  { x: 62, speed: 5, delay: 0.4, opacity: 0.5 },
-  { x: 68, speed: 4.8, delay: 2.2, opacity: 0.4 },
-  { x: 74, speed: 3.5, delay: 1, opacity: 0.6 },
-  { x: 80, speed: 4.5, delay: 0.6, opacity: 0.5 },
-  { x: 86, speed: 3.8, delay: 1.4, opacity: 0.4 },
-  { x: 92, speed: 5.2, delay: 0.9, opacity: 0.3 },
-  { x: 97, speed: 4, delay: 2.1, opacity: 0.5 },
+  { delay: 0, opacity: 0.4, speed: 4, x: 3 },
+  { delay: 1.2, opacity: 0.6, speed: 5, x: 8 },
+  { delay: 0.5, opacity: 0.3, speed: 3.5, x: 14 },
+  { delay: 2, opacity: 0.5, speed: 4.5, x: 20 },
+  { delay: 0.8, opacity: 0.4, speed: 3, x: 26 },
+  { delay: 1.5, opacity: 0.7, speed: 5.5, x: 32 },
+  { delay: 0.3, opacity: 0.5, speed: 4, x: 38 },
+  { delay: 2.5, opacity: 0.4, speed: 3.8, x: 44 },
+  { delay: 0.7, opacity: 0.6, speed: 4.2, x: 50 },
+  { delay: 1.8, opacity: 0.3, speed: 3.2, x: 56 },
+  { delay: 0.4, opacity: 0.5, speed: 5, x: 62 },
+  { delay: 2.2, opacity: 0.4, speed: 4.8, x: 68 },
+  { delay: 1, opacity: 0.6, speed: 3.5, x: 74 },
+  { delay: 0.6, opacity: 0.5, speed: 4.5, x: 80 },
+  { delay: 1.4, opacity: 0.4, speed: 3.8, x: 86 },
+  { delay: 0.9, opacity: 0.3, speed: 5.2, x: 92 },
+  { delay: 2.1, opacity: 0.5, speed: 4, x: 97 },
 ];
 
 /** Generate a string of random characters for a column */
 function getColumnChars(seed: number): string {
   const result: string[] = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 8; i += 1) {
     const charIndex = (seed + i * 7) % chars.length;
     result.push(chars[charIndex]);
   }
@@ -54,13 +54,13 @@ export function MatrixRain() {
       <div className="absolute inset-0 overflow-hidden">
         {columns.map((col, index) => (
           <div
+            className="absolute whitespace-pre font-mono text-[10px] text-emerald-500/70 leading-tight dark:text-emerald-400/70"
             key={index}
-            className="absolute whitespace-pre font-mono text-[10px] leading-tight text-emerald-500/70 dark:text-emerald-400/70"
             style={{
-              left: `${col.x}%`,
-              top: "-100%",
-              opacity: col.opacity,
               animation: `matrixFall ${col.speed}s linear ${col.delay}s infinite`,
+              left: `${col.x}%`,
+              opacity: col.opacity,
+              top: "-100%",
             }}
           >
             {getColumnChars(index)}
@@ -68,7 +68,7 @@ export function MatrixRain() {
         ))}
       </div>
 
-      <style jsx global>{`
+      <style global jsx>{`
         @keyframes matrixFall {
           0% {
             transform: translateY(0);
@@ -90,4 +90,3 @@ export function MatrixRain() {
     </DecorationContainer>
   );
 }
-

@@ -17,8 +17,6 @@ export const PATCH = endpoint<
   { eventTypeId: string }
 >({
   auth: "required",
-  permission: "workflows.edit",
-  schema: updateSchema,
   async handler({ user, params, body, requestId }) {
     const updated = await updateEventType(
       user.workspaceId,
@@ -30,41 +28,40 @@ export const PATCH = endpoint<
     }
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "event_types.updated",
-      resourceType: "event_type",
-      resourceId: updated.id,
+      actorUserId: user.userId,
       changes: body,
       requestId,
+      resourceId: updated.id,
+      resourceType: "event_type",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { eventType: updated } };
   },
+  permission: "workflows.edit",
+  schema: updateSchema,
 });
 
 export const DELETE = endpoint<undefined, { eventTypeId: string }>({
   auth: "required",
-  permission: "workflows.edit",
   async handler({ user, params, requestId }) {
-    const deleted = await deleteEventType(
-      user.workspaceId,
-      params.eventTypeId
-    );
+    const deleted = await deleteEventType(user.workspaceId, params.eventTypeId);
     if (!deleted) {
       throw new ApiError(404, "Event type not found");
     }
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "event_types.deleted",
-      resourceType: "event_type",
-      resourceId: params.eventTypeId,
+      actorUserId: user.userId,
       changes: {},
       requestId,
+      resourceId: params.eventTypeId,
+      resourceType: "event_type",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { success: true } };
   },
+  permission: "workflows.edit",
 });

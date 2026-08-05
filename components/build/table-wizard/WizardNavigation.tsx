@@ -1,16 +1,16 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { canProceedToNextStep } from "@/lib/build/table-wizard/validation";
+import { Button } from "@/components/ui/button";
 import type { WizardState } from "@/lib/build/table-wizard/types";
+import { canProceedToNextStep } from "@/lib/build/table-wizard/validation";
 
-type WizardNavigationProps = {
+interface WizardNavigationProps {
   currentStep: number;
-  totalSteps: number;
-  state: WizardState;
   goToStep: (step: number) => void;
-};
+  state: WizardState;
+  totalSteps: number;
+}
 
 export function WizardNavigation({
   currentStep,
@@ -35,32 +35,27 @@ export function WizardNavigation({
   };
 
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex items-center justify-between">
       <Button
+        disabled={isFirstStep}
+        onClick={handleBack}
         type="button"
         variant="outline"
-        onClick={handleBack}
-        disabled={isFirstStep}
       >
-        <ChevronLeft className="w-4 h-4 mr-2" />
+        <ChevronLeft className="mr-2 h-4 w-4" />
         Back
       </Button>
 
-      <div className="text-sm text-muted-foreground">
+      <div className="text-muted-foreground text-sm">
         {!canGoNext && "Please complete all required fields to continue"}
       </div>
 
-      {!isLastStep ? (
-        <Button
-          type="button"
-          onClick={handleNext}
-          disabled={!canGoNext}
-        >
+      {isLastStep ? null : (
+        <Button disabled={!canGoNext} onClick={handleNext} type="button">
           Next
-          <ChevronRight className="w-4 h-4 ml-2" />
+          <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
-      ) : null}
+      )}
     </div>
   );
 }
-

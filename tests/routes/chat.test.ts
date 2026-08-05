@@ -127,16 +127,16 @@ test.describe
         data: {
           id: chatId,
           message: {
-            id: generateUUID(),
-            role: "user",
             content: "Help me write an essay about Silcon Valley",
+            createdAt: new Date().toISOString(),
+            id: generateUUID(),
             parts: [
               {
-                type: "text",
                 text: "Help me write an essay about Silicon Valley",
+                type: "text",
               },
             ],
-            createdAt: new Date().toISOString(),
+            role: "user",
           },
           selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
@@ -181,16 +181,16 @@ test.describe
         data: {
           id: chatId,
           message: {
-            id: generateUUID(),
-            role: "user",
             content: "Help me write an essay about Silcon Valley",
+            createdAt: new Date().toISOString(),
+            id: generateUUID(),
             parts: [
               {
-                type: "text",
                 text: "Help me write an essay about Silicon Valley",
+                type: "text",
               },
             ],
-            createdAt: new Date().toISOString(),
+            role: "user",
           },
           selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
@@ -231,16 +231,16 @@ test.describe
         data: {
           id: chatId,
           message: {
-            id: generateUUID(),
-            role: "user",
             content: "Help me write an essay about Silcon Valley",
+            createdAt: new Date().toISOString(),
+            id: generateUUID(),
             parts: [
               {
-                type: "text",
                 text: "Help me write an essay about Silicon Valley",
+                type: "text",
               },
             ],
-            createdAt: new Date().toISOString(),
+            role: "user",
           },
           selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
@@ -274,16 +274,16 @@ test.describe
         data: {
           id: chatId,
           message: {
-            id: generateUUID(),
-            role: "user",
             content: "Help me write an essay about Silcon Valley",
+            createdAt: new Date().toISOString(),
+            id: generateUUID(),
             parts: [
               {
-                type: "text",
                 text: "Help me write an essay about Silicon Valley",
+                type: "text",
               },
             ],
-            createdAt: new Date().toISOString(),
+            role: "user",
           },
           selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
@@ -314,23 +314,23 @@ test.describe
       adaContext,
       babbageContext,
     }) => {
-      test.fixme();
+      test();
       const chatId = generateUUID();
 
       const firstRequest = adaContext.request.post("/api/chat", {
         data: {
           id: chatId,
           message: {
-            id: generateUUID(),
-            role: "user",
             content: "Help me write an essay about Silicon Valley",
+            createdAt: new Date().toISOString(),
+            id: generateUUID(),
             parts: [
               {
-                type: "text",
                 text: "Help me write an essay about Silicon Valley",
+                type: "text",
               },
             ],
-            createdAt: new Date().toISOString(),
+            role: "user",
           },
           selectedChatModel: "chat-model",
           selectedVisibilityType: "public",

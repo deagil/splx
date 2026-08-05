@@ -1,12 +1,10 @@
-import { NextResponse } from "next/server";
 import { streamText, tool } from "ai";
-import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 import { myProvider } from "@/lib/ai/providers";
 import { type SkillUI, skillUISchema } from "@/lib/ai/skills-ui-schema";
+import { createClient } from "@/lib/supabase/server";
 
-const SKILL_GENERATION_SYSTEM_PROMPT =
-  `You convert a user's intent into a reusable skill.
+const SKILL_GENERATION_SYSTEM_PROMPT = `You convert a user's intent into a reusable skill.
 
 You support three modes: clarification, initial creation, and refinement.
 
@@ -78,19 +76,20 @@ export async function POST(request: Request) {
     } = body;
 
     if (
-      !description || typeof description !== "string" ||
+      !description ||
+      typeof description !== "string" ||
       description.trim().length === 0
     ) {
       return NextResponse.json(
         { error: "Description is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (description.length > 2000) {
       return NextResponse.json(
         { error: "Description must be 2000 characters or less" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -98,12 +97,13 @@ export async function POST(request: Request) {
     const messages: Array<{ role: "user" | "assistant"; content: string }> = [
       ...conversation_history,
       {
+        content:
+          mode === "refine" && previous_skill
+            ? `Refine this skill:\n\nPrevious skill: ${JSON.stringify(
+                previous_skill
+              )}\n\nUser's original intent: "${description.trim()}"`
+            : `Convert this user description into a skill (mode: ${mode}):\n\n"${description.trim()}"`,
         role: "user" as const,
-        content: mode === "refine" && previous_skill
-          ? `Refine this skill:\n\nPrevious skill: ${
-            JSON.stringify(previous_skill)
-          }\n\nUser's original intent: "${description.trim()}"`
-          : `Convert this user description into a skill (mode: ${mode}):\n\n"${description.trim()}"`,
       },
     ];
 
@@ -111,18 +111,18 @@ export async function POST(request: Request) {
     const uiTool = tool({
       description:
         "Emit UI state for the skill creation workflow. Use this to show questions, variants, or final skill to the user.",
-      inputSchema: skillUISchema,
-      execute: async (params) => {
+      execute: (params) => {
         // The tool execution just returns the params - the UI will be rendered
         // based on the tool call in the GenerativeUI component
         return params;
       },
+      inputSchema: skillUISchema,
     });
 
     const result = streamText({
+      messages,
       model: myProvider.languageModel("chat-model"),
       system: SKILL_GENERATION_SYSTEM_PROMPT,
-      messages,
       tools: {
         ui: uiTool,
       },
@@ -138,26 +138,30 @@ export async function POST(request: Request) {
           for await (const chunk of result.fullStream) {
             // Check for tool-call chunks
             if (
-              chunk.type === "tool-call" && "toolName" in chunk &&
+              chunk.type === "tool-call" &&
+              "toolName" in chunk &&
               chunk.toolName === "ui"
             ) {
               let uiState: SkillUI | undefined;
 
               // Try to extract UI state from input property
               if (
-                "input" in chunk && typeof chunk.input === "object" &&
+                "input" in chunk &&
+                typeof chunk.input === "object" &&
                 chunk.input !== null
               ) {
                 uiState = chunk.input as SkillUI;
               }
 
               if (
-                uiState && "type" in uiState && typeof uiState.type === "string"
+                uiState &&
+                "type" in uiState &&
+                typeof uiState.type === "string"
               ) {
                 // Emit custom data event
                 const data = JSON.stringify({
-                  type: "skill-ui",
                   data: uiState,
+                  type: "skill-ui",
                 });
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
@@ -169,19 +173,22 @@ export async function POST(request: Request) {
 
               // Try to extract UI state from output property
               if (
-                "output" in chunk && typeof chunk.output === "object" &&
+                "output" in chunk &&
+                typeof chunk.output === "object" &&
                 chunk.output !== null
               ) {
                 uiState = chunk.output as SkillUI;
               }
 
               if (
-                uiState && "type" in uiState && typeof uiState.type === "string"
+                uiState &&
+                "type" in uiState &&
+                typeof uiState.type === "string"
               ) {
                 // Emit custom data event
                 const data = JSON.stringify({
-                  type: "skill-ui",
                   data: uiState,
+                  type: "skill-ui",
                 });
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
@@ -192,8 +199,8 @@ export async function POST(request: Request) {
         } catch (error) {
           console.error("Error processing skill generation stream:", error);
           const errorData = JSON.stringify({
-            type: "error",
             error: "Failed to process skill generation",
+            type: "error",
           });
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
           controller.close();
@@ -203,16 +210,16 @@ export async function POST(request: Request) {
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        "Content-Type": "text/event-stream",
       },
     });
   } catch (error) {
     console.error("Error generating skill:", error);
     return NextResponse.json(
       { error: "Failed to generate skill. Please try again." },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

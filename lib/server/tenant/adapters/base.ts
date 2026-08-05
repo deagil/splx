@@ -10,22 +10,22 @@ export type ResourceAdapterKind =
   | "planetscale"
   | "zapier";
 
-export type AdapterContext = {
-  workspaceId: string;
+export interface AdapterContext {
+  configuration?: Record<string, unknown>;
   connectionId?: string | null;
   credentialRef?: string | null;
-  configuration?: Record<string, unknown>;
-};
+  workspaceId: string;
+}
 
 export interface ResourceAdapter {
+  dispose: () => Promise<void>;
+  initialize: () => Promise<void>;
   readonly kind: ResourceAdapterKind;
   readonly workspaceId: string;
-  initialize(): Promise<void>;
-  dispose(): Promise<void>;
 }
 
 export interface SqlResourceAdapter extends ResourceAdapter {
-  withDb<T>(callback: (db: DbClient) => Promise<T>): Promise<T>;
+  withDb: <T>(callback: (db: DbClient) => Promise<T>) => Promise<T>;
 }
 
 export abstract class BaseSqlAdapter implements SqlResourceAdapter {
@@ -50,7 +50,10 @@ export abstract class BaseSqlAdapter implements SqlResourceAdapter {
 
   async withDb<T>(callback: (db: DbClient) => Promise<T>): Promise<T> {
     await this.ensureConnections();
-    return callback(this.dbClient!);
+    if (!this.dbClient) {
+      throw new Error("Failed to initialize database client");
+    }
+    return callback(this.dbClient);
   }
 
   async dispose(): Promise<void> {
@@ -81,4 +84,3 @@ export function isSqlAdapter(
 ): adapter is SqlResourceAdapter {
   return typeof (adapter as SqlResourceAdapter).withDb === "function";
 }
-

@@ -2,22 +2,22 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { motion } from "framer-motion";
-import { memo } from "react";
 import { usePathname } from "next/navigation";
+import { memo } from "react";
 import type { ChatMessage } from "@/lib/types";
 import { Suggestion } from "../elements/suggestion";
 import type { VisibilityType } from "./visibility-selector";
 
-type SuggestedActionsProps = {
+interface SuggestedActionsProps {
   chatId: string;
-  sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
   selectedVisibilityType: VisibilityType;
-};
+  sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
+}
 
 function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
   const pathname = usePathname();
   const isDashboardRoute = pathname === "/";
-  
+
   const suggestedActions = [
     "What are the advantages of using Next.js?",
     "Write code to demonstrate Dijkstra's algorithm",
@@ -27,23 +27,23 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
 
   return (
     <motion.div
+      animate="visible"
       className="flex w-full flex-col gap-2"
       data-testid="suggested-actions"
-      initial="hidden"
-      animate="visible"
       exit="exit"
+      initial="hidden"
       variants={{
-        hidden: {},
-        visible: {
-          transition: {
-            staggerChildren: 0.06,
-            delayChildren: 0.1,
-          },
-        },
         exit: {
           transition: {
             staggerChildren: 0.03,
             staggerDirection: -1,
+          },
+        },
+        hidden: {},
+        visible: {
+          transition: {
+            delayChildren: 0.1,
+            staggerChildren: 0.06,
           },
         },
       }}
@@ -52,22 +52,22 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
         <motion.div
           key={suggestedAction}
           variants={{
-            hidden: { opacity: 0, y: 12, scale: 0.97 },
-            visible: { 
-              opacity: 1, 
-              y: 0, 
-              scale: 1,
-              transition: {
-                type: "spring",
-                stiffness: 400,
-                damping: 25,
-              },
-            },
-            exit: { 
-              opacity: 0, 
-              y: -8, 
+            exit: {
+              opacity: 0,
               scale: 0.97,
               transition: { duration: 0.15 },
+              y: -8,
+            },
+            hidden: { opacity: 0, scale: 0.97, y: 12 },
+            visible: {
+              opacity: 1,
+              scale: 1,
+              transition: {
+                damping: 25,
+                stiffness: 400,
+                type: "spring",
+              },
+              y: 0,
             },
           }}
         >
@@ -79,8 +79,8 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
                 window.history.replaceState({}, "", `?chatId=${chatId}`);
               }
               sendMessage({
+                parts: [{ text: suggestion, type: "text" }],
                 role: "user",
-                parts: [{ type: "text", text: suggestion }],
               });
             }}
             suggestion={suggestedAction}

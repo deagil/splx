@@ -1,14 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
-import {
-  role,
-  user,
-  workspaceInvite,
-  workspaceUser,
-} from "@/lib/db/schema";
+import { role, user, workspaceInvite, workspaceUser } from "@/lib/db/schema";
 import { ApiError } from "@/server/api/responses";
 import { writeAuditLog } from "@/server/lib/audit";
-import { emitEvent } from "@/server/lib/events";
 import { getControlPlaneDb } from "@/server/lib/db";
+import { emitEvent } from "@/server/lib/events";
 
 /**
  * Workspace invitations.
@@ -20,23 +15,23 @@ import { getControlPlaneDb } from "@/server/lib/db";
  * validated against this workspace's roles.
  */
 
-export type InviteContext = {
-  workspaceId: string;
+export interface InviteContext {
   actorUserId: string;
   requestId?: string;
-};
+  workspaceId: string;
+}
 
 export async function listPendingInvites(workspaceId: string) {
   const rows = await getControlPlaneDb()
     .select({
-      id: workspaceInvite.id,
-      email: workspaceInvite.email,
-      roles: workspaceInvite.roles,
       created_at: workspaceInvite.created_at,
+      email: workspaceInvite.email,
+      id: workspaceInvite.id,
       invited_by: workspaceInvite.invited_by,
       inviter_email: user.email,
       inviter_firstname: user.firstname,
       inviter_lastname: user.lastname,
+      roles: workspaceInvite.roles,
     })
     .from(workspaceInvite)
     .leftJoin(user, eq(user.id, workspaceInvite.invited_by))
@@ -49,16 +44,16 @@ export async function listPendingInvites(workspaceId: string) {
     .orderBy(workspaceInvite.created_at);
 
   return rows.map((row) => ({
-    id: row.id,
-    email: row.email,
-    roles: row.roles,
     created_at: row.created_at,
+    email: row.email,
+    id: row.id,
     invited_by: row.invited_by,
+    roles: row.roles,
     users: row.inviter_email
       ? {
-          id: row.invited_by,
           email: row.inviter_email,
           firstname: row.inviter_firstname,
+          id: row.invited_by,
           lastname: row.inviter_lastname,
         }
       : null,
@@ -82,7 +77,10 @@ export async function createInvite(
     .limit(1);
 
   if (!targetRole) {
-    throw new ApiError(400, `Role "${roleId}" does not exist in this workspace`);
+    throw new ApiError(
+      400,
+      `Role "${roleId}" does not exist in this workspace`
+    );
   }
 
   const [existingUser] = await db
@@ -111,31 +109,31 @@ export async function createInvite(
   const [invite] = await db
     .insert(workspaceInvite)
     .values({
-      workspace_id: workspaceId,
       email,
-      roles: [roleId],
       invited_by: actorUserId,
+      roles: [roleId],
+      workspace_id: workspaceId,
     })
     .returning();
 
   await writeAuditLog({
-    workspaceId,
-    actorUserId,
     action: "workspace.invite_created",
-    resourceType: "workspace_invite",
-    resourceId: invite.id,
+    actorUserId,
     changes: { email, roleId },
     requestId,
+    resourceId: invite.id,
+    resourceType: "workspace_invite",
+    workspaceId,
   });
 
   // An email sender can subscribe to this rather than the route calling it
   // directly. (Sending is still a TODO in the product.)
   await emitEvent({
-    workspaceId,
-    eventName: "workspace.invite_created",
-    payload: { inviteId: invite.id, email, roleId },
     actorUserId,
+    eventName: "workspace.invite_created",
+    payload: { email, inviteId: invite.id, roleId },
     requestId,
+    workspaceId,
   });
 
   return invite;
@@ -156,19 +154,19 @@ export async function revokeInvite(
         eq(workspaceInvite.workspace_id, workspaceId)
       )
     )
-    .returning({ id: workspaceInvite.id, email: workspaceInvite.email });
+    .returning({ email: workspaceInvite.email, id: workspaceInvite.id });
 
   if (deleted.length === 0) {
     throw new ApiError(404, "Invite not found");
   }
 
   await writeAuditLog({
-    workspaceId,
-    actorUserId,
     action: "workspace.invite_revoked",
-    resourceType: "workspace_invite",
-    resourceId: inviteId,
+    actorUserId,
     changes: { email: deleted[0].email },
     requestId,
+    resourceId: inviteId,
+    resourceType: "workspace_invite",
+    workspaceId,
   });
 }

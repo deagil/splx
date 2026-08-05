@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-
-import type { AppMode } from "@/lib/app-mode";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -19,35 +17,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { AppMode } from "@/lib/app-mode";
 import { cn } from "@/lib/utils";
 
-type PostgresFormState = {
-  host: string;
-  port: string;
+const leadingSlashRegex = /^\//;
+
+interface PostgresFormState {
   database: string;
-  username: string;
+  host: string;
   password: string;
+  port: string;
   schema: string;
   sslMode: "prefer" | "require" | "disable";
-};
+  username: string;
+}
 
 const POSTGRES_DEFAULT_STATE: PostgresFormState = {
-  host: "",
-  port: "5432",
   database: "",
-  username: "",
+  host: "",
   password: "",
+  port: "5432",
   schema: "",
   sslMode: "prefer",
+  username: "",
 };
 
-type PostgresConfigFormProps = {
-  mode: AppMode;
-  metadata?: Record<string, unknown>;
-  onSuccess?: () => void;
-  onCancel?: () => void;
+interface PostgresConfigFormProps {
   className?: string;
-};
+  metadata?: Record<string, unknown>;
+  mode: AppMode;
+  onCancel?: () => void;
+  onSuccess?: () => void;
+}
 
 export function PostgresConfigForm({
   mode,
@@ -62,7 +63,9 @@ export function PostgresConfigForm({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [connectionString, setConnectionString] = useState("");
-  const [connectionStringError, setConnectionStringError] = useState<string | null>(null);
+  const [connectionStringError, setConnectionStringError] = useState<
+    string | null
+  >(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
@@ -94,25 +97,25 @@ export function PostgresConfigForm({
     setSaving(true);
     try {
       const payload = {
-        host: form.host.trim(),
-        port: Number.parseInt(form.port, 10) || 5432,
         database: form.database.trim(),
-        username: form.username.trim(),
+        host: form.host.trim(),
         password: form.password ? form.password : undefined,
+        port: Number.parseInt(form.port, 10) || 5432,
         schema: form.schema.trim() || undefined,
         sslMode: form.sslMode,
+        username: form.username.trim(),
       };
 
       const response = await fetch("/api/workspace-apps/postgres", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to save Postgres settings");
       }
 
@@ -138,13 +141,13 @@ export function PostgresConfigForm({
         <Input
           id="pg-connection"
           name="pg-connection"
-          spellCheck={false}
-          placeholder="postgresql://user:pass@host:5432/db"
-          value={connectionString}
           onChange={(event) => handleConnectionStringChange(event.target.value)}
+          placeholder="postgresql://user:pass@host:5432/db"
+          spellCheck={false}
+          value={connectionString}
         />
         {connectionStringError ? (
-          <p className="text-xs text-destructive">{connectionStringError}</p>
+          <p className="text-destructive text-xs">{connectionStringError}</p>
         ) : (
           <FieldDescription>
             This is written directly to your{" "}
@@ -155,10 +158,10 @@ export function PostgresConfigForm({
 
       <div>
         <button
-          type="button"
-          className="text-sm font-medium text-blue-700 transition hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-          onClick={() => setShowAdvanced((prev) => !prev)}
           aria-expanded={showAdvanced}
+          className="font-medium text-blue-700 text-sm transition hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+          onClick={() => setShowAdvanced((prev) => !prev)}
+          type="button"
         >
           {showAdvanced ? "Hide" : "Show"} advanced fields
         </button>
@@ -170,31 +173,31 @@ export function PostgresConfigForm({
                 <Input
                   id="pg-host"
                   name="pg-host"
-                  placeholder="db.example.com"
-                  required
-                  value={form.host}
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, host: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  placeholder="db.example.com"
+                  required
+                  value={form.host}
                 />
               </Field>
               <Field>
                 <FieldLabel htmlFor="pg-port">Port</FieldLabel>
                 <Input
                   id="pg-port"
-                  name="pg-port"
                   inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={form.port}
+                  name="pg-port"
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, port: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  pattern="[0-9]*"
+                  value={form.port}
                 />
               </Field>
             </FieldGroup>
@@ -204,15 +207,15 @@ export function PostgresConfigForm({
                 <Input
                   id="pg-database"
                   name="pg-database"
-                  placeholder="splx"
-                  required
-                  value={form.database}
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, database: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  placeholder="splx"
+                  required
+                  value={form.database}
                 />
               </Field>
               <Field>
@@ -220,14 +223,14 @@ export function PostgresConfigForm({
                 <Input
                   id="pg-schema"
                   name="pg-schema"
-                  placeholder="public"
-                  value={form.schema}
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, schema: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  placeholder="public"
+                  value={form.schema}
                 />
               </Field>
             </FieldGroup>
@@ -237,15 +240,15 @@ export function PostgresConfigForm({
                 <Input
                   id="pg-username"
                   name="pg-username"
-                  placeholder="workspace_user"
-                  required
-                  value={form.username}
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, username: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  placeholder="workspace_user"
+                  required
+                  value={form.username}
                 />
               </Field>
               <Field>
@@ -253,15 +256,15 @@ export function PostgresConfigForm({
                 <Input
                   id="pg-password"
                   name="pg-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={form.password}
                   onChange={(event) => {
                     setDirty(true);
                     const next = { ...form, password: event.target.value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  placeholder="••••••••"
+                  type="password"
+                  value={form.password}
                 />
                 <FieldDescription>
                   Entering a password will replace the stored credential.
@@ -272,13 +275,13 @@ export function PostgresConfigForm({
               <Field>
                 <FieldLabel htmlFor="pg-ssl">SSL mode</FieldLabel>
                 <Select
-                  value={form.sslMode}
                   onValueChange={(value: PostgresFormState["sslMode"]) => {
                     setDirty(true);
                     const next = { ...form, sslMode: value };
                     setForm(next);
                     setConnectionString(buildConnectionString(next));
                   }}
+                  value={form.sslMode}
                 >
                   <SelectTrigger id="pg-ssl">
                     <SelectValue placeholder="Select SSL mode" />
@@ -297,28 +300,30 @@ export function PostgresConfigForm({
 
       <div className="flex flex-wrap justify-end gap-3 pt-2">
         {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button onClick={onCancel} type="button" variant="ghost">
             Cancel
           </Button>
         ) : (
           <Button
-            type="button"
-            variant="ghost"
             disabled={saving}
             onClick={() => {
               setDirty(false);
               const resetState = derivePostgresState(metadata);
               setForm(resetState);
-              setConnectionString(deriveConnectionString(metadata ?? {}, resetState));
+              setConnectionString(
+                deriveConnectionString(metadata ?? {}, resetState)
+              );
               setConnectionStringError(null);
             }}
+            type="button"
+            variant="ghost"
           >
             Reset
           </Button>
         )}
         <Button
-          type="submit"
           disabled={saving || !dirty || Boolean(connectionStringError)}
+          type="submit"
         >
           {saving ? "Saving..." : "Save connection"}
         </Button>
@@ -335,15 +340,15 @@ function derivePostgresState(
   }
 
   return {
-    host: (metadata.host as string) ?? "",
-    port: metadata.port ? String(metadata.port) : POSTGRES_DEFAULT_STATE.port,
     database: (metadata.database as string) ?? "",
-    username: (metadata.username as string) ?? "",
+    host: (metadata.host as string) ?? "",
     password: "",
+    port: metadata.port ? String(metadata.port) : POSTGRES_DEFAULT_STATE.port,
     schema: (metadata.schema as string) ?? "",
     sslMode:
       (metadata.sslMode as PostgresFormState["sslMode"]) ??
       POSTGRES_DEFAULT_STATE.sslMode,
+    username: (metadata.username as string) ?? "",
   };
 }
 
@@ -380,33 +385,15 @@ function parseConnectionString(input: string): PostgresFormState | null {
       return null;
     }
     return {
+      database: url.pathname.replace(leadingSlashRegex, ""),
       host: url.hostname ?? "",
-      port: url.port || "5432",
-      database: url.pathname.replace(/^\//, ""),
-      username: decodeURIComponent(url.username ?? ""),
       password: decodeURIComponent(url.password ?? ""),
+      port: url.port || "5432",
       schema: url.searchParams.get("schema") ?? "",
       sslMode: "prefer",
+      username: decodeURIComponent(url.username ?? ""),
     };
   } catch {
     return null;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -6,10 +6,10 @@ const HTTP_TIMEOUT_MS = 15_000;
 const MAX_RESPONSE_BYTES = 64 * 1024;
 
 export const httpInputSchema = z.object({
-  url: z.string().url(),
-  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("POST"),
-  headers: z.record(z.string(), z.string()).optional(),
   body: z.unknown().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("POST"),
+  url: z.string().url(),
 });
 
 export type HttpInput = z.infer<typeof httpInputSchema>;
@@ -49,8 +49,6 @@ async function readCappedBody(response: Response): Promise<string> {
 }
 
 export const httpAction: WorkflowAction<typeof httpInputSchema> = {
-  type: "http",
-  schema: httpInputSchema,
   async execute(input) {
     let url = await assertPublicUrl(input.url);
     const controller = new AbortController();
@@ -59,15 +57,15 @@ export const httpAction: WorkflowAction<typeof httpInputSchema> = {
     try {
       // Manual redirect handling so each hop is re-checked for SSRF.
       let response = await fetch(url, {
-        method: input.method,
-        headers: {
-          "content-type": "application/json",
-          ...input.headers,
-        },
         body:
           input.method === "GET" || input.method === "DELETE"
             ? undefined
             : JSON.stringify(input.body ?? {}),
+        headers: {
+          "content-type": "application/json",
+          ...input.headers,
+        },
+        method: input.method,
         redirect: "manual",
         signal: controller.signal,
       });
@@ -86,15 +84,15 @@ export const httpAction: WorkflowAction<typeof httpInputSchema> = {
         url = await assertPublicUrl(next);
         redirects += 1;
         response = await fetch(url, {
-          method: input.method,
-          headers: {
-            "content-type": "application/json",
-            ...input.headers,
-          },
           body:
             input.method === "GET" || input.method === "DELETE"
               ? undefined
               : JSON.stringify(input.body ?? {}),
+          headers: {
+            "content-type": "application/json",
+            ...input.headers,
+          },
+          method: input.method,
           redirect: "manual",
           signal: controller.signal,
         });
@@ -110,15 +108,17 @@ export const httpAction: WorkflowAction<typeof httpInputSchema> = {
 
       return {
         output: {
+          body: parsed,
           status: response.status,
           success: response.ok,
-          body: parsed,
         },
       };
     } finally {
       clearTimeout(timeout);
     }
   },
+  schema: httpInputSchema,
+  type: "http",
 };
 
 export const __testing = { MAX_RESPONSE_BYTES };

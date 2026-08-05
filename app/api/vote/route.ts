@@ -1,6 +1,6 @@
-import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { getChatById, getVotesByChatId, voteMessage } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

@@ -1,13 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { User } from "@supabase/supabase-js"
-import { signOut } from "@/app/(app)/actions"
-
-import { useIsMobile } from "@/hooks/use-mobile"
+import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
+import type * as React from "react";
+import { useEffect, useState } from "react";
+import { signOut } from "@/app/(app)/actions";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -15,108 +12,111 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu";
 
-type MenuOption = {
-  title: string
-  href: string
-  description: string
-  disabled?: boolean
+import { useIsMobile } from "@/hooks/use-mobile";
+import { createClient } from "@/lib/supabase/client";
+
+interface MenuOption {
+  description: string;
+  disabled?: boolean;
+  href: string;
+  title: string;
 }
 
 const devOptions: MenuOption[] = [
   {
-    title: "Config",
-    href: "/build/config",
     description: "View and manage workspace configuration tables",
+    href: "/build/config",
+    title: "Config",
   },
   {
-    title: "Roles & Permissions",
-    href: "/build/roles",
     description: "Manage roles, permissions, and RLS",
+    href: "/build/roles",
+    title: "Roles & Permissions",
   },
   {
-    title: "Audit Log",
-    href: "/build/audit-log",
     description: "Database changes",
+    href: "/build/audit-log",
+    title: "Audit Log",
   },
-]
+];
 
 const buildOptions: MenuOption[] = [
   {
-    title: "Pages",
-    href: "/pages",
     description: "Create and manage views for your system",
+    href: "/pages",
+    title: "Pages",
   },
   {
-    title: "Page Links",
-    href: "/build/page-links",
     description: "Coming soon - manage navigation",
     disabled: true,
+    href: "/build/page-links",
+    title: "Page Links",
   },
-]
+];
 
 const automationOptions: MenuOption[] = [
   {
-    title: "Events",
-    href: "/automation/events",
     description: "Event in the system",
+    href: "/automation/events",
+    title: "Events",
   },
   {
-    title: "Listeners",
-    href: "/automation/listeners",
     description: "Listen for events and trigger workflows",
+    href: "/automation/listeners",
+    title: "Listeners",
   },
   {
-    title: "Workflows",
-    href: "/automation/workflows",
     description: "Multi-step processes",
+    href: "/automation/workflows",
+    title: "Workflows",
   },
-]
+];
 
 const dataOptions: MenuOption[] = [
   {
-    title: "Tables",
-    href: "/build/data",
     description: "Browse and manage your raw data",
+    href: "/build/data",
+    title: "Tables",
   },
   {
-    title: "Reports",
-    href: "/data/reports",
     description: "Create reports and charts with AI",
+    href: "/data/reports",
+    title: "Reports",
   },
-]
+];
 
 export function NavigationMenuDemo() {
-  const isMobile = useIsMobile()
-  const [user, setUser] = useState<User | null>(null)
+  const isMobile = useIsMobile();
+  const [_user, setUser] = useState<User | null>(null);
 
   // Check if we're in local mode to show Dev menu
-  const isLocalMode = process.env.NEXT_PUBLIC_APP_MODE === 'local'
+  const isLocalMode = process.env.NEXT_PUBLIC_APP_MODE === "local";
 
   useEffect(() => {
-    const supabase = createClient()
+    const supabase = createClient();
 
     // Get initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-    })
+      setUser(user);
+    });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+      setUser(session?.user ?? null);
+    });
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleLogout = async () => {
-    await signOut()
-  }
+    await signOut();
+  };
 
   return (
     <NavigationMenu viewport={isMobile}>
@@ -128,10 +128,10 @@ export function NavigationMenuDemo() {
               <li className="row-span-3">
                 <NavigationMenuLink asChild>
                   <a
-                    className="from-muted/50 to-muted flex h-full w-full flex-col justify-end rounded-md bg-linear-to-b p-4 no-underline outline-hidden transition-all duration-200 select-none focus:shadow-md md:p-6"
+                    className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-muted/50 to-muted p-4 no-underline outline-hidden transition-all duration-200 focus:shadow-md md:p-6"
                     href="/whats-new"
                   >
-                    <div className="mb-2 text-lg font-medium sm:mt-4">
+                    <div className="mb-2 font-medium text-lg sm:mt-4">
                       What's New
                     </div>
                     <p className="text-muted-foreground text-sm leading-tight">
@@ -148,12 +148,14 @@ export function NavigationMenuDemo() {
               </ListItem>
               <li>
                 <button
-                  type="button"
-                  onClick={handleLogout}
                   className="block w-full select-none rounded-sm px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+                  onClick={handleLogout}
+                  type="button"
                 >
-                  <div className="text-sm leading-none font-medium">Sign Out</div>
-                  <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+                  <div className="font-medium text-sm leading-none">
+                    Sign Out
+                  </div>
+                  <p className="line-clamp-2 text-muted-foreground text-sm leading-snug">
                     Sign out of your account
                   </p>
                 </button>
@@ -168,10 +170,10 @@ export function NavigationMenuDemo() {
               <ul className="grid w-[300px] gap-2">
                 {devOptions.map((option) => (
                   <ListItem
+                    disabled={option.disabled}
+                    href={option.href}
                     key={option.title}
                     title={option.title}
-                    href={option.href}
-                    disabled={option.disabled}
                   >
                     {option.description}
                   </ListItem>
@@ -188,10 +190,10 @@ export function NavigationMenuDemo() {
             <ul className="grid w-[300px] gap-2">
               {dataOptions.map((option) => (
                 <ListItem
+                  disabled={option.disabled}
+                  href={option.href}
                   key={option.title}
                   title={option.title}
-                  href={option.href}
-                  disabled={option.disabled}
                 >
                   {option.description}
                 </ListItem>
@@ -206,10 +208,10 @@ export function NavigationMenuDemo() {
             <ul className="grid w-[300px] gap-2">
               {buildOptions.map((option) => (
                 <ListItem
+                  disabled={option.disabled}
+                  href={option.href}
                   key={option.title}
                   title={option.title}
-                  href={option.href}
-                  disabled={option.disabled}
                 >
                   {option.description}
                 </ListItem>
@@ -224,10 +226,10 @@ export function NavigationMenuDemo() {
             <ul className="grid w-[320px] gap-2">
               {automationOptions.map((option) => (
                 <ListItem
+                  disabled={option.disabled}
+                  href={option.href}
                   key={option.title}
                   title={option.title}
-                  href={option.href}
-                  disabled={option.disabled}
                 >
                   {option.description}
                 </ListItem>
@@ -237,7 +239,7 @@ export function NavigationMenuDemo() {
         </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
-  )
+  );
 }
 
 function ListItem({
@@ -246,32 +248,38 @@ function ListItem({
   href,
   disabled,
   ...props
-}: React.ComponentPropsWithoutRef<"li"> & { href: string; disabled?: boolean }) {
+}: React.ComponentPropsWithoutRef<"li"> & {
+  href: string;
+  disabled?: boolean;
+}) {
   if (disabled) {
     return (
       <li {...props}>
-        <div className="block select-none rounded-sm px-3 py-2 cursor-not-allowed opacity-50">
-          <div className="text-sm leading-none font-medium">{title}</div>
-          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+        <div className="block cursor-not-allowed select-none rounded-sm px-3 py-2 opacity-50">
+          <div className="font-medium text-sm leading-none">{title}</div>
+          <p className="line-clamp-2 text-muted-foreground text-sm leading-snug">
             {children}
           </p>
         </div>
       </li>
-    )
+    );
   }
 
   return (
     <li {...props}>
       <NavigationMenuLink asChild>
-        <Link href={href} className="block select-none rounded-sm px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground">
-          <div className="text-sm leading-none font-medium">{title}</div>
-          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+        <Link
+          className="block select-none rounded-sm px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground"
+          href={href}
+        >
+          <div className="font-medium text-sm leading-none">{title}</div>
+          <p className="line-clamp-2 text-muted-foreground text-sm leading-snug">
             {children}
           </p>
         </Link>
       </NavigationMenuLink>
     </li>
-  )
+  );
 }
 
-export default NavigationMenuDemo
+export default NavigationMenuDemo;

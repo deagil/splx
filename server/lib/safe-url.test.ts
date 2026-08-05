@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertPublicUrl, UnsafeUrlError, __testing } from "./safe-url";
+import { __testing, assertPublicUrl, UnsafeUrlError } from "./safe-url";
 
 const { isBlockedIpv4, isBlockedIpv6 } = __testing;
 
@@ -21,7 +21,12 @@ describe("isBlockedIpv4", () => {
   });
 
   it("allows public addresses", () => {
-    for (const address of ["8.8.8.8", "1.1.1.1", "172.32.0.1", "93.184.216.34"]) {
+    for (const address of [
+      "8.8.8.8",
+      "1.1.1.1",
+      "172.32.0.1",
+      "93.184.216.34",
+    ]) {
       expect(isBlockedIpv4(address), address).toBeNull();
     }
   });

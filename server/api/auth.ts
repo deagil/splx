@@ -15,10 +15,10 @@ export async function resolveEndpointUser(
   const tenant = await resolveTenantContext(headers ? { headers } : {});
 
   return {
+    mode: tenant.mode,
+    roles: tenant.roles,
+    tenant,
     userId: tenant.userId,
     workspaceId: tenant.workspaceId,
-    roles: tenant.roles,
-    mode: tenant.mode,
-    tenant,
   };
 }

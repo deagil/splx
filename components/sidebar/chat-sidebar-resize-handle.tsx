@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useArtifactSelector } from "@/hooks/use-artifact";
-import { useScreenSize } from "@/hooks/use-screen-size";
-import { useSidebar } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
-import { CHAT_SIDEBAR_SIDE } from "@/components/sidebar/chat-sidebar-side";
 import {
   canResizeChatSidebar,
   clampSidebarWidthPx,
@@ -16,10 +11,15 @@ import {
   setSidebarWidthPx,
   writeRegularWidthPercent,
 } from "@/components/sidebar/chat-sidebar-resize";
+import { CHAT_SIDEBAR_SIDE } from "@/components/sidebar/chat-sidebar-side";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useArtifactSelector } from "@/hooks/use-artifact";
+import { useScreenSize } from "@/hooks/use-screen-size";
+import { cn } from "@/lib/utils";
 
-type ChatSidebarResizeHandleProps = {
+interface ChatSidebarResizeHandleProps {
   isExpandedMode: boolean;
-};
+}
 
 export function ChatSidebarResizeHandle({
   isExpandedMode,
@@ -38,19 +38,20 @@ export function ChatSidebarResizeHandle({
   } | null>(null);
 
   const allowed = canResizeChatSidebar({
-    open,
-    isExpandedMode,
     isArtifactVisible,
+    isExpandedMode,
+    open,
     screenSize,
   });
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (highlightTimeoutRef.current !== null) {
         window.clearTimeout(highlightTimeoutRef.current);
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!allowed) {
@@ -173,9 +174,9 @@ export function ChatSidebarResizeHandle({
     }
 
     dragStateRef.current = {
-      startX: event.clientX,
-      startWidthPx,
       didMove: false,
+      startWidthPx,
+      startX: event.clientX,
     };
     setSidebarResizing(true);
     setIsDragging(true);

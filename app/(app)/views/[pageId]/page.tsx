@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 
-type LegacyPageParams = { pageId: string };
+interface LegacyPageParams {
+  pageId: string;
+}
 type LegacyPageSearchParams = Record<string, string | string[] | undefined>;
 
-type LegacyPageProps = {
+interface LegacyPageProps {
   params: LegacyPageParams | Promise<LegacyPageParams>;
-  searchParams:
-    | LegacyPageSearchParams
-    | Promise<LegacyPageSearchParams>;
-};
+  searchParams: LegacyPageSearchParams | Promise<LegacyPageSearchParams>;
+}
 
 export default async function LegacyPageRedirect({
   params,
@@ -34,12 +34,11 @@ function stringifySearchParams(
     if (typeof value === "string") {
       params.set(key, value);
     } else if (Array.isArray(value)) {
-      value.forEach((entry) => {
+      for (const entry of value) {
         params.append(key, entry);
-      });
+      }
     }
   }
 
   return params.toString();
 }
-

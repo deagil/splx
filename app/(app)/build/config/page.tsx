@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
-import { requireCapability } from "@/lib/server/tenant/permissions";
 import { ConfigTablesView } from "@/components/build/config-tables-view";
 import { AppLoader } from "@/components/shared/app-loader";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
+import { requireCapability } from "@/lib/server/tenant/permissions";
 
 async function ConfigPageContent() {
   const tenant = await resolveTenantContext();
@@ -11,9 +11,10 @@ async function ConfigPageContent() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Config Tables</h1>
-        <p className="text-muted-foreground mt-2">
-          View and manage workspace configuration tables (pages, workflows, roles, etc.).
+        <h1 className="font-bold text-3xl">Config Tables</h1>
+        <p className="mt-2 text-muted-foreground">
+          View and manage workspace configuration tables (pages, workflows,
+          roles, etc.).
         </p>
       </div>
       <ConfigTablesView />

@@ -11,8 +11,6 @@ const bodySchema = z.object({
 
 export const POST = endpoint<z.infer<typeof bodySchema>>({
   auth: "required",
-  permission: "tables.edit",
-  schema: bodySchema,
   async handler({ user, body, requestId }) {
     const tableConfig = await getTableConfig(user.tenant, body.tableId);
     if (!tableConfig) {
@@ -22,14 +20,16 @@ export const POST = endpoint<z.infer<typeof bodySchema>>({
     await generatePagesForTable(user.tenant, tableConfig);
 
     await writeAuditLog({
-      workspaceId: user.workspaceId,
-      actorUserId: user.userId,
       action: "pages.generated",
-      resourceType: "table",
-      resourceId: body.tableId,
+      actorUserId: user.userId,
       requestId,
+      resourceId: body.tableId,
+      resourceType: "table",
+      workspaceId: user.workspaceId,
     });
 
     return { data: { success: true } };
   },
+  permission: "tables.edit",
+  schema: bodySchema,
 });

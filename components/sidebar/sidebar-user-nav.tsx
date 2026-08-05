@@ -3,8 +3,6 @@
 import { ChevronUp } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { User } from "@/lib/types";
-import { createClient } from "@/lib/supabase/client";
 import { useTheme } from "next-themes";
 import {
   DropdownMenu,
@@ -19,8 +17,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { guestRegex } from "@/lib/constants";
-import { LoaderIcon } from "../shared/icons";
-import { toast } from "../shared/toast";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@/lib/types";
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
