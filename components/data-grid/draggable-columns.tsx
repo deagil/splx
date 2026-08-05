@@ -8,16 +8,18 @@ import { DataGridTableDnd } from '@/components/ui/data-grid-table-dnd';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import {
+import type {
   ColumnDef,
+  PaginationState,
+  SortingState,
+} from '@tanstack/react-table';
+import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  PaginationState,
-  SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
+  useLegacyTable,
+} from '@tanstack/react-table/legacy';
 
 interface IData {
   id: string;
@@ -308,7 +310,7 @@ export default function DataGridDemo() {
 
   const [columnOrder, setColumnOrder] = useState<string[]>(columns.map((column) => column.id as string));
 
-  const table = useReactTable({
+  const table = useLegacyTable({
     columns,
     data: demoData,
     pageCount: Math.ceil((demoData?.length || 0) / pagination.pageSize),

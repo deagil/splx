@@ -2,9 +2,21 @@ import { openai } from "@ai-sdk/openai";
 import {
   customProvider,
   extractReasoningMiddleware,
+  type LanguageModelMiddleware,
   wrapLanguageModel,
 } from "ai";
-import { isTestEnvironment } from "../constants";
+import { isProductionEnvironment, isTestEnvironment } from "../constants";
+
+// Optional devtools middleware - only available if package is installed
+let devToolsMiddlewareFn: (() => LanguageModelMiddleware) | undefined;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const devtools = require("@ai-sdk/devtools");
+  devToolsMiddlewareFn = devtools.devToolsMiddleware;
+} catch {
+  // DevTools not available, continue without it
+  devToolsMiddlewareFn = undefined;
+}
 
 /**
  * OpenAI Provider Configuration
@@ -47,17 +59,38 @@ export const myProvider = isTestEnvironment
   : customProvider({
     languageModels: {
       // Default chat model with vision and text capabilities
-      "chat-model": openai("gpt-5-mini"),
+      "chat-model": wrapLanguageModel({
+        model: openai("gpt-5-mini"),
+        // Enable DevTools in development for debugging LLM calls
+        middleware: !isProductionEnvironment && devToolsMiddlewareFn
+          ? devToolsMiddlewareFn()
+          : undefined,
+      }),
 
       // Reasoning model - uses OpenAI's native reasoning support
       // Reasoning visibility is controlled via providerOptions.reasoningSummary
       // Remove extractReasoningMiddleware as OpenAI handles reasoning natively
-      "chat-model-reasoning": openai("gpt-5-mini"),
+      "chat-model-reasoning": wrapLanguageModel({
+        model: openai("gpt-5-mini"),
+        middleware: !isProductionEnvironment && devToolsMiddlewareFn
+          ? devToolsMiddlewareFn()
+          : undefined,
+      }),
 
       // Title generation model (optimized for concise output)
-      "title-model": openai("gpt-5-nano"),
+      "title-model": wrapLanguageModel({
+        model: openai("gpt-5-nano"),
+        middleware: !isProductionEnvironment && devToolsMiddlewareFn
+          ? devToolsMiddlewareFn()
+          : undefined,
+      }),
 
       // Artifact/document generation model
-      "artifact-model": openai("gpt-5-mini"),
+      "artifact-model": wrapLanguageModel({
+        model: openai("gpt-5-mini"),
+        middleware: !isProductionEnvironment && devToolsMiddlewareFn
+          ? devToolsMiddlewareFn()
+          : undefined,
+      }),
     },
   });

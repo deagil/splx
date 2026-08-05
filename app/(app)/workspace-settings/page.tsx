@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { SettingsLayout, type SettingsSection } from "@/components/settings/settings-layout";
 import { ConnectedAppsSettings } from "@/components/settings/connected-apps-section";
 import { IntegrationHeader } from "@/components/settings/integration-header";
 import { UsersRolesSection } from "@/components/settings/users-roles-section";
 import { GradientMesh, ConnectedNodes } from "@/components/settings/decorations";
+import { AppLoader } from "@/components/shared/app-loader";
 import type { AppMode } from "@/lib/app-mode";
 import { getAppMode } from "@/lib/server/tenant/context";
 import type { Workspace } from "@/lib/db/schema";
@@ -12,34 +14,34 @@ import { getWorkspaceData } from "./actions";
 
 function createSections(mode: AppMode, workspace: Workspace): SettingsSection[] {
   return [
-  {
-    id: "workspace-profile",
-    title: "Workspace profile",
-    description:
-      "Update the details that represent your organisation across Splx.",
-    content: <WorkspaceProfileForm workspace={workspace} />,
-    headerDecoration: <GradientMesh />,
-  },
-  {
-    id: "users-roles",
-    title: "Users and roles",
-    description:
-      "Manage workspace members, send invitations, and assign roles.",
-    content: <UsersRolesSection />,
-    headerDecoration: <ConnectedNodes />,
-  },
-  {
-    id: "connected-apps",
-    title: "Connected apps",
-    description:
-      "Connect Splx to your data sources and AI providers. In local mode changes are written to .env.local, while hosted workspaces store credentials securely.",
-    content: <ConnectedAppsSettings mode={mode} />,
-    headerDecoration: <IntegrationHeader />,
-  },
-];
+    {
+      id: "workspace-profile",
+      title: "Workspace profile",
+      description:
+        "Update the details that represent your organisation across Splx.",
+      content: <WorkspaceProfileForm workspace={workspace} />,
+      headerDecoration: <GradientMesh />,
+    },
+    {
+      id: "users-roles",
+      title: "Users and roles",
+      description:
+        "Manage workspace members, send invitations, and assign roles.",
+      content: <UsersRolesSection />,
+      headerDecoration: <ConnectedNodes />,
+    },
+    {
+      id: "connected-apps",
+      title: "Connected apps",
+      description:
+        "Connect Splx to your data sources and AI providers. In local mode changes are written to .env.local, while hosted workspaces store credentials securely.",
+      content: <ConnectedAppsSettings mode={mode} />,
+      headerDecoration: <IntegrationHeader />,
+    },
+  ];
 }
 
-export default async function WorkplaceSettingsPage() {
+async function WorkplaceSettingsContent() {
   const mode = getAppMode();
   const workspace = await getWorkspaceData();
 
@@ -58,4 +60,10 @@ export default async function WorkplaceSettingsPage() {
   );
 }
 
-
+export default function WorkplaceSettingsPage() {
+  return (
+    <Suspense fallback={<AppLoader label="Loading workspace settings" />}>
+      <WorkplaceSettingsContent />
+    </Suspense>
+  );
+}

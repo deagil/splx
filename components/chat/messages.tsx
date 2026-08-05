@@ -1,3 +1,4 @@
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +34,7 @@ export type OptimisticMessage = {
 };
 
 type MessagesProps = {
+  addToolApprovalResponse: ChatAddToolApproveResponseFunction;
   chatId: string;
   status: UseChatHelpers<ChatMessage>["status"];
   votes: Vote[] | undefined;
@@ -94,6 +96,7 @@ const OptimisticUserMessage = memo(({ message }: { message: OptimisticMessage })
 OptimisticUserMessage.displayName = "OptimisticUserMessage";
 
 function PureMessages({
+  addToolApprovalResponse,
   chatId,
   status,
   votes,
@@ -209,6 +212,7 @@ function PureMessages({
             <AnimatePresence initial={false}>
               {messages.map((message, index) => (
                 <PreviewMessage
+                  addToolApprovalResponse={addToolApprovalResponse}
                   chatId={chatId}
                   isLoading={
                     status === "streaming" && messages.length - 1 === index

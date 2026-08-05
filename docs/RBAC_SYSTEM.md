@@ -1,5 +1,7 @@
 # Role-Based Access Control (RBAC) System
 
+> **Planned change:** API route authorization is moving to a shared `endpoint()` wrapper with declarative `resource:action:scope` permissions. See [API_CONTROL_PLANE.md](./API_CONTROL_PLANE.md). Until that lands, handlers still use `resolveTenantContext()` + the static capability map in `lib/server/tenant/permissions.ts` (this doc’s DB `role_permissions` story and that map can diverge — treat the control-plane doc as the target).
+
 ## Executive Summary
 
 Splx Studio implements a **multi-tenant, resource-based permission system** with three layers of security:

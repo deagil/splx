@@ -2,7 +2,15 @@
 
 ## Overview
 
-The AI Chat system provides conversational AI capabilities with support for contextual data mentions, file attachments, streaming responses, and multiple AI models. Built on the Vercel AI SDK, it features a rich text editor powered by Plate.js with @ mention functionality that allows users to reference page data, tables, records, and more directly in conversations.
+The AI Chat system provides conversational AI capabilities with support for contextual data mentions, file attachments, streaming responses, and multiple AI models. Built on the Vercel AI SDK v6, it features a rich text editor powered by Plate.js with @ mention functionality that allows users to reference page data, tables, records, and more directly in conversations.
+
+**AI SDK Version**: v6.0.3 (upgraded from v5.0.108)
+
+**Key v6 Features in Use**:
+- **Agent Abstraction**: `ToolLoopAgent` for reusable agent definitions
+- **Tool Approval**: Human-in-the-loop approval for sensitive operations
+- **DevTools**: Development debugging tools for LLM calls
+- **Type Safety**: End-to-end type safety with `InferAgentUIMessage`
 
 ## Core Features
 
@@ -14,6 +22,8 @@ The AI Chat system provides conversational AI capabilities with support for cont
 - **Chat History**: Persistent conversation history stored in database
 - **Usage Tracking**: Token usage tracking with TokenLens integration
 - **Reasoning Display**: View AI reasoning process for reasoning-capable models
+- **Tool Approval**: Human-in-the-loop approval for sensitive tool operations (AI SDK v6)
+- **Agent Abstraction**: Reusable agent definitions with type-safe UI messages (AI SDK v6)
 
 ## Architecture
 
@@ -42,8 +52,16 @@ Chat Component (components/chat/chat.tsx)
 ├── Messages (components/chat/messages.tsx)
 │   └── Message (components/chat/message.tsx)
 │       ├── MessageContent (text/code/tool results)
+│       ├── ToolApproval (components/chat/tool-approval.tsx) [AI SDK v6]
+│       │   └── Approval UI for tools requiring user confirmation
 │       └── MessageActions (copy, regenerate, etc.)
 └── SuggestedActions (quick action buttons)
+
+Agent Layer (lib/ai/agents/chat-agent.ts) [AI SDK v6]
+└── ToolLoopAgent
+    ├── Model configuration
+    ├── System prompt generation
+    └── Tool definitions (with approval support)
 ```
 
 ## Key Components
@@ -53,13 +71,14 @@ Chat Component (components/chat/chat.tsx)
 **Purpose**: Main chat orchestration component that manages chat state, message flow, and AI SDK integration.
 
 **Key Responsibilities**:
-- Initializes AI SDK's `useChat` hook
+- Initializes AI SDK's `useChat` hook (v6)
 - Manages chat messages and conversation state
 - Coordinates mention enrichment with message sending
 - Handles model selection and visibility settings
 - Preserves mentions field through AI SDK transport
+- Provides tool approval function (`addToolApprovalResponse`) [AI SDK v6]
 
-**Implementation Highlights**:
+**Implementation Highlights** (AI SDK v6):
 ```typescript
 const {
   messages,
@@ -68,8 +87,9 @@ const {
   status,
   sendMessage,
   stop,
+  addToolApprovalResponse, // New in v6: tool approval handler
   // ...other AI SDK hooks
-} = useChat({
+} = useChat<ChatMessage>({
   id: chatId,
   api: "/api/chat",
   body: {
@@ -94,6 +114,12 @@ const {
   onError,
   onFinish,
 });
+
+// Pass approval function to child components
+<Messages
+  addToolApprovalResponse={addToolApprovalResponse}
+  // ... other props
+/>
 ```
 
 ### 2. Multimodal Input (`components/input/multimodal-input.tsx`)
@@ -225,9 +251,50 @@ type MentionableItem = {
 - Table mentions (from system tables)
 - Record mentions (if applicable)
 
+### 6. Chat Agent (`lib/ai/agents/chat-agent.ts`) [AI SDK v6]
+
+**Purpose**: Reusable agent abstraction using `ToolLoopAgent` for consistent tool configuration and type safety.
+
+**Key Features**:
+- Centralized agent definition with model, instructions, and tools
+- Type-safe UI message types via `InferAgentUIMessage`
+- Runtime configuration for dynamic model selection and personalization
+- Consistent tool setup across different contexts
+
+**Usage**:
+```typescript
+// Create agent with runtime dependencies
+const agent = createChatAgent({
+  selectedChatModel: "chat-model",
+  requestHints: { latitude, longitude, city, country },
+  userPreferences: { /* ... */ },
+  session: { user: { id: userId } },
+  dataStream, // For tool data streaming
+});
+
+// Type-safe UI messages
+import type { ChatAgentUIMessage } from '@/lib/ai/agents/chat-agent';
+const { messages } = useChat<ChatAgentUIMessage>();
+```
+
+### 7. Tool Approval Component (`components/chat/tool-approval.tsx`) [AI SDK v6]
+
+**Purpose**: UI component for handling human-in-the-loop tool approval requests.
+
+**Key Features**:
+- Displays approval request with tool details
+- Approve/Deny buttons for user interaction
+- Integrates with `addToolApprovalResponse` from `useChat`
+- Handles approval state transitions
+
+**Integration**:
+- Automatically rendered when tool invocation has `state: "approval-requested"`
+- Integrated into message rendering pipeline
+- Supports all tools with `needsApproval: true`
+
 ## Server-Side Processing
 
-### API Route (`app/(legacy-chat)/api/chat/route.ts`)
+### API Route (`app/api/chat/route.ts`)
 
 **Request Handling**:
 
@@ -266,10 +333,32 @@ const uiMessages = [...messagesFromDb, messageWithMentions];
 const aiMessages = [...messagesFromDb, enrichedMessageForAI];
 ```
 
-**AI Streaming Setup**:
+**AI Streaming Setup** (AI SDK v6):
 ```typescript
 const stream = createUIMessageStream({
-  execute: ({ writer: dataStream }) => {
+  execute: async ({ writer: dataStream }) => {
+    // Create agent with runtime dependencies (dataStream, session)
+    // Agent abstraction provides consistency and type safety
+    const agent = createChatAgent({
+      selectedChatModel,
+      requestHints,
+      userPreferences,
+      session: { user: { id: userId } },
+      dataStream,
+    });
+
+    // Extract tools from agent configuration
+    const tools = {
+      getWeather,
+      createDocument: createDocument({ session, dataStream }),
+      updateDocument: updateDocument({ session, dataStream }),
+      requestSuggestions: requestSuggestions({ session, dataStream }),
+      readUrlContent,
+      queryUserTable,
+      searchPages,
+      navigateToPage: navigateToPage({ dataStream }),
+    };
+
     const result = streamText({
       model: myProvider.languageModel(selectedChatModel),
       system: systemPrompt({
@@ -277,8 +366,9 @@ const stream = createUIMessageStream({
         requestHints,
         userPreferences,
       }),
-      messages: convertToModelMessages(aiMessages),
-      tools: { getWeather, createDocument, updateDocument, ... },
+      // Note: convertToModelMessages is now async in v6
+      messages: await convertToModelMessages(aiMessages),
+      tools,
       experimental_transform: smoothStream({ chunking: "word" }),
       onFinish: async ({ usage }) => {
         // Track usage with TokenLens
@@ -293,6 +383,30 @@ const stream = createUIMessageStream({
 });
 
 return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
+```
+
+**Agent Abstraction** (`lib/ai/agents/chat-agent.ts`):
+```typescript
+export const createChatAgent = (options: ChatAgentOptions) => {
+  return new ToolLoopAgent({
+    model: myProvider.languageModel(options.selectedChatModel),
+    instructions: systemPrompt({
+      selectedChatModel: options.selectedChatModel,
+      requestHints: options.requestHints,
+      userPreferences: options.userPreferences,
+    }),
+    tools: {
+      getWeather,
+      createDocument: createDocument({ session: options.session, dataStream: options.dataStream }),
+      updateDocument: updateDocument({ session: options.session, dataStream: options.dataStream }),
+      // ... other tools
+    },
+    stopWhen: stepCountIs(5),
+  });
+};
+
+// Type-safe UI message type for client components
+export type ChatAgentUIMessage = InferAgentUIMessage<ReturnType<typeof createChatAgent>>;
 ```
 
 ### Mention Enrichment (`lib/server/mentions/enrich.ts`)
@@ -395,16 +509,30 @@ export const chatModels: ChatModel[] = [
 
 ### Provider Configuration (`lib/ai/providers.ts`)
 
-**AI Gateway Integration**:
+**AI Gateway Integration with DevTools** (AI SDK v6):
 ```typescript
-export const myProvider = createOpenAI({
-  baseURL: `${AI_GATEWAY_URL}/openai/v1`,
-  apiKey: process.env.OPENAI_API_KEY,
-  headers: {
-    "ai-gateway-provider": "openai",
+import { devToolsMiddleware } from "@ai-sdk/devtools";
+import { wrapLanguageModel } from "ai";
+
+export const myProvider = customProvider({
+  languageModels: {
+    "chat-model": wrapLanguageModel({
+      model: openai("gpt-5-mini"),
+      // Enable DevTools in development for debugging LLM calls
+      middleware: !isProductionEnvironment
+        ? devToolsMiddleware()
+        : undefined,
+    }),
+    // ... other models
   },
 });
 ```
+
+**DevTools Usage**:
+- DevTools are automatically enabled in development (`NODE_ENV !== "production"`)
+- Launch viewer: `npx @ai-sdk/devtools`
+- Open browser: http://localhost:4983
+- Features: Inspect prompts, view tool calls, monitor token usage, access raw provider data
 
 ### System Prompt (`lib/ai/prompts.ts`)
 
@@ -475,15 +603,21 @@ CREATE TABLE messages (
 );
 ```
 
-**Message Parts Format** (AI SDK 5.0):
+**Message Parts Format** (AI SDK v6):
 ```typescript
 type MessagePart =
   | { type: "text"; text: string }
   | { type: "file"; url: string; name: string; mediaType: string }
   | { type: "reasoning"; text: string }
   | { type: "tool-call"; toolCallId: string; toolName: string; args: any }
-  | { type: "tool-result"; toolCallId: string; result: any };
+  | { type: "tool-result"; toolCallId: string; result: any }
+  | { type: "tool-updateDocument"; toolCallId: string; state: "approval-requested" | "output-available"; input: {...}; approval?: { id: string }; output?: {...} };
 ```
+
+**Tool Approval States** (AI SDK v6):
+- `approval-requested`: Tool execution pending user approval
+- `output-available`: Tool executed and output is available
+- `error`: Tool execution failed
 
 ## User Personalization
 
@@ -547,6 +681,91 @@ dataStream.merge(
   })
 );
 ```
+
+## Tool Approval (AI SDK v6)
+
+### Overview
+
+AI SDK v6 introduces human-in-the-loop tool approval for sensitive operations. Tools can require user approval before execution, providing a safety layer for operations that modify user data or perform destructive actions.
+
+### Implementation
+
+**Tool Configuration**:
+```typescript
+export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
+  tool({
+    description: "Update a document with the given description.",
+    inputSchema: z.object({
+      id: z.string(),
+      description: z.string(),
+    }),
+    // Require user approval before executing document updates
+    needsApproval: true,
+    execute: async ({ id, description }) => {
+      // ... tool execution logic
+    },
+  });
+```
+
+**Approval UI Component** (`components/chat/tool-approval.tsx`):
+```typescript
+export function ToolApproval({
+  invocation,
+  addToolApprovalResponse,
+}: {
+  invocation: UIToolInvocation<typeof updateDocument>;
+  addToolApprovalResponse: ChatAddToolApproveResponseFunction;
+}) {
+  if (invocation.state === "approval-requested") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Approval Required</CardTitle>
+          <CardDescription>
+            This tool requires your approval before execution.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Display tool input details */}
+        </CardContent>
+        <CardFooter>
+          <Button onClick={() => addToolApprovalResponse({
+            id: invocation.approval.id,
+            approved: true,
+          })}>
+            Approve
+          </Button>
+          <Button onClick={() => addToolApprovalResponse({
+            id: invocation.approval.id,
+            approved: false,
+          })}>
+            Deny
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+  return null;
+}
+```
+
+**Integration in Chat**:
+- `useChat` hook provides `addToolApprovalResponse` function
+- Approval UI component checks for `approval-requested` state
+- User can approve or deny tool execution
+- Approved tools execute normally; denied tools return error state
+
+**Current Tools with Approval**:
+- `updateDocument` - Requires approval for all document updates
+
+### Approval Flow
+
+1. AI requests tool execution
+2. Tool has `needsApproval: true` → execution paused
+3. UI displays approval request with tool details
+4. User approves or denies
+5. If approved → tool executes → output displayed
+6. If denied → error state displayed → execution stopped
 
 ## Usage Tracking
 
@@ -714,8 +933,69 @@ type ChatSDKError =
 - Verify Redis connection for resumable streams
 - Check AI Gateway configuration and credits
 
+**Tool approval not working:**
+- Verify `needsApproval: true` is set on tool definition
+- Check that `addToolApprovalResponse` is passed to message components
+- Ensure `ToolApproval` component is imported and rendered
+- Check browser console for approval-related errors
+
+**Type errors after v6 upgrade:**
+- Ensure `convertToModelMessages` is awaited (now async in v6)
+- Check that `ChatAddToolApproveResponseFunction` is imported from `ai` package (not `@ai-sdk/react`)
+- Verify agent factory function receives all required options
+
+## AI SDK v6 Migration Notes
+
+### Key Changes from v5
+
+1. **Agent Abstraction**: 
+   - Created `lib/ai/agents/chat-agent.ts` with `ToolLoopAgent` for reusable agent definitions
+   - Provides type-safe UI message types via `InferAgentUIMessage`
+   - Agent factory function accepts runtime dependencies (dataStream, session)
+
+2. **Tool Approval**:
+   - Added `needsApproval: true` to `updateDocument` tool
+   - Created approval UI component (`components/chat/tool-approval.tsx`)
+   - Integrated approval flow into message rendering
+
+3. **API Changes**:
+   - `convertToModelMessages` is now async (must be awaited)
+   - `ChatAddToolApproveResponseFunction` moved from `@ai-sdk/react` to `ai` package
+   - `createUIMessageStream` execute function can be async
+
+4. **DevTools**:
+   - Added `@ai-sdk/devtools` package
+   - Wrapped models with `devToolsMiddleware` in development
+   - DevTools automatically enabled/disabled based on environment
+
+5. **Type Safety**:
+   - Client components can use `ChatAgentUIMessage` type for full type safety
+   - Tool invocation types include approval state information
+
+### Migration Status
+
+✅ **Completed**:
+- Dependencies updated to v6
+- Agent abstraction created and integrated
+- Tool approval implemented for `updateDocument`
+- DevTools configured for development
+- Type imports updated
+
+🔄 **Backward Compatible**:
+- Existing `streamText` usage continues to work
+- `experimental_*` APIs still supported
+- Tool definitions remain compatible
+- UI message handling unchanged
+
+### Breaking Changes
+
+- **None** - Current implementation is fully compatible with v6
+- `convertToModelMessages` is now async (requires `await`)
+- Some type imports moved between packages (handled automatically)
+
 ## Related Documentation
 
 - [AI_CHAT_MENTIONS.md](./AI_CHAT_MENTIONS.md) - Detailed mention system documentation
 - [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md) - Database structure and access patterns
 - [PAGES_SYSTEM.md](./PAGES_SYSTEM.md) - Visual page builder integration with chat
+- [AI_SDK_V6_MIGRATION.md](./AI_SDK_V6_MIGRATION.md) - Complete AI SDK v6 migration guide

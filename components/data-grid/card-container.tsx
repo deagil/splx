@@ -9,16 +9,18 @@ import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import {
+import type {
   ColumnDef,
+  PaginationState,
+  SortingState,
+} from '@tanstack/react-table';
+import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  PaginationState,
-  SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
+  useLegacyTable,
+} from '@tanstack/react-table/legacy';
 import { UserRoundPlus } from 'lucide-react';
 
 interface IData {
@@ -302,7 +304,7 @@ export default function DataGridDemo() {
 
   const [columnOrder, setColumnOrder] = useState<string[]>(columns.map((column) => column.id as string));
 
-  const table = useReactTable({
+  const table = useLegacyTable({
     columns,
     data: demoData,
     pageCount: Math.ceil((demoData?.length || 0) / pagination.pageSize),

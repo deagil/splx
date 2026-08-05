@@ -1,4 +1,5 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import { formatDistance } from "date-fns";
 import equal from "fast-deep-equal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -53,6 +54,7 @@ export type UIArtifact = {
 };
 
 function PureArtifact({
+  addToolApprovalResponse,
   chatId,
   input,
   setInput,
@@ -70,6 +72,7 @@ function PureArtifact({
   selectedModelId,
   variant = "overlay",
 }: {
+  addToolApprovalResponse: ChatAddToolApproveResponseFunction;
   chatId: string;
   input: string;
   setInput: Dispatch<SetStateAction<string>>;
@@ -424,6 +427,7 @@ function PureArtifact({
 
               <div className="flex h-full flex-col items-center justify-between">
                 <ArtifactMessages
+                  addToolApprovalResponse={addToolApprovalResponse}
                   artifactStatus={artifact.status}
                   chatId={chatId}
                   isReadonly={isReadonly}

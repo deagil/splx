@@ -4,6 +4,10 @@
 node_modules
 .pnp
 .pnp.js
+.pnpm-store/
+
+# Cursor local agent state
+.cursor/hooks/state/
 
 # testing
 coverage

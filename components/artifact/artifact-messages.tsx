@@ -1,4 +1,5 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ChatAddToolApproveResponseFunction } from "ai";
 import equal from "fast-deep-equal";
 import { AnimatePresence, motion } from "framer-motion";
 import { memo } from "react";
@@ -9,6 +10,7 @@ import type { UIArtifact } from "./artifact";
 import { PreviewMessage, ThinkingMessage } from "../chat/message";
 
 type ArtifactMessagesProps = {
+  addToolApprovalResponse: ChatAddToolApproveResponseFunction;
   chatId: string;
   status: UseChatHelpers<ChatMessage>["status"];
   votes: Vote[] | undefined;
@@ -20,6 +22,7 @@ type ArtifactMessagesProps = {
 };
 
 function PureArtifactMessages({
+  addToolApprovalResponse,
   chatId,
   status,
   votes,
@@ -45,6 +48,7 @@ function PureArtifactMessages({
     >
       {messages.map((message, index) => (
         <PreviewMessage
+          addToolApprovalResponse={addToolApprovalResponse}
           chatId={chatId}
           isLoading={status === "streaming" && index === messages.length - 1}
           isReadonly={isReadonly}

@@ -72,9 +72,11 @@ pnpm dev
 - `pnpm test` – run tests (Playwright/Jest where configured)
 
 ## Documentation
+- `docs/API_CONTROL_PLANE.md` – planned shared `endpoint()` API layer, audit/events, migration phases
 - `docs/PAGES_SYSTEM.md` – visual page builder and block types
 - `docs/AI_CHAT_SYSTEM.md` – chat, mentions, and streaming flow
 - `docs/DATABASE_ARCHITECTURE.md` – main DB vs resource store
+- `docs/RBAC_SYSTEM.md` – roles, RLS, and API capability checks
 - `docs/INTEGRATION_CARDS.md` – integration UI guidelines
 - `docs/ONBOARDING_OTP.md` – authentication and onboarding flow
 - `docs/pages-migration.md` – page migration notes

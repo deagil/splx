@@ -26,17 +26,19 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DropdownMenu } from '@radix-ui/react-dropdown-menu';
 import { RiCheckboxCircleFill } from '@remixicon/react';
-import {
+import type {
   ColumnDef,
+  PaginationState,
+  Row,
+  SortingState,
+} from '@tanstack/react-table';
+import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  PaginationState,
-  Row,
-  SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
+  useLegacyTable,
+} from '@tanstack/react-table/legacy';
 import { Ellipsis, Filter, Search, UserRoundPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -422,7 +424,7 @@ export default function DataGridDemo() {
 
   const [columnOrder, setColumnOrder] = useState<string[]>(columns.map((column) => column.id as string));
 
-  const table = useReactTable({
+  const table = useLegacyTable({
     columns,
     data: filteredData,
     pageCount: Math.ceil((filteredData?.length || 0) / pagination.pageSize),
