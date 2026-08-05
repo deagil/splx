@@ -12,9 +12,9 @@ import {
   FileText,
   Palette,
   Zap,
-  Github,
-  Slack,
-  Trello,
+  GitBranch,
+  Hash,
+  SquareKanban,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,8 +25,8 @@ import { cn } from "@/lib/utils";
 const icons: Array<{ icon: LucideIcon; color: string }> = [
   { icon: Database, color: "text-blue-600 dark:text-blue-400" },
   { icon: Sparkles, color: "text-emerald-600 dark:text-emerald-400" },
-  { icon: Github, color: "text-gray-800 dark:text-gray-300" },
-  { icon: Slack, color: "text-purple-600 dark:text-purple-400" },
+  { icon: GitBranch, color: "text-gray-800 dark:text-gray-300" },
+  { icon: Hash, color: "text-purple-600 dark:text-purple-400" },
   { icon: Cloud, color: "text-sky-600 dark:text-sky-400" },
   { icon: MessageSquare, color: "text-pink-600 dark:text-pink-400" },
   { icon: FileCode, color: "text-orange-600 dark:text-orange-400" },
@@ -36,7 +36,7 @@ const icons: Array<{ icon: LucideIcon; color: string }> = [
   { icon: FileText, color: "text-amber-600 dark:text-amber-400" },
   { icon: Palette, color: "text-rose-600 dark:text-rose-400" },
   { icon: Zap, color: "text-yellow-600 dark:text-yellow-400" },
-  { icon: Trello, color: "text-blue-500 dark:text-blue-400" },
+  { icon: SquareKanban, color: "text-blue-500 dark:text-blue-400" },
 ];
 
 /**
