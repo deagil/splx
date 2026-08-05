@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
 import { ConfigTablesView } from "@/components/build/config-tables-view";
+import { AppLoader } from "@/components/shared/app-loader";
 
-export default async function ConfigPage() {
+async function ConfigPageContent() {
   const tenant = await resolveTenantContext();
   requireCapability(tenant, "pages.view");
 
@@ -19,4 +21,10 @@ export default async function ConfigPage() {
   );
 }
 
-
+export default function ConfigPage() {
+  return (
+    <Suspense fallback={<AppLoader label="Loading config tables" />}>
+      <ConfigPageContent />
+    </Suspense>
+  );
+}

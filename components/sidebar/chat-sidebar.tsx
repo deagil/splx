@@ -22,6 +22,7 @@ import { generateUUID, cn } from "@/lib/utils";
 import { PlusIcon, ClockRewind, CrossIcon } from "@/components/shared/icons";
 import { Maximize2, Minimize2, FileXCorner } from "lucide-react";
 import { SidebarHistory } from "./sidebar-history";
+import { CHAT_SIDEBAR_SIDE } from "./chat-sidebar-side";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
 import type { ChatHistory } from "./sidebar-history";
 import {
@@ -58,6 +59,23 @@ export function ChatSidebar({
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
   const { setArtifact } = useArtifact();
   const [isExpandedMode, setIsExpandedMode] = useState(false);
+  const [controlsReady, setControlsReady] = useState(false);
+
+  // Fade-in matches ChatSidebarTrigger; block clicks until it finishes.
+  useEffect(() => {
+    if (!open) {
+      setControlsReady(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setControlsReady(true);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [open]);
 
   // Load expanded mode from localStorage on mount
   useEffect(() => {
@@ -159,11 +177,30 @@ export function ChatSidebar({
 
   return (
     <>
-      <Sidebar variant="inset" side="right" className="md:order-last **:data-[slot=sidebar-container]:p-0! **:data-[sidebar=sidebar]:bg-transparent!">
+      <Sidebar
+        variant="inset"
+        side={CHAT_SIDEBAR_SIDE}
+        className={cn(
+          CHAT_SIDEBAR_SIDE === "right" ? "md:order-last" : "md:order-first",
+          "**:data-[slot=sidebar-container]:p-0! **:data-[sidebar=sidebar]:bg-transparent!"
+        )}
+      >
         <SidebarHeader>
           <SidebarMenu>
-            <div className="flex flex-row items-center justify-between gap-2 p-1">
-              <div className="flex flex-row items-center gap-1">
+            <div
+              className={cn(
+                "flex flex-row items-center justify-between gap-2 p-1 transition-opacity ease-in-out duration-250",
+                CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse",
+                open ? "opacity-100" : "opacity-0",
+                !controlsReady && "pointer-events-none"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex flex-row items-center gap-1",
+                  CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse"
+                )}
+              >
                 {hasMessages && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -205,7 +242,12 @@ export function ChatSidebar({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <div className="flex flex-row items-center gap-1">
+              <div
+                className={cn(
+                  "flex flex-row items-center gap-1",
+                  CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse"
+                )}
+              >
                 <Tooltip delayDuration={1000}>
                   <TooltipTrigger asChild>
                     <Button
