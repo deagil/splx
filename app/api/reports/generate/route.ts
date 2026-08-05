@@ -59,7 +59,9 @@ type ConversationMessage = { role: "user" | "assistant"; content: string };
 export async function POST(request: Request) {
   try {
     const tenant = await resolveTenantContext();
-    requireCapability(tenant, "tables.edit");
+    // Streaming (SSE), so deliberately not wrapped in endpoint() —
+    // see docs/API_CONTROL_PLANE.md. Auth + permission only.
+    requireCapability(tenant, "reports.edit");
 
     const body = await request.json();
     const {

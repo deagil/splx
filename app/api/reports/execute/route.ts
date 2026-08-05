@@ -1,31 +1,5 @@
-import { NextResponse } from "next/server";
-import { resolveTenantContext } from "@/lib/server/tenant/context";
-import { requireCapability } from "@/lib/server/tenant/permissions";
-import { runReportQuery } from "@/lib/server/reports/run-query";
+import { POST as v1Post } from "@/app/api/v1/reports/execute/route";
+import { delegateToV1 } from "@/server/api/legacy";
 
-export async function POST(request: Request) {
-  try {
-    const tenant = await resolveTenantContext();
-    requireCapability(tenant, "tables.view");
-
-    const body = await request.json();
-    const { sql } = body;
-
-    if (!sql || typeof sql !== "string") {
-      return NextResponse.json({ error: "SQL query is required" }, { status: 400 });
-    }
-
-    const data = await runReportQuery(tenant, sql);
-
-    return NextResponse.json({ data });
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "Forbidden") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
-  }
-}
+/** Legacy path — delegates to `/api/v1/reports/execute`. */
+export const POST = delegateToV1(v1Post);

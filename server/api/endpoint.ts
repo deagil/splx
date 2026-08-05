@@ -53,7 +53,11 @@ export function endpoint<TBody = undefined, TParams = unknown, TData = unknown>(
       workspaceId = user.workspaceId;
 
       if (config.permission) {
-        await checkPermission(user.roles, config.permission);
+        await checkPermission({
+          workspaceId: user.workspaceId,
+          roles: user.roles,
+          permission: config.permission,
+        });
       }
 
       let body = undefined as TBody;

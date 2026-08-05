@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { streamObject } from "ai";
 import { z } from "zod";
 import { myProvider } from "@/lib/ai/providers";
+import { resolveTenantContext } from "@/lib/server/tenant/context";
+import { requireCapability } from "@/lib/server/tenant/permissions";
+import { handleError } from "@/server/api/responses";
 
 export async function POST(request: Request) {
   try {
+    // Unauthenticated LLM invocation until now: anyone who could reach this
+    // route could burn tokens against the workspace's provider budget.
+    // Streaming, so deliberately not wrapped in endpoint() — auth and
+    // permission only. See docs/API_CONTROL_PLANE.md.
+    const tenant = await resolveTenantContext();
+    requireCapability(tenant, "tables.edit");
+
     const { description, type } = await request.json();
 
     if (!description || type !== "fields") {
@@ -38,11 +48,9 @@ export async function POST(request: Request) {
     const result = await object;
     return NextResponse.json({ fields: result.fields });
   } catch (error) {
-    console.error("AI generation error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate fields" },
-      { status: 500 }
-    );
+    // Shared mapping so Unauthorized -> 401 and Forbidden -> 403 rather than
+    // both collapsing into 500.
+    return handleError(error);
   }
 }
 

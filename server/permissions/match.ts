@@ -2,6 +2,44 @@ import { canonicalizePermission } from "./definitions";
 
 export type RolePermissionMap = Record<string, string[]>;
 
+export type RolePermissionRow = {
+  role_id: string;
+  permission: string;
+  workspace_id: string | null;
+};
+
+/**
+ * Resolves `role_permissions` rows into an effective role → permissions map for
+ * one workspace.
+ *
+ * Mirrors the SQL `effective_role_permissions()` helper exactly: if a workspace
+ * defines any rows for a role, those rows are that role's complete permission
+ * set there and the global rows are ignored. Otherwise the global rows apply.
+ *
+ * Both sides must agree, or the API and RLS would disagree about what a role
+ * can do — so this is kept pure and tested against the same cases as the SQL.
+ */
+export function resolveEffectivePermissions(
+  rows: RolePermissionRow[],
+  workspaceId: string
+): RolePermissionMap {
+  const global: RolePermissionMap = {};
+  const scoped: RolePermissionMap = {};
+
+  for (const row of rows) {
+    if (row.workspace_id === null) {
+      global[row.role_id] ??= [];
+      global[row.role_id].push(row.permission);
+    } else if (row.workspace_id === workspaceId) {
+      scoped[row.role_id] ??= [];
+      scoped[row.role_id].push(row.permission);
+    }
+  }
+
+  // Workspace rows override global ones per role.
+  return { ...global, ...scoped };
+}
+
 /**
  * Matches a granted permission string against a requested one, supporting the
  * same wildcards as the SQL `user_has_access()` helper: a bare `*` grants

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { assertPublicUrl, UnsafeUrlError } from "@/server/lib/safe-url";
 
 /**
  * URL content response type
@@ -22,10 +24,16 @@ const MAX_CONTENT_LENGTH = 15000;
  * fall back to fetching during enrichment.
  */
 export async function GET(request: Request) {
+    // Fetches a caller-supplied URL (via Jina Reader) server-side. Previously
+    // unauthenticated, so anyone who could reach it could use the app as a
+    // proxy.
+    const authUser = await getAuthenticatedUser();
+    if (!authUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const url = searchParams.get("url");
-
-    console.log(`[URL Pre-fetch API] Request for: ${url}`);
 
     if (!url) {
         return NextResponse.json({ error: "URL parameter is required" }, {
@@ -33,14 +41,13 @@ export async function GET(request: Request) {
         });
     }
 
-    // Validate URL
     try {
-        new URL(url);
-    } catch {
-        console.log(`[URL Pre-fetch API] Invalid URL format: ${url}`);
-        return NextResponse.json({ error: "Invalid URL format" }, {
-            status: 400,
-        });
+        await assertPublicUrl(url);
+    } catch (error) {
+        if (error instanceof UnsafeUrlError) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
     }
 
     try {

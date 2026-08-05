@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { PageNotFoundError } from "@/lib/server/pages";
 import { ReservedTableNameError, TableNotFoundError } from "@/lib/server/tables";
 
 /**
@@ -98,6 +99,10 @@ export function handleError(
 
   if (error instanceof TableNotFoundError) {
     return notFound("Table not found", requestId);
+  }
+
+  if (error instanceof PageNotFoundError) {
+    return notFound(error.message, requestId);
   }
 
   if (error instanceof ReservedTableNameError) {

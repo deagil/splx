@@ -1,5 +1,5 @@
 import { eventOutbox } from "@/lib/db/schema";
-import type { DbClient } from "@/lib/server/tenant/context";
+import { getControlPlaneDb } from "./db";
 
 /**
  * Technical events emitted by the base data repository for every row mutation.
@@ -21,24 +21,23 @@ export type EventInput = {
 };
 
 /**
- * Inserts an event into `event_outbox`.
+ * Inserts an event into `event_outbox` in the main database.
  *
  * Never throws — a failed emit must not fail the mutation that produced it.
  * Nothing drains the outbox yet; a future automation runner will poll for rows
  * with `processed_at IS NULL` (see the partial index on that column).
  */
-export async function emitEvent(
-  db: DbClient,
-  event: EventInput
-): Promise<void> {
+export async function emitEvent(event: EventInput): Promise<void> {
   try {
-    await db.insert(eventOutbox).values({
-      workspace_id: event.workspaceId,
-      event_name: event.eventName,
-      payload: event.payload ?? {},
-      actor_user_id: event.actorUserId ?? null,
-      request_id: event.requestId ?? null,
-    });
+    await getControlPlaneDb()
+      .insert(eventOutbox)
+      .values({
+        workspace_id: event.workspaceId,
+        event_name: event.eventName,
+        payload: event.payload ?? {},
+        actor_user_id: event.actorUserId ?? null,
+        request_id: event.requestId ?? null,
+      });
   } catch (error) {
     console.error("[events] failed to emit event", {
       eventName: event.eventName,

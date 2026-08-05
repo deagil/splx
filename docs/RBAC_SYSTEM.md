@@ -553,10 +553,40 @@ requireCapability(tenant, "pages.view");  // throws Error("Forbidden")
 > denied `reports.view` even though both the database and the RLS policies granted it.
 > It now derives its map from `DEFAULT_ROLE_PERMISSIONS` and uses the shared matcher.
 
-**Known gap:** `roles` is workspace-scoped (composite PK `workspace_id, id`) but
-`role_permissions` is global. A workspace that defines a custom role gets no
-permissions from either source and is denied everything. Only the four standard roles
-work today.
+### Workspace-scoped permissions
+
+`role_permissions` has a nullable `workspace_id`:
+
+| `workspace_id` | Meaning |
+|----------------|---------|
+| `NULL` | Global default for that role — what the seed installs |
+| a workspace id | That workspace's own definition for that role |
+
+Resolution is **override per role**: if a workspace defines any rows for a role,
+those rows are that role's complete permission set there and the globals are
+ignored. If it defines none, the globals apply.
+
+Override rather than union so a workspace can *restrict* a built-in role, not only
+extend it. The consequence to know about: a workspace that customises `builder`
+will not pick up new `builder` permissions added to the global seed later.
+
+This is what makes custom workspace roles work. Before it, `roles` was
+workspace-scoped but `role_permissions` was global, so a custom role got nothing
+from either source and was denied everything.
+
+Two implementations must agree — the SQL helper
+`effective_role_permissions(workspace_id, role_id)`, used by `user_has_access()`
+and therefore by every RLS policy, and the TypeScript resolver in
+`server/permissions/match.ts`. If they diverge, the API and RLS disagree about
+what a role can do. The same scenarios are asserted in
+`server/permissions/effective.test.ts` and against a live Postgres; see
+[API_CONTROL_PLANE.md](./API_CONTROL_PLANE.md).
+
+```sql
+-- Grant a custom role its permissions in one workspace
+INSERT INTO role_permissions (workspace_id, role_id, permission)
+VALUES ('<workspace-id>', 'auditor', 'data.view');
+```
 
 ---
 
@@ -791,7 +821,8 @@ The following features from the reference implementations are **not yet implemen
 | Permission-based navigation filtering | Not implemented | Nav doesn't hide items based on permissions |
 | `hasAnyPermission()` / `hasAllPermissions()` | Not implemented | Only single permission check available |
 | Profile edit own (`profile.edit_own`) | Not implemented | No self-scoped profile editing permission |
-| Resource-specific wildcards in DB | Partial | `*` works, `resource.*` requires explicit entries |
+| Resource-specific wildcards in DB | Implemented | `*` and `resource.*` both expand, in SQL and TypeScript |
+| Custom workspace roles | Implemented | `role_permissions.workspace_id` overrides the global set per role |
 
 ### From pointsource/supabase_rbac
 
@@ -800,6 +831,7 @@ The following features from the reference implementations are **not yet implemen
 | Edge Function for invite acceptance | Uses API route instead | `/api/workspace/invites/accept` |
 | `add_user_by_email()` helper | Not implemented | Admin must use API to add users |
 | Multiple roles per user per workspace | Supported | Schema allows, UI may not expose |
+| Last-admin / owner protection | Implemented | `server/repositories/workspace-users.ts` refuses to demote or remove the owner or the last admin |
 | Role views with `security_invoker` | Not implemented | Direct table queries used |
 | Automatic owner role on group creation | Partial | Done in application code, not trigger |
 | Self-service user operations | Not implemented | All user management is admin-only |

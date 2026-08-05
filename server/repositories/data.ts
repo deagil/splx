@@ -424,7 +424,7 @@ export function dataRepository(context: DataRepositoryContext) {
 
         const record = rows[0];
 
-        await writeAuditLog(db, {
+        await writeAuditLog({
           workspaceId: tenant.workspaceId,
           actorUserId: tenant.userId,
           action: "data.created",
@@ -434,7 +434,7 @@ export function dataRepository(context: DataRepositoryContext) {
           requestId,
         });
 
-        await emitEvent(db, {
+        await emitEvent({
           workspaceId: tenant.workspaceId,
           eventName: `db.${table.physicalName}.created`,
           payload: { record },
@@ -463,7 +463,7 @@ export function dataRepository(context: DataRepositoryContext) {
           return null;
         }
 
-        await writeAuditLog(db, {
+        await writeAuditLog({
           workspaceId: tenant.workspaceId,
           actorUserId: tenant.userId,
           action: "data.updated",
@@ -473,7 +473,7 @@ export function dataRepository(context: DataRepositoryContext) {
           requestId,
         });
 
-        await emitEvent(db, {
+        await emitEvent({
           workspaceId: tenant.workspaceId,
           eventName: `db.${table.physicalName}.updated`,
           payload: { record, changes: body },
@@ -500,7 +500,7 @@ export function dataRepository(context: DataRepositoryContext) {
           return false;
         }
 
-        await writeAuditLog(db, {
+        await writeAuditLog({
           workspaceId: tenant.workspaceId,
           actorUserId: tenant.userId,
           action: "data.deleted",
@@ -510,7 +510,7 @@ export function dataRepository(context: DataRepositoryContext) {
           requestId,
         });
 
-        await emitEvent(db, {
+        await emitEvent({
           workspaceId: tenant.workspaceId,
           eventName: `db.${table.physicalName}.deleted`,
           payload: { record },

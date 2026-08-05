@@ -42,7 +42,7 @@ const querySchema = z.object({
 export async function GET(request: Request) {
   try {
     const tenant = await resolveTenantContext();
-    requireCapability(tenant, "pages.view");
+    requireCapability(tenant, "data.view");
     const url = new URL(request.url);
     const parsedQuery = parseQuery(url.searchParams);
     const validated = querySchema.parse(parsedQuery);

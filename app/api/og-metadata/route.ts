@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { assertPublicUrl, UnsafeUrlError } from "@/server/lib/safe-url";
 
 /**
  * OG Metadata response type
@@ -158,6 +160,14 @@ function decodeHtmlEntities(text: string): string {
  * Fetches Open Graph metadata from a URL
  */
 export async function GET(request: Request) {
+    // This route fetches a caller-supplied URL server-side. It used to require
+    // no authentication at all, making the app an open proxy for anything its
+    // network could reach.
+    const authUser = await getAuthenticatedUser();
+    if (!authUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const url = searchParams.get("url");
 
@@ -167,13 +177,13 @@ export async function GET(request: Request) {
         });
     }
 
-    // Validate URL
     try {
-        new URL(url);
-    } catch {
-        return NextResponse.json({ error: "Invalid URL format" }, {
-            status: 400,
-        });
+        await assertPublicUrl(url);
+    } catch (error) {
+        if (error instanceof UnsafeUrlError) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
     }
 
     try {

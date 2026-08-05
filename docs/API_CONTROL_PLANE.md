@@ -3,18 +3,22 @@
 Implementation roadmap for a shared `endpoint()` API layer in Splx Studio.
 Written so this work can be picked up later without re-deriving context from chat.
 
-**Status:** Phases 1–3 landed. Phases 4–7 outstanding.  
+**Status:** Phases 1–5 landed. Phases 6–7 outstanding.  
 **Canonical repo:** the `deagil/splx` working tree.
 
-> **Implementation notes (Phases 1–3).** Three things changed relative to the plan
-> below; see [Deviations from this plan](#deviations-from-this-plan) at the end for
-> the reasoning.
+> **Implementation notes.** Several things changed relative to the plan below; see
+> [Deviations from this plan](#deviations-from-this-plan) for the reasoning.
 >
 > 1. Permissions use **`resource.action`** dot notation, not `resource:action:scope`.
 > 2. `/api/data/[tableName]` had a **live SQL injection**, not just "thin validation".
 >    It is fixed, not deferred.
 > 3. The `role_permissions` **table is the runtime source of truth**, with the static
 >    map as a fallback — rather than the two diverging permanently.
+> 4. `role_permissions` is now **workspace-scoped** (nullable `workspace_id`, NULL =
+>    global default), so custom workspace roles resolve permissions instead of being
+>    denied everything.
+> 5. Several routes had **no authorization at all** — `/api/workspace/users` and
+>    `/api/workspace/invites` most seriously. Those are closed.
 
 Related docs: [RBAC_SYSTEM.md](./RBAC_SYSTEM.md), [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md), [PAGES_SYSTEM.md](./PAGES_SYSTEM.md), [AI_CHAT_SYSTEM.md](./AI_CHAT_SYSTEM.md).
 
@@ -121,7 +125,7 @@ Treat routes as **thin adapters**: declare auth + permission + schema; keep hand
 
 ## Proposed file tree
 
-As built (Phases 1–3). `✅` exists, `⬜` still to come.
+As built (Phases 1–5). `✅` exists, `⬜` still to come.
 
 ```text
 server/
@@ -130,36 +134,66 @@ server/
     auth.ts              ✅ resolveTenantContext → EndpointUser adapter
     responses.ts         ✅ unauthorized, forbidden, handleError, success, ApiError
     responses.test.ts    ✅
+    legacy.ts            ✅ delegateToV1 — flattens the envelope for pre-v1 paths
     types.ts             ✅ EndpointUser / EndpointContext / EndpointConfig
   permissions/
     definitions.ts       ✅ Permission union, aliases, DEFAULT_ROLE_PERMISSIONS
-    match.ts             ✅ pure wildcard matcher (no next/headers dependency)
+    match.ts             ✅ pure matcher + workspace-override resolver
     match.test.ts        ✅
-    check.ts             ✅ DB-backed checkPermission, static fallback
+    effective.test.ts    ✅ override semantics, mirrored against the SQL helper
+    check.ts             ✅ DB-backed checkPermission, per-workspace cache
   repositories/
     data.ts              ✅ row CRUD + column validation + audit + db.* events
     data.test.ts         ✅ injection, tenant predicate, pagination
-    index.ts             ⬜ unified `repo` export — not needed with one repository
-    pages.ts             ⬜
+    data.integration.test.ts ✅ the same against a real Postgres (opt-in)
+    workspace-users.ts   ✅ membership: role changes, removal, owner/last-admin
+    workspace-invites.ts ✅ invites: create, list, revoke
+    index.ts             ⬜ unified `repo` export
+    pages.ts             ⬜ routes call lib/server/pages directly
     tables.ts            ⬜
     reports.ts           ⬜
   lib/
+    db.ts                ✅ pooled main-DB client for control-plane tables
     audit.ts             ✅ writeAuditLog → audit_logs
     events.ts            ✅ emitEvent → event_outbox
+    safe-url.ts          ✅ SSRF guard for URL-fetching routes
+    safe-url.test.ts     ✅
     event-descriptions.ts ⬜ nothing renders these yet
 
+lib/server/tables/
+  list-physical.ts       ✅ extracted from app/api/tables/route.ts
+  sync.ts                ✅ extracted from app/api/tables/sync/route.ts
+
 supabase/migrations/
-  20260805120000_audit_logs_and_event_outbox.sql   ✅
+  20260805120000_audit_logs_and_event_outbox.sql          ✅
+  20260805130000_workspace_scoped_role_permissions.sql    ✅
 
 app/api/v1/
-  data/[tableName]/route.ts    ✅
-  pages/...                    ⬜
-  tables/...                   ⬜
-  reports/...                  ⬜
-  workspace/...                ⬜
+  data/[tableName]/route.ts          ✅
+  data/[tableName]/schema/route.ts   ✅
+  pages/route.ts                     ✅
+  pages/[pageId]/route.ts            ✅
+  pages/[pageId]/save/route.ts       ✅
+  tables/route.ts                    ✅
+  tables/[tableId]/route.ts          ✅
+  tables/metadata/route.ts           ✅
+  tables/sync/route.ts               ✅
+  tables/generate-pages/route.ts     ✅
+  reports/route.ts                   ✅
+  reports/[reportId]/route.ts        ✅
+  reports/execute/route.ts           ✅
+  workspace/users/route.ts           ✅
+  workspace/roles/route.ts           ✅
+  workspace/invites/route.ts         ✅
+  workspace-apps/[type]/route.ts     ✅
 
-vitest.config.ts               ✅ scoped to server/**/*.test.ts
+vitest.config.ts                     ✅ scoped to server/**/*.test.ts
 ```
+
+Every pre-v1 path above still works: it re-exports its v1 handler through
+`delegateToV1`, which flattens `{ data, meta }` back to the old flat shape. That
+keeps existing UI fetches working without a coordinated front-end change. Delete a
+delegator once nothing fetches its path.
 
 `server/repositories/index.ts` was skipped deliberately: a `repo` barrel export that
 re-exports a single repository adds indirection without value. Add it when there are
@@ -346,20 +380,59 @@ for workspace members; writes go through the privileged connection only.
 (`lib/server/tables/schema.ts:71`), so validating against it would reject every write
 to a table that has no metadata — which is most of them.
 
-### Phase 4 — Pages / tables / reports mutations
+### Phase 4 — Pages / tables / reports mutations ✅ done
 
-1. Wrap save/create/delete routes under `/api/v1/...` with `endpoint`.
-2. Call existing `lib/server/pages|tables|reports`; add audit (+ events where useful).
-3. Keep Zod where it already exists (pages); add where missing.
+1. ✅ All of pages / tables / reports under `/api/v1/…` via `endpoint`.
+2. ✅ Existing `lib/server/*` helpers called unchanged; audit added on every
+   mutation, events where a consumer would plausibly care (`page.updated`).
+3. ✅ Zod schemas on every body; domain validation stays in `lib/server/*`.
 
-**Exit:** Builder mutations use declarative permissions + consistent JSON errors.
+Permissions corrected while migrating — these routes asked for permissions that
+did not match what they do:
 
-### Phase 5 — Workspace admin routes
+| Route | Was | Now |
+| ----- | --- | --- |
+| `GET /api/tables` | `pages.view` | `tables.view` |
+| `GET /api/tables/metadata` | `pages.view` | `tables.view` |
+| `/api/reports` (GET / POST) | `tables.view` / `tables.edit` | `reports.view` / `reports.edit` |
+| `/api/reports/[reportId]`, `/execute` | `tables.view` | `reports.view` |
+| `/api/reports/generate` | `tables.edit` | `reports.edit` |
+| `/api/data/[tableName]/schema` | `data.read` (granted by nothing) | `data.view` |
+| `/api/supabase/table`, `/record` | `pages.view` | `data.view` |
 
-1. Migrate `/api/workspace/users|roles|invites` to `endpoint` with real manage permissions (close TODOs that allow any member to mutate).
-2. Align with Builder vs Admin product rules.
+Two extractions were needed to keep handlers thin: the mode-aware physical table
+listing moved to `lib/server/tables/list-physical.ts`, and the ~400-line table
+sync moved from a route body to `lib/server/tables/sync.ts` as
+`syncTablesForTenant(tenant)` — callable from a script or automation, not only
+over HTTP.
 
-**Exit:** No privileged workspace mutation without declared permission.
+### Phase 5 — Workspace admin routes ✅ done
+
+1. ✅ `/api/workspace/users|roles|invites` and `/api/workspace-apps/[type]` on
+   `endpoint` with real permissions.
+2. ✅ Reads require `workspace.view`; mutations require `workspace.users` /
+   `workspace.invites` / `workspace.manage`, which only admin holds.
+
+These were the most serious gaps in the codebase, and neither was a migration
+task — both were missing checks:
+
+- **`/api/workspace/users` PATCH/DELETE had a `// TODO: Add proper RBAC check`
+  and performed none.** Any authenticated member could change any other member's
+  role — including promoting themselves to admin — or remove them.
+- **`/api/workspace/invites` POST had no check either**, so any member could
+  invite a new user *as admin*: escalation without needing to be an admin first.
+
+Invariants a permission check alone cannot express now live in
+`server/repositories/workspace-users.ts`:
+
+- the workspace owner cannot be demoted or removed;
+- the last admin cannot be demoted or removed;
+- a role must exist in *this* workspace before it can be assigned or invited to
+  (`roles` is workspace-scoped, so an id valid elsewhere is not valid here).
+
+**Streaming routes stay out of `endpoint()`** per the Decisions table:
+`/api/chat`, `/api/chat/[id]/stream`, and `/api/reports/generate` (SSE) keep
+their own response handling and got auth + permission fixes only.
 
 ### Phase 6 — Automations-ready (emit side only)
 
@@ -442,24 +515,91 @@ The control plane (this doc) is the prerequisite for steps 3–8.
 
 ## Pickup checklist
 
-Phases 1–3:
+Phases 1–5 are done:
 
-- [x] Phase 1: `server/api` + permissions (`/api/v1/data` proves the wrapper)
+- [x] Phase 1: `server/api` + permissions
 - [x] Phase 2: migration for `audit_logs` + `event_outbox`
-- [x] Phase 3: migrate data CRUD (biggest win)
-- [x] Update this doc’s **Status** line
-- [x] Keep [RBAC_SYSTEM.md](./RBAC_SYSTEM.md) in sync
+- [x] Phase 3: data CRUD through the control plane
+- [x] Phase 4: pages / tables / reports mutations
+- [x] Phase 5: workspace admin routes, including the two missing-authorization bugs
+- [x] Keep [RBAC_SYSTEM.md](./RBAC_SYSTEM.md) and
+      [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md) in sync
 
-Picking up Phase 4 onwards:
+Picking up Phase 6 onwards:
 
 - [ ] Re-read this doc, its [Deviations](#deviations-from-this-plan) section, and
       [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md)
 - [ ] Run `pnpm test:unit` first — it should be green before you start
-- [ ] Phase 4: wrap pages / tables / reports mutations in `endpoint()`
-- [ ] Phase 5: workspace admin routes — **start with the `/api/workspace/users` RBAC
-      hole**, which is a live bug, not a migration
-- [ ] Migrate saved page-block configs off `/api/data/` so the legacy delegator can go
+- [ ] Phase 6: document/build the `event_outbox` drain; wire the Trigger block's
+      execute stub (`useTriggerBlockAction`) to a real permissioned action
+- [ ] Phase 7: make AI tools that mutate go through `server/repositories/*`
+- [ ] Migrate saved page-block configs off `/api/data/` so the delegators can go
 - [ ] Parameterise `lib/server/tables/query-builder.ts`
+- [ ] Move `/api/supabase/table|record` to `endpoint()`
+
+---
+
+## Verifying changes
+
+`pnpm test:unit` runs the unit tests with no external dependencies. The
+integration tests in `server/repositories/data.integration.test.ts` are skipped
+unless a database is provided, and they are the ones that prove the SQL, the
+tenant predicate, and the audit/outbox writes actually behave against Postgres:
+
+```bash
+# 1. A Postgres to test against (any 16.x; no Supabase CLI needed)
+initdb -D /var/lib/postgresql/splxdata -U postgres --auth=trust
+pg_ctl -D /var/lib/postgresql/splxdata -o '-p 55432' start
+
+# 2. Supabase scaffolding the migrations expect. The migrations reference
+#    auth.uid(), auth.role(), auth.jwt(), auth.users, and the anon /
+#    authenticated / service_role / authenticator roles. Stub them, with the
+#    session-local settings test.user_id and test.auth_role driving auth.uid()
+#    and auth.role() so you can impersonate.
+
+# 3. Apply migrations in filename order.
+for f in supabase/migrations/*.sql; do
+  psql -p 55432 -U postgres -v ON_ERROR_STOP=1 -f "$f"
+done
+# Note: 20251111000400_onboarding_rbac.sql is not re-runnable — it drops the
+# `role` column it reads. That is expected on a second pass, not a failure.
+
+# 4. Seed a workspace, its roles, a membership, and two tables — `contacts`
+#    (with a workspace_id column) and `widgets` (without), so both the
+#    tenant-predicate and no-predicate paths are covered.
+
+# 5. Run them.
+TEST_POSTGRES_URL=postgres://postgres@localhost:55432/postgres pnpm test:unit
+```
+
+What the integration tests establish, against a real database:
+
+- a create stamps `workspace_id`, writes one `audit_logs` row and one
+  `event_outbox` row with `db.contacts.created` and `processed_at IS NULL`;
+- the injection payload `{"notes": ["1); DROP TABLE contacts; --"]}` is stored as
+  data and the table survives;
+- unknown columns and a caller-supplied `workspace_id` are both rejected;
+- update and delete against another workspace's row are no-ops;
+- delete of a nonexistent id reports false (the old route reported success);
+- a table with no `workspace_id` column still works, with no predicate;
+- list returns only this workspace's rows.
+
+For the SQL side, `effective_role_permissions()` can be checked directly:
+
+```sql
+-- Workspace A overrides `builder` and defines a custom role `auditor`.
+INSERT INTO role_permissions (workspace_id, role_id, permission) VALUES
+  ('<ws-a>','builder','pages.view'),
+  ('<ws-a>','auditor','data.view');
+
+SELECT * FROM effective_role_permissions('<ws-a>','builder');  -- pages.view only
+SELECT * FROM effective_role_permissions('<ws-b>','builder');  -- the 13 globals
+SELECT * FROM effective_role_permissions('<ws-a>','auditor');  -- data.view
+SELECT * FROM effective_role_permissions('<ws-b>','auditor');  -- empty
+```
+
+The same four cases are asserted in `server/permissions/effective.test.ts`. If
+they ever disagree, the API and RLS disagree about what a role can do.
 
 ---
 
@@ -542,26 +682,61 @@ The default-workspace bootstrap in local mode still grants admin to whoever sign
 first, because that is what makes `pnpm dev` work on a fresh checkout. **Do not run
 `APP_MODE=local` anywhere that treats its workspaces as a security boundary.**
 
+### 4. Workspace-scoped `role_permissions`
+
+`roles` is workspace-scoped (composite PK `workspace_id, id`) but
+`role_permissions` was global, so a workspace defining a custom role got nothing
+from either source and was denied everything.
+
+`20260805130000_workspace_scoped_role_permissions.sql` adds a nullable
+`workspace_id`: NULL is the global default, non-NULL is that workspace's own
+definition. Resolution is **override per role** — if a workspace defines any rows
+for a role, those are that role's complete set there; otherwise the globals apply.
+
+Override rather than union so a workspace can *restrict* a built-in role, not only
+extend it. The trade-off is real and worth knowing: a workspace that customises
+`builder` will not pick up new `builder` permissions added to the global seed later.
+
+The primary key could not include a nullable column, so it is replaced by two
+partial unique indexes. Both the SQL helper
+(`effective_role_permissions(workspace_id, role_id)`) and the TypeScript resolver
+(`server/permissions/match.ts`) implement the same rule — if they diverge, the API
+and RLS disagree about what a role can do, so the same scenarios are asserted in
+`server/permissions/effective.test.ts` and against a live Postgres.
+
+### 5. Audit and events write to the *main* database
+
+`audit_logs` and `event_outbox` are created by the Supabase migrations, so they
+live in the main database. The first implementation wrote them through the
+resource-store connection — correct in local mode, but in **hosted mode the
+resource store is a different database per workspace**, where those tables do not
+exist, so every audit write would have failed silently (they catch and log).
+
+`server/lib/db.ts` now provides a pooled main-database client, and everything in
+`server/lib/*` uses it. It is also a module-level pool rather than one opened and
+closed per call, which is a step toward the connection churn noted below.
+
 ### Not addressed
 
 Found during this work, deliberately left for a follow-up:
 
-- `/api/workspace/users` `PATCH`/`DELETE` carry a `// TODO: Add proper RBAC check` and
-  perform none — any member can change another member's role or remove them. This is
-  Phase 5, but it is a live privilege-escalation bug, not a cleanup item.
-- Unauthenticated routes: `/api/ai/generate-table-fields` (anyone reaching it can burn
-  LLM tokens), `/api/og-metadata` and `/api/url-content` (both fetch caller-supplied
-  URLs — SSRF surface).
 - `lib/server/tables/query-builder.ts` still builds `WHERE` clauses by string
   concatenation with the same `typeof v === "string" ? escapeString(v) : String(v)`
   pattern. The v1 read path is safe because filter keys are validated against real
   columns and filter values arrive from `URLSearchParams` as strings, but the helper
   itself should be parameterised.
 - `resolveTenantContext` opens and closes a fresh `postgres()` pool on every call; a
-  single API request opens three or more counting middleware.
-- `role_permissions` is global while `roles` is workspace-scoped (composite PK
-  `workspace_id, id`), so a workspace defining a custom role gets no permissions and
-  is denied everything.
+  single API request opens three or more counting middleware. `server/lib/db.ts`
+  shows the shape the fix should take.
+- The SSRF guard (`server/lib/safe-url.ts`) resolves the hostname and rejects
+  non-public addresses, but does not close the DNS-rebinding window — the address
+  could change between the lookup and `fetch`'s own. Closing it needs an agent that
+  pins the resolved address.
+- `/api/supabase/table` and `/api/supabase/record` had their permissions corrected
+  but were not moved to `endpoint()`; they have bespoke response shapes and are
+  read-only.
+- The static fallback map in `definitions.ts` must be kept in sync with the
+  migration's seed by hand.
 - `pnpm lint` is broken independently of this work: `biome.jsonc` has
   `extends: ["ultracite"]`, but ultracite 6 exports `ultracite/core`, `ultracite/next`,
   … so the config does not resolve. It fails on a clean tree.

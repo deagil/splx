@@ -1,10 +1,10 @@
 import { auditLog } from "@/lib/db/schema";
-import type { DbClient } from "@/lib/server/tenant/context";
+import { getControlPlaneDb } from "./db";
 
 export type AuditEntry = {
   workspaceId: string;
   actorUserId?: string | null;
-  /** Verb in dot notation, e.g. `data.created`. */
+  /** Verb in dot notation, e.g. `data.created`, `pages.updated`. */
   action: string;
   /** Logical resource — for row CRUD this is the table config id. */
   resourceType: string;
@@ -14,26 +14,25 @@ export type AuditEntry = {
 };
 
 /**
- * Appends a row to `audit_logs`.
+ * Appends a row to `audit_logs` in the main database.
  *
  * Never throws: a failed audit write must not fail the mutation it describes.
  * It is logged at error level, because a silent gap in the audit trail is worse
  * than a noisy one — if audit writes start failing, that needs to be visible.
  */
-export async function writeAuditLog(
-  db: DbClient,
-  entry: AuditEntry
-): Promise<void> {
+export async function writeAuditLog(entry: AuditEntry): Promise<void> {
   try {
-    await db.insert(auditLog).values({
-      workspace_id: entry.workspaceId,
-      actor_user_id: entry.actorUserId ?? null,
-      action: entry.action,
-      resource_type: entry.resourceType,
-      resource_id: entry.resourceId ?? null,
-      changes: entry.changes ?? {},
-      request_id: entry.requestId ?? null,
-    });
+    await getControlPlaneDb()
+      .insert(auditLog)
+      .values({
+        workspace_id: entry.workspaceId,
+        actor_user_id: entry.actorUserId ?? null,
+        action: entry.action,
+        resource_type: entry.resourceType,
+        resource_id: entry.resourceId ?? null,
+        changes: entry.changes ?? {},
+        request_id: entry.requestId ?? null,
+      });
   } catch (error) {
     console.error("[audit] failed to write audit log", {
       action: entry.action,
