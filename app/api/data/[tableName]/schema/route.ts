@@ -15,7 +15,7 @@ type PageProps = {
 export async function GET(_request: Request, { params }: PageProps) {
   try {
     const tenant = await resolveTenantContext();
-    requireCapability(tenant, "data.read");
+    requireCapability(tenant, "data.view");
 
     const { tableName } = await params;
 

@@ -6,9 +6,16 @@ Splx Studio implements a **multi-tenant, resource-based permission system** with
 
 | Layer | Implementation | Purpose |
 |-------|----------------|---------|
-| **Database (RLS)** | PostgreSQL Row Level Security policies | Enforces access at the data layer |
-| **Application** | `resolveTenantContext()` + `requireCapability()` | API route protection |
+| **Database (RLS)** | PostgreSQL Row Level Security policies | Enforces access at the data layer — **only for Supabase-client/PostgREST traffic** |
+| **Application** | `endpoint({ permission })`, or `resolveTenantContext()` + `requireCapability()` on routes not yet migrated | API route protection |
 | **Middleware** | `proxy.ts` session validation | Authentication gate |
+
+> **RLS does not cover direct-SQL paths.** Anything going through
+> `getResourceStore()` or a raw `postgres(process.env.POSTGRES_URL)` connection —
+> which is most API routes — carries no PostgREST claims, and the SQL helpers
+> short-circuit to `TRUE` when `SESSION_USER = 'postgres'`. On those paths the
+> TypeScript permission check is the only enforcement. See
+> [API_CONTROL_PLANE.md](./API_CONTROL_PLANE.md).
 
 **Key Design Principles:**
 - Permissions are stored in the database (`role_permissions` table) and checked via SQL functions
@@ -508,29 +515,48 @@ type TenantContext = {
 
 ### TypeScript Permission Checking
 
+There are two entry points. Both use `resource.action` notation and share one
+vocabulary (`server/permissions/definitions.ts`) and one matcher
+(`server/permissions/match.ts`), which implements the same `*` and `resource.*`
+wildcard semantics as the SQL `user_has_access()` helper.
+
+**Preferred — the control plane.** Reads `role_permissions` from the database (cached
+60s), falling back to the static map only if the table is unreachable:
+
+```typescript
+// declaratively, on a route
+export const POST = endpoint({
+  auth: "required",
+  permission: "data.create",
+  schema: rowSchema,
+  async handler({ user, params, body, requestId }) { ... },
+});
+
+// or imperatively
+import { checkPermission } from "@/server/permissions/check";
+await checkPermission(tenant.roles, "reports.edit");  // throws Error("Forbidden")
+```
+
+**Legacy — synchronous, static map only.** Kept for the routes not yet migrated,
+because its 17 call sites are not async-aware:
+
 ```typescript
 // lib/server/tenant/permissions.ts
-
-const ROLE_CAPABILITIES: Record<string, readonly string[]> = {
-  admin: ["*", "pages.view", "pages.edit", ...],
-  builder: ["pages.view", "pages.edit", ...],
-  user: ["pages.view", "data.view", "data.create", ...],
-  viewer: ["pages.view", "tables.view", "data.view"],
-};
-
-export function hasCapability(tenant: TenantContext, capability: string): boolean {
-  return tenant.roles.some((role) => {
-    const capabilities = ROLE_CAPABILITIES[role] ?? [];
-    return capabilities.includes("*") || capabilities.includes(capability);
-  });
-}
-
-export function requireCapability(tenant: TenantContext, capability: string): void {
-  if (!hasCapability(tenant, capability)) {
-    throw new Error("Forbidden");
-  }
-}
+import { requireCapability } from "@/lib/server/tenant/permissions";
+requireCapability(tenant, "pages.view");  // throws Error("Forbidden")
 ```
+
+> **Changed:** this file used to carry its own hand-maintained role→capability map,
+> which had drifted from the `role_permissions` table it claimed to mirror — it was
+> missing every `reports.*`, `chat.*`, and `workspace.*` grant — and it matched
+> permission strings exactly, with no wildcard expansion. A `builder` was therefore
+> denied `reports.view` even though both the database and the RLS policies granted it.
+> It now derives its map from `DEFAULT_ROLE_PERMISSIONS` and uses the shared matcher.
+
+**Known gap:** `roles` is workspace-scoped (composite PK `workspace_id, id`) but
+`role_permissions` is global. A workspace that defines a custom role gets no
+permissions from either source and is denied everything. Only the four standard roles
+work today.
 
 ---
 
@@ -826,7 +852,11 @@ The following features from the reference implementations are **not yet implemen
 | `supabase/migrations/20251111000300_workspace_rls.sql` | Initial RLS policies |
 | `supabase/migrations/20251215200000_resource_permissions.sql` | Permission system, updated policies |
 | `lib/server/tenant/context.ts` | TenantContext resolution |
-| `lib/server/tenant/permissions.ts` | TypeScript capability checking |
+| `server/permissions/definitions.ts` | Permission vocabulary, aliases, default role grants |
+| `server/permissions/match.ts` | Wildcard matcher shared by both check paths |
+| `server/permissions/check.ts` | DB-backed `checkPermission()` for the control plane |
+| `server/api/endpoint.ts` | `endpoint({ auth, permission, schema, handler })` wrapper |
+| `lib/server/tenant/permissions.ts` | Synchronous capability checking for unmigrated routes |
 | `lib/server/tenant/default-roles.ts` | Default role definitions |
 | `lib/supabase/server.ts` | Server-side Supabase client |
 | `proxy.ts` | Authentication middleware |
@@ -849,7 +879,17 @@ USING (user_has_workspace_role(workspace_id, 'admin'))
 ```
 
 ```typescript
-// In API routes
+// In new API routes — declarative, DB-backed
+export const POST = endpoint({
+  auth: "required",
+  permission: "resource.action",
+  async handler({ user }) { ... },
+});
+
+// Imperatively, where a wrapper does not fit
+await checkPermission(tenant.roles, "resource.action");
+
+// In routes not yet migrated — synchronous, static map
 const tenant = await resolveTenantContext();
 requireCapability(tenant, "resource.action");
 if (hasCapability(tenant, "resource.action")) { ... }

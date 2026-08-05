@@ -36,7 +36,7 @@ const SYSTEM_TABLES = new Set([
 export async function GET(request: Request) {
     try {
         const tenant = await resolveTenantContext();
-        requireCapability(tenant, "pages.view");
+        requireCapability(tenant, "tables.view");
 
         const url = new URL(request.url);
         const type = url.searchParams.get("type") ?? "data"; // "data" or "config"

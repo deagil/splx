@@ -20,7 +20,9 @@
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
     "provision:workspace": "tsx scripts/provision-workspace.ts",
-    "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
+    "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.18",
@@ -154,7 +156,8 @@
     "tailwindcss": "^4.1.17",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "ultracite": "6.3.9"
+    "ultracite": "6.3.9",
+    "vitest": "^3.2.7"
   },
   "packageManager": "pnpm@10.24.0",
   "overrides": {

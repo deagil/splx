@@ -89,6 +89,31 @@ try {
 - All tables are accessible via `getResourceStore()`
 - System tables can be queried through resource store
 
+> ### ⚠️ Local mode is not a security boundary
+>
+> Two properties make `APP_MODE=local` unsuitable for anywhere that treats its
+> workspaces as isolated from each other:
+>
+> 1. **Every workspace shares one physical database**, and user tables created
+>    through Splx have **no `workspace_id` column** — `lib/server/tables/postgres/create-table.ts`
+>    does not add one. Only the `tables` config registry is workspace-scoped. So two
+>    workspaces that register a table with the same name share its rows. Row CRUD
+>    (`server/repositories/data.ts`) adds `AND workspace_id = $ws` when the column
+>    happens to exist, and cannot when it does not.
+> 2. **The default-workspace bootstrap grants admin to whoever signs in.**
+>    `resolveTenantContext()` enrols a caller with no workspace hint into the
+>    `default`-slug workspace as `admin`. This is deliberate — it is what makes
+>    `pnpm dev` work on a fresh checkout — but it means authentication alone is
+>    enough to become an admin.
+>
+> Auto-enrolment into an *arbitrary* workspace was also possible, because
+> `x-workspace-id` is a client-supplied header that `proxy.ts` forwards verbatim.
+> That is fixed: any workspace other than the configured bootstrap one now requires
+> existing membership. See [API_CONTROL_PLANE.md](./API_CONTROL_PLANE.md).
+>
+> Hosted mode does not share these properties: each workspace has its own physical
+> connection, and membership is verified against `workspace_users`.
+
 ### Hosted Mode (`APP_MODE=hosted`)
 - **Main DB**: System/configuration data only (`POSTGRES_URL`)
 - **Resource Store**: Tenant application data (configured per workspace via `workspace_apps`)

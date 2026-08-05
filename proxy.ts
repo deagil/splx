@@ -56,6 +56,12 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/otp") ||
     pathname.startsWith("/onboarding");
 
+  // API routes are consumed by fetch(), not by a browser following redirects.
+  // Sending them to the HTML signin page makes callers fail on res.json() with
+  // a parse error instead of seeing a 401, so API paths get JSON responses and
+  // are exempt from the onboarding redirect below.
+  const isApiRoute = pathname.startsWith("/api/");
+
   let supabaseResponse = NextResponse.next({
     request: {
       headers: requestHeaders,
@@ -100,14 +106,11 @@ export async function proxy(request: NextRequest) {
     // User is authenticated via Supabase
     // Check onboarding status for protected routes
     // Exclude API routes needed during onboarding (e.g., workspace slug check, Stripe callback)
-    const isOnboardingApiRoute = pathname.startsWith(
-      "/api/workspace/check-slug",
-    ) || pathname.startsWith("/api/stripe/callback");
     if (
       pathname !== "/signin" &&
       pathname !== "/otp" &&
       pathname !== "/onboarding" &&
-      !isOnboardingApiRoute
+      !isApiRoute
     ) {
       try {
         const mode = getAppMode();
@@ -178,7 +181,18 @@ export async function proxy(request: NextRequest) {
   // Also allow whats-new routes to be publicly accessible
   // Otherwise redirect to signin for protected routes
   const isPublicRoute = pathname === "/" || pathname.startsWith("/whats-new");
-  if (!isSupabaseAuthRoute && !isPublicRoute) {
+
+  // Routes that must stay reachable without a session: onboarding needs to
+  // check slug availability before the user has one, and Stripe calls back
+  // with its own signature rather than a cookie.
+  const isPublicApiRoute = pathname.startsWith("/api/workspace/check-slug") ||
+    pathname.startsWith("/api/stripe/");
+
+  if (isApiRoute && !isPublicApiRoute) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isSupabaseAuthRoute && !isPublicRoute && !isPublicApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/signin";
     return NextResponse.redirect(url);

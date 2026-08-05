@@ -23,6 +23,7 @@ For comprehensive documentation on major features, see:
 - **[ONBOARDING_OTP.md](./docs/ONBOARDING_OTP.md)** - User authentication, OTP verification, and multi-step onboarding flow
 - **[AI_CHAT_MENTIONS.md](./docs/AI_CHAT_MENTIONS.md)** - Detailed mention system architecture and implementation
 - **[DATABASE_ARCHITECTURE.md](./docs/DATABASE_ARCHITECTURE.md)** - Database structure, multi-tenancy, and data access patterns
+- **[API_CONTROL_PLANE.md](./docs/API_CONTROL_PLANE.md)** - The `endpoint()` API layer: auth, declarative permissions, audit log, and event outbox. **Read this before adding an API route.**
 
 ## Development Commands
 
@@ -58,7 +59,9 @@ pnpm db:check           # Check migration issues
 pnpm provision:workspace    # Bootstrap workspace with owner membership and default connection
 
 # Testing
-pnpm test               # Run Playwright tests
+pnpm test               # Run Playwright end-to-end tests
+pnpm test:unit          # Run Vitest unit tests (server/**/*.test.ts)
+pnpm test:unit:watch    # Vitest in watch mode
 ```
 
 ## Architecture Overview
@@ -310,6 +313,43 @@ In local mode, users cannot create tables with system table names. The system ma
 - `components/elements/*` - Reusable element components
 
 ## Key Patterns and Conventions
+
+### API Routes: use `endpoint()`
+
+New API routes go under `app/api/v1/` and declare auth, permission, and body schema
+rather than hand-rolling them. The wrapper handles the 401/403/400/500 mapping, the
+`{ data, meta? }` envelope, and request logging:
+
+```typescript
+import { z } from "zod";
+import { endpoint } from "@/server/api/endpoint";
+import { ApiError } from "@/server/api/responses";
+
+export const POST = endpoint<{ name: string }, { pageId: string }>({
+  auth: "required",
+  permission: "pages.edit",              // resource.action, see server/permissions/definitions.ts
+  schema: z.object({ name: z.string().min(1) }),
+  async handler({ user, params, body, requestId }) {
+    const page = await savePage(user.tenant, params.pageId, body);
+    if (!page) {
+      throw new ApiError(404, "Page not found");
+    }
+    return { data: { page } };
+  },
+});
+```
+
+Keep handlers orchestration-only. Mutations belong in `server/repositories/*` or
+`lib/server/*`, so that audit entries and events are emitted for non-HTTP callers
+(AI tools, future automation runner) too — not just for requests.
+
+Row CRUD on dynamic tables already has a repository: `server/repositories/data.ts`.
+Never build SQL against a user table by string concatenation; it binds values as
+parameters and validates column names against `information_schema`.
+
+See [API_CONTROL_PLANE.md](./docs/API_CONTROL_PLANE.md) for the full design, including
+which routes are still on the older `resolveTenantContext()` + `requireCapability()`
+pattern.
 
 ### Server-Side Data Access
 

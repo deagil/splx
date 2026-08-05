@@ -412,3 +412,52 @@ export const aiSkill = pgTable("ai_skills", {
 });
 
 export type AiSkill = InferSelectModel<typeof aiSkill>;
+
+/**
+ * Append-only record of mutations made through the API control plane.
+ * Written by server/lib/audit.ts. See
+ * supabase/migrations/20260805120000_audit_logs_and_event_outbox.sql.
+ */
+export const auditLog = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  actor_user_id: uuid("actor_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  action: text("action").notNull(),
+  resource_type: text("resource_type").notNull(),
+  resource_id: text("resource_id"),
+  changes: jsonb("changes").notNull().default({}),
+  request_id: text("request_id"),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type AuditLog = InferSelectModel<typeof auditLog>;
+
+/**
+ * Durable outbox of domain and technical events awaiting a consumer.
+ * Written by server/lib/events.ts. Nothing drains it yet.
+ */
+export const eventOutbox = pgTable("event_outbox", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  event_name: text("event_name").notNull(),
+  payload: jsonb("payload").notNull().default({}),
+  request_id: text("request_id"),
+  actor_user_id: uuid("actor_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  attempts: integer("attempts").notNull().default(0),
+  processed_at: timestamp("processed_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type EventOutbox = InferSelectModel<typeof eventOutbox>;

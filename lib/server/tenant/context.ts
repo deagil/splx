@@ -132,6 +132,42 @@ function extractWorkspaceId(headerBag: Headers | undefined): string | null {
   return null;
 }
 
+/**
+ * Workspaces the local-mode bootstrap is allowed to auto-enrol a caller into.
+ *
+ * Local mode is a single-workspace development setup, so the caller signing in
+ * for the first time becomes the admin of the default workspace. That is the
+ * intended behaviour. What is *not* intended is applying it to an arbitrary
+ * workspace id: `x-workspace-id` is client-controlled (proxy.ts forwards the
+ * request header verbatim), so auto-enrolling into any requested workspace let
+ * any authenticated user become admin of any workspace by guessing its UUID.
+ */
+function isBootstrapWorkspaceId(workspaceId: string): boolean {
+  return (
+    workspaceId === process.env.DEFAULT_WORKSPACE_ID ||
+    workspaceId === process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_ID
+  );
+}
+
+async function hasMembership(
+  db: DbClient,
+  workspaceId: string,
+  userId: string,
+): Promise<boolean> {
+  const [existing] = await db
+    .select({ id: workspaceUser.id })
+    .from(workspaceUser)
+    .where(
+      and(
+        eq(workspaceUser.workspace_id, workspaceId),
+        eq(workspaceUser.user_id, userId),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(existing);
+}
+
 async function ensureLocalWorkspace(
   db: DbClient,
   userId: string,
@@ -145,13 +181,28 @@ async function ensureLocalWorkspace(
       .limit(1);
 
     if (requestedWorkspace) {
-      await seedDefaultRoles(db, requestedWorkspace.id);
-      await ensureMembership(db, requestedWorkspace.id, userId);
-      return requestedWorkspace.id;
+      // Only auto-enrol for the configured bootstrap workspace. For any other
+      // requested workspace the caller must already be a member.
+      if (
+        isBootstrapWorkspaceId(requestedWorkspace.id) ||
+        (await hasMembership(db, requestedWorkspace.id, userId))
+      ) {
+        await seedDefaultRoles(db, requestedWorkspace.id);
+        await ensureMembership(db, requestedWorkspace.id, userId);
+        return requestedWorkspace.id;
+      }
+
+      throw new Error("Forbidden");
     }
     // If the requested workspace doesn't exist, fall back to the default flow below
   }
 
+  // Bootstrap path: local mode is a single-workspace development setup, so a
+  // caller with no workspace hint lands in the "default" workspace and is
+  // enrolled as admin. This is deliberate — it is what makes `pnpm dev` work on
+  // a fresh checkout — but it does mean *any* authenticated user gets admin on
+  // the default local workspace. Do not run APP_MODE=local anywhere that treats
+  // its workspaces as a security boundary. See docs/DATABASE_ARCHITECTURE.md.
   const [existingWorkspace] = await db
     .select({
       id: workspace.id,
@@ -249,6 +300,14 @@ async function getRolesForWorkspace(
     );
 
   if (rows.length === 0) {
+    // ensureLocalWorkspace() enrols the caller before we get here, so this is a
+    // safety net for the bootstrap workspace only. Granting admin to anyone who
+    // reaches it with an arbitrary workspace id would reopen the escalation
+    // that ensureLocalWorkspace closes.
+    if (!isBootstrapWorkspaceId(workspaceId)) {
+      throw new Error("Forbidden");
+    }
+
     await seedDefaultRoles(db, workspaceId);
     await db.insert(workspaceUser).values({
       workspace_id: workspaceId,
