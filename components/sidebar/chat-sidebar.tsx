@@ -22,6 +22,7 @@ import { generateUUID, cn } from "@/lib/utils";
 import { PlusIcon, ClockRewind, CrossIcon } from "@/components/shared/icons";
 import { Maximize2, Minimize2, FileXCorner } from "lucide-react";
 import { SidebarHistory } from "./sidebar-history";
+import { ChatSidebarResizeHandle } from "./chat-sidebar-resize-handle";
 import { CHAT_SIDEBAR_SIDE } from "./chat-sidebar-side";
 import type { VisibilityType } from "@/components/shared/visibility-selector";
 import type { ChatHistory } from "./sidebar-history";
@@ -315,6 +316,7 @@ export function ChatSidebar({
             )}
           </div>
         </SidebarContent>
+        <ChatSidebarResizeHandle isExpandedMode={isExpandedMode} />
       </Sidebar>
       <DataStreamHandler />
     </>

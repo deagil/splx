@@ -602,3 +602,9 @@
 [data-expanded-laptop="true"] [data-slot="sidebar-inset"] {
   display: none !important;
 }
+
+/* Disable width transitions while the chat sidebar is being dragged */
+[data-sidebar-resizing="true"] [data-slot="sidebar-gap"],
+[data-sidebar-resizing="true"] [data-slot="sidebar-container"] {
+  transition: none !important;
+}
