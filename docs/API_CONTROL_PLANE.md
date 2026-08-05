@@ -3,7 +3,7 @@
 Implementation roadmap for a shared `endpoint()` API layer in Splx Studio.
 Written so this work can be picked up later without re-deriving context from chat.
 
-**Status:** Phases 1–5 landed. Phases 6–7 outstanding.  
+**Status:** Phases 1–6 landed. Phase 7 outstanding.  
 **Canonical repo:** the `deagil/splx` working tree.
 
 > **Implementation notes.** Several things changed relative to the plan below; see
@@ -110,7 +110,7 @@ Treat routes as **thin adapters**: declare auth + permission + schema; keep hand
 | Permissions        | ~~Declarative `resource:action:scope` strings~~ → **superseded**: dot notation `resource.action`, matching `role_permissions` and the RLS helpers. See [Deviations](#deviations-from-this-plan). |
 | Response shape     | `{ data, meta? }`; shared `unauthorized` / `forbidden` / `handleError`; map `Unauthorized` → **401** (today many routes map it to 500)                |
 | Repos              | Hybrid: domain repos for pages / tables / reports; `createDataRepository` (or equivalent) for dynamic row CRUD with audit + technical events built in |
-| Events             | `emitEvent()` → `event_outbox`; failures **log, do not throw**                                                                                        |
+| Events             | `emitEvent()` → `event_logs` + transactional fan-out into `workflow_schedule`; failures **log, do not throw** |
 | Event kinds        | System: `db.<table>.created | updated | deleted`; Product: named later (`signup.accepted`, …)                                                         |
 | Audit              | `writeAuditLog()` → `audit_logs` on mutations                                                                                                         |
 | Request logging    | Stub `console.log` with structured fields + `requestId` until a real sink exists                                                                      |
@@ -329,7 +329,7 @@ Use this when migrating; do not assume README claims over code.
 | Reports                         | Exists  |                                                               |
 | Documents / chat artifacts      | Exists  | Chat side-products, not system definitions                    |
 | AI tools write path             | Partial | Documents only; no page/table/automation mutations            |
-| Events / webhooks / automations | Missing | Workflows nav “Coming soon”                                   |
+| Events / webhooks / automations | Exists  | See [WORKFLOWS.md](./WORKFLOWS.md); canvas builder deferred   |
 | Email templates as entities     | Missing | Only product release emails                                   |
 | Draft → publish for definitions | Missing | Page “draft” = in-memory; autosave writes live                |
 | Central audit / request log     | Missing |                                                               |
@@ -465,15 +465,17 @@ Invariants a permission check alone cannot express now live in
 `/api/chat`, `/api/chat/[id]/stream`, and `/api/reports/generate` (SSE) keep
 their own response handling and got auth + permission fixes only.
 
-### Phase 6 — Automations-ready (emit side only)
+### Phase 6 — Workflows foundation ✅ done
 
-Do **not** build the full runner yet. Ensure:
+See [WORKFLOWS.md](./WORKFLOWS.md) for the full design. Landed:
 
-1. Document how a future runner drains `event_outbox` (or listens to inserts).
-2. Optional: emit a first **domain** event from a known mutation (e.g. after row create when table is tagged) — only if a concrete use case exists.
-3. Wire Trigger block execute to an **action** helper that goes through the same permissioned path (replace stub) — even a single “HTTP webhook” or “update row” action proves the pattern.
+1. ✅ `event_outbox` renamed to `event_logs`; consumer state stripped (facts only).
+2. ✅ `workflows`, `workflow_schedule`, `workflow_runs` with transactional fan-out inside `emitEvent()`.
+3. ✅ Worker claiming due schedule rows (`FOR UPDATE SKIP LOCKED`), action catalog (`row`, `http`, `condition`), run history.
+4. ✅ Trigger block execute wired to `POST /api/v1/workflows/[id]/run`.
+5. ✅ `/build/workflows` JSON editor UI; internal tick route + Vercel cron / Coolify docs.
 
-**Exit:** Events exist in the DB; trigger button does one real action.
+**Exit met:** Events are facts; matching workflows are enqueued; the worker runs them; Trigger blocks fire real runs.
 
 ### Phase 7 — Agent alignment (later)
 
@@ -486,7 +488,7 @@ Do **not** build the full runner yet. Ensure:
 
 ## Out of scope (for this roadmap’s coding phases)
 
-- Full automation builder UI + workflow runner product
+- React Flow canvas builder, branching, and parallel steps (JSON config ships in Phase 6)
 - Email/notification templates as first-class entities (track as follow-on once events exist)
 - Draft → review → publish / config diff PR UX
 - Replacing Splx chat with Agent C / Eve
@@ -549,20 +551,19 @@ The control plane (this doc) is the prerequisite for steps 3–8.
 Phases 1–5 are done:
 
 - [x] Phase 1: `server/api` + permissions
-- [x] Phase 2: migration for `audit_logs` + `event_outbox`
+- [x] Phase 2: migration for `audit_logs` + `event_outbox` (later renamed to `event_logs`)
 - [x] Phase 3: data CRUD through the control plane
 - [x] Phase 4: pages / tables / reports mutations
 - [x] Phase 5: workspace admin routes, including the two missing-authorization bugs
+- [x] Phase 6: workflows foundation — see [WORKFLOWS.md](./WORKFLOWS.md)
 - [x] Keep [RBAC_SYSTEM.md](./RBAC_SYSTEM.md) and
       [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md) in sync
 
-Picking up Phase 6 onwards:
+Picking up Phase 7 onwards:
 
 - [ ] Re-read this doc, its [Deviations](#deviations-from-this-plan) section, and
-      [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md)
+      [WORKFLOWS.md](./WORKFLOWS.md)
 - [ ] Run `pnpm test:unit` first — it should be green before you start
-- [ ] Phase 6: document/build the `event_outbox` drain; wire the Trigger block's
-      execute stub (`useTriggerBlockAction`) to a real permissioned action
 - [ ] Phase 7: make AI tools that mutate go through `server/repositories/*`
 - [ ] Migrate saved page-block configs off `/api/data/` so the delegators can go
 - [ ] Parameterise `lib/server/tables/query-builder.ts`
@@ -737,15 +738,17 @@ and RLS disagree about what a role can do, so the same scenarios are asserted in
 
 ### 5. Audit and events write to the *main* database
 
-`audit_logs` and `event_outbox` are created by the Supabase migrations, so they
-live in the main database. The first implementation wrote them through the
-resource-store connection — correct in local mode, but in **hosted mode the
-resource store is a different database per workspace**, where those tables do not
-exist, so every audit write would have failed silently (they catch and log).
+`audit_logs`, `event_logs`, and the workflow tables are created by the Supabase
+migrations, so they live in the main database. The first implementation wrote
+them through the resource-store connection — correct in local mode, but in
+**hosted mode the resource store is a different database per workspace**, where
+those tables do not exist, so every audit write would have failed silently (they
+catch and log).
 
 `server/lib/db.ts` now provides a pooled main-database client, and everything in
-`server/lib/*` uses it. It is also a module-level pool rather than one opened and
-closed per call, which is a step toward the connection churn noted below.
+`server/lib/*` and `server/workflows/*` uses it. It is also a module-level pool
+rather than one opened and closed per call, which is a step toward the connection
+churn noted below.
 
 ### Not addressed
 

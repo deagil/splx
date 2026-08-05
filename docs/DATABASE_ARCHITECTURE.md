@@ -19,6 +19,11 @@ This document explains the difference between the **Main Database** and **Resour
   - `workspace_apps` - Tenant database connection configurations
   - `roles` - Role definitions per workspace
   - `teams` - Team definitions per workspace
+  - `audit_logs` - Control-plane mutation history
+  - `event_logs` - Append-only domain/technical fact log
+  - `event_types` - Catalog of event names for Automation Listeners
+  - `workflows` / `workflow_schedule` / `workflow_runs` - Automation (see [WORKFLOWS.md](./WORKFLOWS.md))
+  - `role_permissions` - Permission grants
 
 **When to Use**:
 - Querying/updating user profiles (`user` table)

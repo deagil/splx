@@ -1,8 +1,11 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { table as tableConfigTable } from "@/lib/db/schema";
 import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
-import { getTableConfig } from "@/lib/server/tables";
-import type { TableRecord } from "@/lib/server/tables/types";
+import {
+  tableRecordSchema,
+  type TableRecord,
+} from "@/lib/server/tables/schema";
 import {
   buildSelectQuery,
   countRecords,
@@ -12,6 +15,7 @@ import {
 } from "@/lib/server/tables/query-builder";
 import { ApiError } from "@/server/api/responses";
 import { writeAuditLog } from "@/server/lib/audit";
+import { getControlPlaneDb } from "@/server/lib/db";
 import { emitEvent } from "@/server/lib/events";
 
 /**
@@ -41,6 +45,8 @@ import { emitEvent } from "@/server/lib/events";
 export type DataRepositoryContext = {
   tenant: TenantContext;
   requestId?: string;
+  /** When set, threaded into emitEvent for the workflow recursion guard. */
+  causedByRunId?: string | null;
 };
 
 type ResolvedTable = {
@@ -67,12 +73,58 @@ const MAX_LIMIT = 1000;
  * still verify it against `information_schema.tables` rather than trusting it,
  * which doubles as the identifier allowlist for every statement below.
  */
+/**
+ * Loads table config via the privileged control-plane connection.
+ *
+ * Prefer this over the cookie-scoped Supabase client so the workflow worker
+ * (no user session) and HTTP handlers share one path.
+ */
+async function loadTableConfig(
+  workspaceId: string,
+  tableId: string
+): Promise<TableRecord | null> {
+  const rows = await getControlPlaneDb()
+    .select()
+    .from(tableConfigTable)
+    .where(
+      and(
+        eq(tableConfigTable.workspace_id, workspaceId),
+        eq(tableConfigTable.id, tableId)
+      )
+    )
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+
+  const parsed = tableRecordSchema.safeParse({
+    ...row,
+    config: row.config ?? {},
+    created_at:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : row.created_at,
+    updated_at:
+      row.updated_at instanceof Date
+        ? row.updated_at.toISOString()
+        : row.updated_at,
+  });
+
+  if (!parsed.success) {
+    throw new ApiError(500, "Invalid table configuration");
+  }
+
+  return parsed.data;
+}
+
 async function resolveTable(
   db: DbClient,
   tenant: TenantContext,
   tableId: string
 ): Promise<ResolvedTable> {
-  const config = await getTableConfig(tenant, tableId);
+  const config = await loadTableConfig(tenant.workspaceId, tableId);
   if (!config) {
     throw new ApiError(404, "Table configuration not found");
   }
@@ -316,7 +368,7 @@ export type ListResult = {
  * disposes a resource-store connection.
  */
 export function dataRepository(context: DataRepositoryContext) {
-  const { tenant, requestId } = context;
+  const { tenant, requestId, causedByRunId } = context;
 
   async function withStore<T>(
     fn: (db: DbClient) => Promise<T>
@@ -440,6 +492,7 @@ export function dataRepository(context: DataRepositoryContext) {
           payload: { record },
           actorUserId: tenant.userId,
           requestId,
+          causedByRunId,
         });
 
         return record;
@@ -479,6 +532,7 @@ export function dataRepository(context: DataRepositoryContext) {
           payload: { record, changes: body },
           actorUserId: tenant.userId,
           requestId,
+          causedByRunId,
         });
 
         return record;
@@ -516,6 +570,7 @@ export function dataRepository(context: DataRepositoryContext) {
           payload: { record },
           actorUserId: tenant.userId,
           requestId,
+          causedByRunId,
         });
 
         return true;

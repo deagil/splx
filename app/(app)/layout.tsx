@@ -68,20 +68,12 @@ export default function Layout({
               CHAT_SIDEBAR_SIDE === "right" ? "md:order-first" : "md:order-last"
             }
           >
-            <header className="flex h-16 shrink-0 items-center gap-2 px-6">
-              <div className="flex w-full items-center gap-2">
-                {CHAT_SIDEBAR_SIDE === "left" ? (
-                  <>
-                    <ChatSidebarTrigger />
-                    <TopNav />
-                  </>
-                ) : (
-                  <>
-                    <TopNav />
-                    <ChatSidebarTrigger />
-                  </>
-                )}
+            <header className="flex h-16 shrink-0 items-center gap-2 px-3.5">
+              {CHAT_SIDEBAR_SIDE === "left" ? <ChatSidebarTrigger /> : null}
+              <div className="mx-auto flex min-w-0 w-full max-w-6xl items-center">
+                <TopNav />
               </div>
+              {CHAT_SIDEBAR_SIDE === "right" ? <ChatSidebarTrigger /> : null}
             </header>
             <div className="flex-1 overflow-auto px-6 pb-6">{children}</div>
           </SidebarInset>

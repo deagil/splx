@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import { AuditLogView } from "@/components/build/audit-log-view";
+import { AppLoader } from "@/components/shared/app-loader";
 import { requireDevAccess } from "../dev-access";
 
-export default async function AuditLogPage() {
+async function AuditLogPageContent() {
   const denied = await requireDevAccess();
   if (denied) {
     return denied;
@@ -23,5 +24,13 @@ export default async function AuditLogPage() {
         <AuditLogView />
       </Suspense>
     </div>
+  );
+}
+
+export default function AuditLogPage() {
+  return (
+    <Suspense fallback={<AppLoader label="Loading audit log" />}>
+      <AuditLogPageContent />
+    </Suspense>
   );
 }

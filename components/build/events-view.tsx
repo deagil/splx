@@ -1,32 +1,12 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import {
   ActivityLogView,
   formatRelative,
   formatTimestamp,
   JsonBlock,
-  type LogEntry,
   MonoCell,
 } from "./activity-log-view";
-
-function ProcessedBadge({ entry }: { entry: LogEntry }) {
-  const processedAt = entry.processedAt as string | null;
-
-  if (!processedAt) {
-    return (
-      <Badge appearance="light" variant="warning">
-        Pending
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge appearance="light" variant="success">
-      Processed
-    </Badge>
-  );
-}
 
 export function EventsView() {
   return (
@@ -52,17 +32,14 @@ export function EventsView() {
           ),
         },
         {
-          key: "processedAt",
-          header: "Status",
-          className: "w-32",
-          render: (entry) => <ProcessedBadge entry={entry} />,
-        },
-        {
-          key: "attempts",
-          header: "Attempts",
-          className: "w-24",
+          key: "actorEmail",
+          header: "Actor",
+          className: "w-48",
           render: (entry) => (
-            <span className="text-sm">{String(entry.attempts ?? 0)}</span>
+            <span className="text-sm">
+              {(entry.actorEmail as string | null) ??
+                (entry.actorUserId ? "Unknown user" : "System")}
+            </span>
           ),
         },
       ]}
@@ -70,29 +47,6 @@ export function EventsView() {
         {
           label: "Event",
           render: (entry) => <MonoCell value={entry.eventName} />,
-        },
-        {
-          label: "Status",
-          render: (entry) => <ProcessedBadge entry={entry} />,
-        },
-        {
-          label: "Processed at",
-          render: (entry) =>
-            entry.processedAt ? (
-              <span className="text-sm">
-                {formatTimestamp(entry.processedAt as string)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground text-sm">
-                Not yet consumed
-              </span>
-            ),
-        },
-        {
-          label: "Attempts",
-          render: (entry) => (
-            <span className="text-sm">{String(entry.attempts ?? 0)}</span>
-          ),
         },
         {
           label: "Actor",
@@ -105,6 +59,10 @@ export function EventsView() {
               <MonoCell value={entry.actorUserId} />
             </div>
           ),
+        },
+        {
+          label: "Caused by run",
+          render: (entry) => <MonoCell value={entry.causedByRunId} />,
         },
         {
           label: "Request id",

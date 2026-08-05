@@ -439,10 +439,11 @@ export const auditLog = pgTable("audit_logs", {
 export type AuditLog = InferSelectModel<typeof auditLog>;
 
 /**
- * Durable outbox of domain and technical events awaiting a consumer.
- * Written by server/lib/events.ts. Nothing drains it yet.
+ * Append-only fact log of domain and technical events.
+ * Written by server/lib/events.ts, which also fans out matching workflows into
+ * workflow_schedule in the same transaction. Do not insert here directly.
  */
-export const eventOutbox = pgTable("event_outbox", {
+export const eventLog = pgTable("event_logs", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   workspace_id: uuid("workspace_id")
     .notNull()
@@ -453,11 +454,136 @@ export const eventOutbox = pgTable("event_outbox", {
   actor_user_id: uuid("actor_user_id").references(() => user.id, {
     onDelete: "set null",
   }),
-  attempts: integer("attempts").notNull().default(0),
-  processed_at: timestamp("processed_at", { withTimezone: true }),
+  /** Provenance: the workflow_runs.id that caused this fact, when applicable. */
+  caused_by_run_id: uuid("caused_by_run_id"),
   created_at: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
 
-export type EventOutbox = InferSelectModel<typeof eventOutbox>;
+export type EventLog = InferSelectModel<typeof eventLog>;
+
+/**
+ * Workspace catalog of event type names for the Automation UI.
+ * Does not gate emitEvent(); system rows are seeded and not deletable.
+ */
+export const eventType = pgTable("event_types", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  payload_schema: jsonb("payload_schema")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  is_system: boolean("is_system").notNull().default(false),
+  created_by: uuid("created_by").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type EventType = InferSelectModel<typeof eventType>;
+
+export type WorkflowStepConfig = {
+  type: string;
+  label?: string;
+  input?: Record<string, unknown>;
+};
+
+export const workflow = pgTable("workflows", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  enabled: boolean("enabled").notNull().default(false),
+  trigger_type: text("trigger_type").notNull(),
+  event_name: text("event_name"),
+  steps: jsonb("steps").$type<WorkflowStepConfig[]>().notNull().default([]),
+  created_by: uuid("created_by").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Workflow = InferSelectModel<typeof workflow>;
+
+export const workflowSchedule = pgTable("workflow_schedule", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  workflow_id: uuid("workflow_id")
+    .notNull()
+    .references(() => workflow.id, { onDelete: "cascade" }),
+  event_id: uuid("event_id").references(() => eventLog.id, {
+    onDelete: "set null",
+  }),
+  status: text("status").notNull().default("pending"),
+  trigger_source: text("trigger_source").notNull(),
+  run_after: timestamp("run_after", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  attempts: integer("attempts").notNull().default(0),
+  locked_at: timestamp("locked_at", { withTimezone: true }),
+  last_error: text("last_error"),
+  context: jsonb("context").$type<Record<string, unknown>>().notNull().default({}),
+  depth: integer("depth").notNull().default(0),
+  actor_user_id: uuid("actor_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  request_id: text("request_id"),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type WorkflowSchedule = InferSelectModel<typeof workflowSchedule>;
+
+export type WorkflowRunStepResult = {
+  type: string;
+  label?: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  error?: string;
+  skipped?: boolean;
+};
+
+export const workflowRun = pgTable("workflow_runs", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  workflow_id: uuid("workflow_id")
+    .notNull()
+    .references(() => workflow.id, { onDelete: "cascade" }),
+  schedule_id: uuid("schedule_id").references(() => workflowSchedule.id, {
+    onDelete: "set null",
+  }),
+  status: text("status").notNull(),
+  steps: jsonb("steps")
+    .$type<WorkflowRunStepResult[]>()
+    .notNull()
+    .default([]),
+  error: text("error"),
+  started_at: timestamp("started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  finished_at: timestamp("finished_at", { withTimezone: true }),
+});
+
+export type WorkflowRun = InferSelectModel<typeof workflowRun>;

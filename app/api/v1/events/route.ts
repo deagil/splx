@@ -3,8 +3,8 @@ import { ApiError } from "@/server/api/responses";
 import { listEvents } from "@/server/repositories/activity";
 
 /**
- * Event outbox, newest first. Nothing drains it yet, so every row is
- * unprocessed — `processedAt` is here for when a runner exists.
+ * Event fact log, newest first. Fan-out into workflow_schedule happens inside
+ * emitEvent(); this route is read-only history.
  */
 export const GET = endpoint({
   auth: "required",

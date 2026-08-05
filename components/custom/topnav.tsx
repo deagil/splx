@@ -33,17 +33,12 @@ const devOptions: MenuOption[] = [
   {
     title: "Roles & Permissions",
     href: "/build/roles",
-    description: "Manage roles, permissions, and detect RLS policy gaps",
+    description: "Manage roles, permissions, and RLS",
   },
   {
     title: "Audit Log",
     href: "/build/audit-log",
-    description: "Every mutation made through the API control plane",
-  },
-  {
-    title: "Events",
-    href: "/build/events",
-    description: "The event outbox awaiting an automation runner",
+    description: "Database changes",
   },
 ]
 
@@ -51,39 +46,44 @@ const buildOptions: MenuOption[] = [
   {
     title: "Pages",
     href: "/pages",
-    description: "Create and manage UI views for your workspace",
+    description: "Create and manage views for your system",
   },
-    {
+  {
     title: "Page Links",
     href: "/build/page-links",
-    description: "Coming soon - Manage navigation options",
+    description: "Coming soon - manage navigation",
     disabled: true,
+  },
+]
+
+const automationOptions: MenuOption[] = [
+  {
+    title: "Events",
+    href: "/automation/events",
+    description: "Event in the system",
+  },
+  {
+    title: "Listeners",
+    href: "/automation/listeners",
+    description: "Listen for events and trigger workflows",
   },
   {
     title: "Workflows",
-    href: "/build/workflows",
-    description: "Coming soon - Automate processes and workflows",
-    disabled: true,
+    href: "/automation/workflows",
+    description: "Multi-step processes",
   },
-  // TODO: fold menus into page links
-  // {
-  //   title: "Menus",
-  //   href: "/build/menus",
-  //   description: "Coming soon - Create custom navigation menus",
-  //   disabled: true,
-  // },
 ]
 
 const dataOptions: MenuOption[] = [
   {
     title: "Tables",
     href: "/build/data",
-    description: "Browse and manage your workspace data tables",
+    description: "Browse and manage your raw data",
   },
   {
     title: "Reports",
     href: "/data/reports",
-    description: "View and create AI-assisted data reports",
+    description: "Create reports and charts with AI",
   },
 ]
 
@@ -165,7 +165,7 @@ export function NavigationMenuDemo() {
           <NavigationMenuItem>
             <NavigationMenuTrigger>Dev</NavigationMenuTrigger>
             <NavigationMenuContent>
-              <ul className="grid w-[300px] gap-2 p-4">
+              <ul className="grid w-[300px] gap-2">
                 {devOptions.map((option) => (
                   <ListItem
                     key={option.title}
@@ -185,7 +185,7 @@ export function NavigationMenuDemo() {
         <NavigationMenuItem>
           <NavigationMenuTrigger>Data</NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[300px] gap-2 p-4">
+            <ul className="grid w-[300px] gap-2">
               {dataOptions.map((option) => (
                 <ListItem
                   key={option.title}
@@ -203,8 +203,26 @@ export function NavigationMenuDemo() {
         <NavigationMenuItem>
           <NavigationMenuTrigger>Build</NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[300px] gap-2 p-4">
+            <ul className="grid w-[300px] gap-2">
               {buildOptions.map((option) => (
+                <ListItem
+                  key={option.title}
+                  title={option.title}
+                  href={option.href}
+                  disabled={option.disabled}
+                >
+                  {option.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        {/* automation menu */}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>Automation</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[320px] gap-2">
+              {automationOptions.map((option) => (
                 <ListItem
                   key={option.title}
                   title={option.title}

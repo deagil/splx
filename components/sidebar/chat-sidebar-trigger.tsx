@@ -12,8 +12,7 @@ export function ChatSidebarTrigger() {
   return (
     <div
       className={cn(
-        "grid transition-[grid-template-columns,margin] duration-250 ease-in-out",
-        CHAT_SIDEBAR_SIDE === "right" && "ml-auto",
+        "grid shrink-0 transition-[grid-template-columns,margin] duration-250 ease-in-out",
         open ? "grid-cols-[0fr]" : "grid-cols-[1fr]",
         open && (CHAT_SIDEBAR_SIDE === "left" ? "-mr-2" : "-ml-2")
       )}

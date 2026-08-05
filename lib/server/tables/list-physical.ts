@@ -46,7 +46,11 @@ export const SYSTEM_TABLES: ReadonlySet<string> = new Set([
   "streams",
   "ai_skills",
   "audit_logs",
-  "event_outbox",
+  "event_logs",
+  "event_types",
+  "workflows",
+  "workflow_schedule",
+  "workflow_runs",
 ]);
 
 async function selectBaseTables(db: DbClient): Promise<PhysicalTable[]> {

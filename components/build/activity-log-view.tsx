@@ -25,7 +25,7 @@ import {
 /**
  * Shared list + detail view for the two control-plane logs.
  *
- * `audit_logs` and `event_outbox` differ only in their columns and detail
+ * `audit_logs` and `event_logs` differ only in their columns and detail
  * fields, so one component takes a column definition rather than being written
  * twice.
  *

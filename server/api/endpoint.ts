@@ -7,7 +7,7 @@ import type { EndpointConfig } from "./types";
 /**
  * Structured request log. A `console.log` stub until a real sink exists — the
  * point is that every control-plane request emits one line with a `requestId`
- * that also appears in `audit_logs`, `event_outbox`, and any error response.
+ * that also appears in `audit_logs`, `event_logs`, and any error response.
  */
 function logRequest(entry: {
   requestId: string;

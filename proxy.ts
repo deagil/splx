@@ -183,10 +183,11 @@ export async function proxy(request: NextRequest) {
   const isPublicRoute = pathname === "/" || pathname.startsWith("/whats-new");
 
   // Routes that must stay reachable without a session: onboarding needs to
-  // check slug availability before the user has one, and Stripe calls back
-  // with its own signature rather than a cookie.
+  // check slug availability before the user has one, Stripe calls back with
+  // its own signature, and the workflow tick uses a shared runner secret.
   const isPublicApiRoute = pathname.startsWith("/api/workspace/check-slug") ||
-    pathname.startsWith("/api/stripe/");
+    pathname.startsWith("/api/stripe/") ||
+    pathname.startsWith("/api/internal/");
 
   if (isApiRoute && !isPublicApiRoute) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

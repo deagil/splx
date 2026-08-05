@@ -1,11 +1,11 @@
 import { and, desc, eq, lt } from "drizzle-orm";
-import { auditLog, eventOutbox, user } from "@/lib/db/schema";
+import { auditLog, eventLog, user } from "@/lib/db/schema";
 import { ApiError } from "@/server/api/responses";
 import { getControlPlaneDb } from "@/server/lib/db";
 
 /**
  * Read access to the control plane's own output: `audit_logs` and
- * `event_outbox`.
+ * `event_logs`.
  *
  * Both tables are append-only and workspace-scoped, and both are written
  * through the privileged main-database connection, so these are the only way to
@@ -37,8 +37,7 @@ export type EventEntry = {
   eventName: string;
   payload: Record<string, unknown>;
   requestId: string | null;
-  attempts: number;
-  processedAt: Date | null;
+  causedByRunId: string | null;
   createdAt: Date;
   actorUserId: string | null;
   actorEmail: string | null;
@@ -136,27 +135,26 @@ export async function listEvents(
 
   const where = before
     ? and(
-        eq(eventOutbox.workspace_id, workspaceId),
-        lt(eventOutbox.created_at, before)
+        eq(eventLog.workspace_id, workspaceId),
+        lt(eventLog.created_at, before)
       )
-    : eq(eventOutbox.workspace_id, workspaceId);
+    : eq(eventLog.workspace_id, workspaceId);
 
   const rows = await getControlPlaneDb()
     .select({
-      id: eventOutbox.id,
-      eventName: eventOutbox.event_name,
-      payload: eventOutbox.payload,
-      requestId: eventOutbox.request_id,
-      attempts: eventOutbox.attempts,
-      processedAt: eventOutbox.processed_at,
-      createdAt: eventOutbox.created_at,
-      actorUserId: eventOutbox.actor_user_id,
+      id: eventLog.id,
+      eventName: eventLog.event_name,
+      payload: eventLog.payload,
+      requestId: eventLog.request_id,
+      causedByRunId: eventLog.caused_by_run_id,
+      createdAt: eventLog.created_at,
+      actorUserId: eventLog.actor_user_id,
       actorEmail: user.email,
     })
-    .from(eventOutbox)
-    .leftJoin(user, eq(user.id, eventOutbox.actor_user_id))
+    .from(eventLog)
+    .leftJoin(user, eq(user.id, eventLog.actor_user_id))
     .where(where)
-    .orderBy(desc(eventOutbox.created_at))
+    .orderBy(desc(eventLog.created_at))
     .limit(limit);
 
   return rows.map((row) => ({
@@ -164,8 +162,7 @@ export async function listEvents(
     eventName: row.eventName,
     payload: (row.payload ?? {}) as Record<string, unknown>,
     requestId: row.requestId,
-    attempts: row.attempts,
-    processedAt: row.processedAt,
+    causedByRunId: row.causedByRunId,
     createdAt: row.createdAt,
     actorUserId: row.actorUserId,
     actorEmail: row.actorEmail,
@@ -221,21 +218,18 @@ export async function getEvent(
 ): Promise<EventEntry | null> {
   const rows = await getControlPlaneDb()
     .select({
-      id: eventOutbox.id,
-      eventName: eventOutbox.event_name,
-      payload: eventOutbox.payload,
-      requestId: eventOutbox.request_id,
-      attempts: eventOutbox.attempts,
-      processedAt: eventOutbox.processed_at,
-      createdAt: eventOutbox.created_at,
-      actorUserId: eventOutbox.actor_user_id,
+      id: eventLog.id,
+      eventName: eventLog.event_name,
+      payload: eventLog.payload,
+      requestId: eventLog.request_id,
+      causedByRunId: eventLog.caused_by_run_id,
+      createdAt: eventLog.created_at,
+      actorUserId: eventLog.actor_user_id,
       actorEmail: user.email,
     })
-    .from(eventOutbox)
-    .leftJoin(user, eq(user.id, eventOutbox.actor_user_id))
-    .where(
-      and(eq(eventOutbox.id, id), eq(eventOutbox.workspace_id, workspaceId))
-    )
+    .from(eventLog)
+    .leftJoin(user, eq(user.id, eventLog.actor_user_id))
+    .where(and(eq(eventLog.id, id), eq(eventLog.workspace_id, workspaceId)))
     .limit(1);
 
   const row = rows[0];
@@ -248,8 +242,7 @@ export async function getEvent(
     eventName: row.eventName,
     payload: (row.payload ?? {}) as Record<string, unknown>,
     requestId: row.requestId,
-    attempts: row.attempts,
-    processedAt: row.processedAt,
+    causedByRunId: row.causedByRunId,
     createdAt: row.createdAt,
     actorUserId: row.actorUserId,
     actorEmail: row.actorEmail,

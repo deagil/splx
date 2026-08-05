@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 
 /**
- * Integration tests for the audit-log / event-outbox readers.
+ * Integration tests for the audit-log / event-log readers.
  *
  * Skipped unless `TEST_POSTGRES_URL` is set — see
  * docs/API_CONTROL_PLANE.md for how to stand up the database.
@@ -39,7 +39,7 @@ describeIfDb("activity readers (integration)", () => {
       sql`DELETE FROM public.audit_logs WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
     );
     await db.execute(
-      sql`DELETE FROM public.event_outbox WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
+      sql`DELETE FROM public.event_logs WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
     );
 
     // Three entries in workspace A, written in order, plus one in B.
@@ -149,8 +149,6 @@ describeIfDb("activity readers (integration)", () => {
     const entries = await listEvents(WORKSPACE_A);
     expect(entries).toHaveLength(1);
     expect(entries[0].eventName).toBe("db.contacts.created");
-    expect(entries[0].processedAt).toBeNull();
-    expect(entries[0].attempts).toBe(0);
     expect(entries[0].payload).toEqual({ record: { id: "rec-1" } });
   });
 

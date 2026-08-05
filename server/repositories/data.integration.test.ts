@@ -82,7 +82,7 @@ describeIfDb("dataRepository (integration)", () => {
       sql`DELETE FROM public.audit_logs WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
     );
     await db.execute(
-      sql`DELETE FROM public.event_outbox WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
+      sql`DELETE FROM public.event_logs WHERE workspace_id IN (${WORKSPACE_A}, ${WORKSPACE_B})`
     );
   });
 
@@ -109,11 +109,10 @@ describeIfDb("dataRepository (integration)", () => {
     expect(audit[0].request_id).toBe("test-req");
 
     const events = (await db.execute(
-      sql`SELECT event_name, processed_at FROM public.event_outbox`
+      sql`SELECT event_name FROM public.event_logs`
     )) as Array<Record<string, unknown>>;
     expect(events).toHaveLength(1);
     expect(events[0].event_name).toBe("db.contacts.created");
-    expect(events[0].processed_at).toBeNull();
   });
 
   it("stores an injection payload as data without executing it", async () => {

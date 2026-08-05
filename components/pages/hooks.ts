@@ -425,7 +425,7 @@ export function useReports() {
   return { reports, isLoading, error };
 }
 
-export function useTriggerBlockAction(_block: TriggerBlockDraft) {
+export function useTriggerBlockAction(block: TriggerBlockDraft) {
   const [status, setStatus] = useState<
     "idle" | "pending" | "success" | "error"
   >("idle");
@@ -435,8 +435,28 @@ export function useTriggerBlockAction(_block: TriggerBlockDraft) {
     setStatus("pending");
     setError(null);
     try {
-      // Hook execution will be supplied by the trigger system integration.
-      await Promise.resolve();
+      const workflowId = block.display.hookName?.trim();
+      if (!workflowId) {
+        throw new Error("Trigger block has no workflow id (hookName)");
+      }
+
+      const response = await fetch(`/api/v1/workflows/${workflowId}/run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          triggerSource: "trigger_block",
+          context: { event: null, steps: [], source: "trigger_block" },
+        }),
+      });
+
+      const body = await safeJson(response);
+      if (!response.ok) {
+        throw new Error(
+          (body as { error?: string } | null)?.error ??
+            `Trigger failed (${response.status})`
+        );
+      }
+
       setStatus("success");
     } catch (caught) {
       setStatus("error");
@@ -444,7 +464,7 @@ export function useTriggerBlockAction(_block: TriggerBlockDraft) {
         caught instanceof Error ? caught.message : "Trigger failed",
       );
     }
-  }, []);
+  }, [block.display.hookName]);
 
   return {
     execute,

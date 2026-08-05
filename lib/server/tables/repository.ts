@@ -46,6 +46,12 @@ const RESERVED_TABLE_NAMES = new Set([
   "suggestions",
   "streams",
   "ai_skills",
+  "audit_logs",
+  "event_logs",
+  "event_types",
+  "workflows",
+  "workflow_schedule",
+  "workflow_runs",
 ]);
 
 /**
