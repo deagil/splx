@@ -3,7 +3,12 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel } from "@tanstack/react-table";
+import {
+  useLegacyTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+} from "@tanstack/react-table/legacy";
 import { Card, CardHeader, CardHeading, CardTable, CardFooter } from "@/components/ui/card";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -83,7 +88,7 @@ export function ListBlockView({ block, urlParams, editControls }: ListBlockViewP
     });
   }, [copy, fieldMetaMap, resolvedColumns]);
 
-  const table = useReactTable({
+  const table = useLegacyTable({
     data: rows,
     columns,
     state: {
