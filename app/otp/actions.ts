@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 import postgres, { type Sql } from "postgres";
 import { z } from "zod";
 import { user, workspace, workspaceUser } from "@/lib/db/schema";
-import { getAppMode } from "@/lib/server/tenant/context";
 import type { DbClient } from "@/lib/server/tenant/context";
+import { getAppMode } from "@/lib/server/tenant/context";
 import { seedDefaultRoles } from "@/lib/server/tenant/default-roles";
 import { createClient } from "@/lib/supabase/server";
 

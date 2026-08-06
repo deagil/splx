@@ -1,7 +1,7 @@
 import * as React from 'react';
+import { Button as ButtonPrimitive } from '@base-ui/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { ChevronDown, LucideIcon } from 'lucide-react';
-import { Slot as SlotPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
@@ -381,15 +381,23 @@ function Button({
   underline,
   asChild = false,
   placeholder = false,
+  children,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     selected?: boolean;
     asChild?: boolean;
   }) {
-  const Comp = asChild ? SlotPrimitive.Slot : 'button';
+  // `asChild` is kept as this wrapper's public API (18 call sites) and mapped
+  // onto Base UI's `render`, which is the equivalent composition escape hatch:
+  // the passed element becomes the rendered element and keeps its own children.
+  // `nativeButton` goes false in that case because the target is often an <a>
+  // or Link, and Base UI would otherwise apply native <button> semantics.
+  const renderChild =
+    asChild && React.isValidElement(children) ? children : undefined;
+
   return (
-    <Comp
+    <ButtonPrimitive
       data-slot="button"
       className={cn(
         buttonVariants({
@@ -406,9 +414,13 @@ function Button({
         }),
         asChild && props.disabled && 'pointer-events-none opacity-50',
       )}
+      nativeButton={!asChild}
+      render={renderChild}
       {...(selected && { 'data-state': 'open' })}
       {...props}
-    />
+    >
+      {asChild ? undefined : children}
+    </ButtonPrimitive>
   );
 }
 
