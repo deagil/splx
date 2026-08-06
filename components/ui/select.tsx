@@ -5,7 +5,7 @@ import { isValidElement, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { cva, VariantProps } from 'class-variance-authority';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { Select as SelectPrimitive } from 'radix-ui';
+import { Select as SelectPrimitive } from '@base-ui/react/select';
 
 // Create a Context for `indicatorPosition` and `indicator` control
 const SelectContext = React.createContext<{
@@ -14,20 +14,46 @@ const SelectContext = React.createContext<{
   indicator: ReactNode;
 }>({ indicatorPosition: 'left', indicator: null, indicatorVisibility: true });
 
-// Root Component
-const Select = ({
+// Root Component. Base UI's Select.Root is generic over <Value, Multiple>, so
+// the wrapper is generic too rather than using React.ComponentProps.
+//
+// Base UI reports "no selection" as `null`; Radix reported it as `""`. Every
+// call site here is typed against the Radix shape, so the wrapper narrows
+// `onValueChange` back to a non-null value and coerces `null` to `""` — which is
+// exactly the value Radix would have emitted.
+const Select = <Value, Multiple extends boolean | undefined = false>({
   indicatorPosition = 'left',
   indicatorVisibility = true,
   indicator,
+  onValueChange,
   ...props
 }: {
   indicatorPosition?: 'left' | 'right';
   indicatorVisibility?: boolean;
   indicator?: ReactNode;
-} & React.ComponentProps<typeof SelectPrimitive.Root>) => {
+  onValueChange?: (
+    value: NonNullable<SelectPrimitive.Root.Props<Value, Multiple>['value']>,
+    eventDetails: Parameters<
+      NonNullable<SelectPrimitive.Root.Props<Value, Multiple>['onValueChange']>
+    >[1],
+  ) => void;
+} & Omit<SelectPrimitive.Root.Props<Value, Multiple>, 'onValueChange'>) => {
   return (
     <SelectContext.Provider value={{ indicatorPosition, indicatorVisibility, indicator }}>
-      <SelectPrimitive.Root {...props} />
+      <SelectPrimitive.Root
+        onValueChange={
+          onValueChange
+            ? (value, eventDetails) =>
+                onValueChange(
+                  (value ?? '') as NonNullable<
+                    SelectPrimitive.Root.Props<Value, Multiple>['value']
+                  >,
+                  eventDetails,
+                )
+            : undefined
+        }
+        {...props}
+      />
     </SelectContext.Provider>
   );
 };
@@ -43,9 +69,9 @@ function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.V
 // Define size variants for SelectTrigger
 const selectTriggerVariants = cva(
   `
-    flex bg-background w-full items-center justify-between outline-none border border-input shadow-xs shadow-black/5 transition-shadow 
-    text-foreground data-placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] 
-    focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 
+    flex bg-background w-full items-center justify-between outline-none border border-input shadow-xs shadow-black/5 transition-shadow
+    text-foreground data-placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px]
+    focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1
     aria-invalid:border-destructive/60 aria-invalid:ring-destructive/10 dark:aria-invalid:border-destructive dark:aria-invalid:ring-destructive/20
     [[data-invalid=true]_&]:border-destructive/60 [[data-invalid=true]_&]:ring-destructive/10  dark:[[data-invalid=true]_&]:border-destructive dark:[[data-invalid=true]_&]:ring-destructive/20
   `,
@@ -76,78 +102,94 @@ function SelectTrigger({ className, children, size, ...props }: SelectTriggerPro
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 opacity-60 -me-0.5" />
-      </SelectPrimitive.Icon>
+      <SelectPrimitive.Icon render={<ChevronDown className="h-4 w-4 opacity-60 -me-0.5" />} />
     </SelectPrimitive.Trigger>
   );
 }
 
-function SelectScrollUpButton({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
+// Radix's ScrollUp/DownButton are ScrollUp/DownArrow in Base UI.
+function SelectScrollUpButton({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>) {
   return (
-    <SelectPrimitive.ScrollUpButton
+    <SelectPrimitive.ScrollUpArrow
       data-slot="select-scroll-up-button"
-      className={cn('flex cursor-default items-center justify-center py-1', className)}
+      className={cn('top-0 flex w-full cursor-default items-center justify-center py-1', className)}
       {...props}
     >
       <ChevronUp className="h-4 w-4" />
-    </SelectPrimitive.ScrollUpButton>
+    </SelectPrimitive.ScrollUpArrow>
   );
 }
 
 function SelectScrollDownButton({
   className,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>) {
   return (
-    <SelectPrimitive.ScrollDownButton
+    <SelectPrimitive.ScrollDownArrow
       data-slot="select-scroll-down-button"
-      className={cn('flex cursor-default items-center justify-center py-1', className)}
+      className={cn('bottom-0 flex w-full cursor-default items-center justify-center py-1', className)}
       {...props}
     >
       <ChevronDown className="h-4 w-4" />
-    </SelectPrimitive.ScrollDownButton>
+    </SelectPrimitive.ScrollDownArrow>
   );
 }
 
+// Content becomes Portal > Positioner > Popup, with Viewport becoming List.
+// Radix's `position` prop is gone: "popper" is `alignItemWithTrigger={false}`,
+// and "item-aligned" is `true`. This wrapper defaulted to "popper", so the
+// default here is `false` to preserve behaviour.
 function SelectContent({
   className,
   children,
-  position = 'popper',
+  alignItemWithTrigger = false,
+  align,
+  alignOffset,
+  side,
+  sideOffset = 4,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Popup> &
+  Pick<
+    React.ComponentProps<typeof SelectPrimitive.Positioner>,
+    'align' | 'alignOffset' | 'side' | 'sideOffset' | 'alignItemWithTrigger'
+  >) {
   return (
     <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        data-slot="select-content"
-        className={cn(
-          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover shadow-md shadow-black/5 text-secondary-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-          position === 'popper' &&
-            'data-[side=bottom]:translate-y-1.5 data-[side=left]:-translate-x-1.5 data-[side=right]:translate-x-1.5 data-[side=top]:-translate-y-1.5',
-          className,
-        )}
-        position={position}
-        {...props}
+      <SelectPrimitive.Positioner
+        className="isolate z-50"
+        alignItemWithTrigger={alignItemWithTrigger}
+        align={align}
+        alignOffset={alignOffset}
+        side={side}
+        sideOffset={sideOffset}
       >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
+        <SelectPrimitive.Popup
+          data-slot="select-content"
           className={cn(
-            'p-1.5',
-            position === 'popper' &&
-              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+            'relative max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover shadow-md shadow-black/5 text-secondary-foreground origin-[var(--transform-origin)]',
+            'transition-[opacity,transform,scale] duration-150 ease-out',
+            'data-starting-style:scale-95 data-starting-style:opacity-0',
+            'data-ending-style:scale-95 data-ending-style:opacity-0',
+            className,
           )}
+          {...props}
         >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
+          <SelectScrollUpButton />
+          <SelectPrimitive.List className="w-full min-w-[var(--anchor-width)] p-1.5">
+            {children}
+          </SelectPrimitive.List>
+          <SelectScrollDownButton />
+        </SelectPrimitive.Popup>
+      </SelectPrimitive.Positioner>
     </SelectPrimitive.Portal>
   );
 }
 
-function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Label>) {
+// Radix's group Label is Base UI's GroupLabel (Base UI's `Label` is the form
+// label for the whole select, a different part).
+function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.GroupLabel>) {
   return (
-    <SelectPrimitive.Label
+    <SelectPrimitive.GroupLabel
       data-slot="select-label"
       className={cn('py-1.5 ps-8 pe-2 text-xs text-muted-foreground font-medium', className)}
       {...props}
@@ -162,7 +204,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 text-sm outline-hidden text-foreground hover:bg-accent focus:bg-accent data-disabled:pointer-events-none data-disabled:opacity-50',
+        'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 text-sm outline-hidden text-foreground hover:bg-accent data-highlighted:bg-accent data-disabled:pointer-events-none data-disabled:opacity-50',
         indicatorPosition === 'left' ? 'ps-8 pe-2' : 'pe-8 ps-2',
         className,
       )}
@@ -192,7 +234,7 @@ function SelectIndicator({
   children,
   className,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.ItemIndicator>) {
+}: React.ComponentProps<'span'>) {
   const { indicatorPosition } = React.useContext(SelectContext);
 
   return (
