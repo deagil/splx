@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Label as LabelPrimitive } from 'radix-ui';
 
 const labelVariants = cva(
   'text-sm leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
@@ -20,12 +19,18 @@ const labelVariants = cva(
   },
 );
 
+// Base UI has no Label primitive: inside a Field it is Field.Label, and
+// standalone it is a native <label>. Radix's Label added only click-forwarding
+// to the associated control, which the browser already does via htmlFor.
 function Label({
   className,
   variant,
   ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root> & VariantProps<typeof labelVariants>) {
-  return <LabelPrimitive.Root data-slot="label" className={cn(labelVariants({ variant }), className)} {...props} />;
+}: React.ComponentProps<'label'> & VariantProps<typeof labelVariants>) {
+  return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: generic wrapper; consumers supply htmlFor or nest the control
+    <label data-slot="label" className={cn(labelVariants({ variant }), className)} {...props} />
+  );
 }
 
 export { Label };

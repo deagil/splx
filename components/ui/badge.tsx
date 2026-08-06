@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Slot as SlotPrimitive } from 'radix-ui';
+import { mergeProps } from '@base-ui/react/merge-props';
+import { useRender } from '@base-ui/react/use-render';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
   asChild?: boolean;
@@ -189,15 +190,20 @@ function Badge({
   disabled,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? SlotPrimitive.Slot : 'span';
-
-  return (
-    <Comp
-      data-slot="badge"
-      className={cn(badgeVariants({ variant, size, appearance, shape, disabled }), className)}
-      {...props}
-    />
-  );
+  // Base UI has no Badge primitive, so the manual Slot idiom becomes
+  // useRender + mergeProps. `asChild` is retained as this wrapper's API.
+  const { children, ...rest } = props;
+  return useRender({
+    render:
+      asChild && React.isValidElement(children) ? children : <span>{children}</span>,
+    props: mergeProps<'span'>(
+      {
+        'data-slot': 'badge',
+        className: cn(badgeVariants({ variant, size, appearance, shape, disabled }), className),
+      } as React.ComponentProps<'span'>,
+      rest,
+    ),
+  });
 }
 
 function BadgeButton({
@@ -206,15 +212,19 @@ function BadgeButton({
   asChild = false,
   ...props
 }: React.ComponentProps<'button'> & VariantProps<typeof badgeButtonVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? SlotPrimitive.Slot : 'span';
-  return (
-    <Comp
-      data-slot="badge-button"
-      className={cn(badgeButtonVariants({ variant, className }))}
-      role="button"
-      {...props}
-    />
-  );
+  const { children, ...rest } = props;
+  return useRender({
+    render:
+      asChild && React.isValidElement(children) ? children : <span>{children}</span>,
+    props: mergeProps<'span'>(
+      {
+        'data-slot': 'badge-button',
+        className: cn(badgeButtonVariants({ variant, className })),
+        role: 'button',
+      } as React.ComponentProps<'span'>,
+      rest as React.ComponentProps<'span'>,
+    ),
+  });
 }
 
 function BadgeDot({ className, ...props }: React.ComponentProps<'span'>) {
