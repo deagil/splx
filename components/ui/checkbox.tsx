@@ -4,16 +4,16 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { cva, VariantProps } from 'class-variance-authority';
 import { Check, Minus } from 'lucide-react';
-import { Checkbox as CheckboxPrimitive } from 'radix-ui';
+import { Checkbox as CheckboxPrimitive } from '@base-ui/react/checkbox';
 
 // Define the variants for the Checkbox using cva.
 const checkboxVariants = cva(
   `
-    group peer bg-background shrink-0 rounded-md border border-input ring-offset-background focus-visible:outline-none 
-    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 
+    group peer bg-background shrink-0 rounded-md border border-input ring-offset-background focus-visible:outline-none
+    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
     aria-invalid:border-destructive/60 aria-invalid:ring-destructive/10 dark:aria-invalid:border-destructive dark:aria-invalid:ring-destructive/20
     [[data-invalid=true]_&]:border-destructive/60 [[data-invalid=true]_&]:ring-destructive/10  dark:[[data-invalid=true]_&]:border-destructive dark:[[data-invalid=true]_&]:ring-destructive/20,
-    data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary data-[state=indeterminate]:text-primary-foreground
+    data-[checked]:bg-primary data-[checked]:border-primary data-[checked]:text-primary-foreground data-[indeterminate]:bg-primary data-[indeterminate]:border-primary data-[indeterminate]:text-primary-foreground
     `,
   {
     variants: {
@@ -29,16 +29,34 @@ const checkboxVariants = cva(
   },
 );
 
+// Base UI splits Radix's tri-state `checked` into a boolean `checked` plus a
+// separate `indeterminate` flag. This wrapper keeps accepting Radix's
+// `checked="indeterminate"` and splits it internally, so call sites using the
+// `getIsSomePageRowsSelected() && 'indeterminate'` idiom keep working.
 function Checkbox({
   className,
   size,
+  checked,
+  indeterminate,
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root> & VariantProps<typeof checkboxVariants>) {
+}: Omit<React.ComponentProps<typeof CheckboxPrimitive.Root>, 'checked'> &
+  VariantProps<typeof checkboxVariants> & {
+    checked?: boolean | 'indeterminate';
+    indeterminate?: boolean;
+  }) {
+  const isIndeterminate = indeterminate ?? checked === 'indeterminate';
+
   return (
-    <CheckboxPrimitive.Root data-slot="checkbox" className={cn(checkboxVariants({ size }), className)} {...props}>
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(checkboxVariants({ size }), className)}
+      checked={checked === 'indeterminate' ? false : checked}
+      indeterminate={isIndeterminate}
+      {...props}
+    >
       <CheckboxPrimitive.Indicator className={cn('flex items-center justify-center text-current')}>
-        <Check className="group-data-[state=indeterminate]:hidden" />
-        <Minus className="hidden group-data-[state=indeterminate]:block" />
+        <Check className="group-data-[indeterminate]:hidden" />
+        <Minus className="hidden group-data-[indeterminate]:block" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

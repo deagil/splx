@@ -167,7 +167,7 @@ export function PermissionsMatrix({
                             checked={isChecked}
                             className={cn(
                               pending &&
-                                "border-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:bg-amber-500"
+                                "border-amber-500 data-[checked]:border-amber-500 data-[checked]:bg-amber-500"
                             )}
                             disabled={isAdmin}
                             onCheckedChange={(checked) => {
