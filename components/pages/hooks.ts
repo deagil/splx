@@ -124,7 +124,6 @@ export function useListBlockData(
         params.set(`filter[${filter.column}]`, resolvedValue);
       }
     }
-    )
 
     return params.toString();
   }, [block.filters, block.tableName, urlParams]);

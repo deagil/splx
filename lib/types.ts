@@ -33,7 +33,11 @@ type queryUserTableTool = InferUITool<typeof queryUserTable>;
 type searchPagesTool = InferUITool<typeof searchPages>;
 type navigateToPageTool = InferUITool<ReturnType<typeof navigateToPage>>;
 
-export interface ChatTools {
+// Must stay a type alias, not an interface: this is passed as a generic
+// argument to UIMessage<_, _, ChatTools>, whose constraint requires an implicit
+// index signature. Type aliases get one; interfaces do not.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+export type ChatTools = {
   createDocument: createDocumentTool;
   getWeather: weatherTool;
   navigateToPage: navigateToPageTool;
@@ -41,7 +45,7 @@ export interface ChatTools {
   requestSuggestions: requestSuggestionsTool;
   searchPages: searchPagesTool;
   updateDocument: updateDocumentTool;
-}
+};
 
 export interface NavigationData {
   pageId: string;
@@ -49,7 +53,9 @@ export interface NavigationData {
   url: string;
 }
 
-export interface CustomUIDataTypes {
+// Must stay a type alias, not an interface — see ChatTools above.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+export type CustomUIDataTypes = {
   appendMessage: string;
   clear: null;
   codeDelta: string;
@@ -64,7 +70,7 @@ export interface CustomUIDataTypes {
   textDelta: string;
   title: string;
   usage: AppUsage;
-}
+};
 
 export type ChatMessage = UIMessage<
   MessageMetadata,

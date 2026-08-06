@@ -5,6 +5,7 @@ import { SlashInputPlugin, SlashPlugin } from "@platejs/slash-command/react";
 import { normalizeNodeId } from "platejs";
 import { ParagraphPlugin, Plate, usePlateEditor } from "platejs/react";
 import {
+  type RefObject,
   useCallback,
   useEffect,
   useImperativeHandle,

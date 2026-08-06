@@ -32,7 +32,9 @@ export abstract class BaseSqlAdapter implements SqlResourceAdapter {
   protected sqlClient: Sql | null = null;
   protected dbClient: DbClient | null = null;
 
-  protected constructor(protected readonly context: AdapterContext) {}
+  // Public: subclasses such as LocalSqlAdapter declare no constructor of their
+  // own, so they inherit this one and are instantiated from other modules.
+  constructor(protected readonly context: AdapterContext) {}
 
   abstract readonly kind: ResourceAdapterKind;
 

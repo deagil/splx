@@ -12,7 +12,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/shared/toast";
 import { SkillClarification } from "@/components/skills-training/skill-clarification";
 import { SkillPreview } from "@/components/skills-training/skill-preview";
@@ -91,14 +91,9 @@ export function PersonalizationPanel({
     });
   }, [aiContext, proficiency, aiTone, aiGuidance]);
 
-  // Load skills when panel opens
-  useEffect(() => {
-    if (open) {
-      loadSkills();
-    }
-  }, [open, loadSkills]);
-
-  const loadSkills = async () => {
+  // Declared before the effect that depends on it: as a `const` it is in the
+  // temporal dead zone until this line, and the effect lists it as a dependency.
+  const loadSkills = useCallback(async () => {
     try {
       const response = await fetch("/api/user/skills");
       if (response.ok) {
@@ -108,7 +103,14 @@ export function PersonalizationPanel({
     } catch (error) {
       console.error("Error loading skills:", error);
     }
-  };
+  }, []);
+
+  // Load skills when panel opens
+  useEffect(() => {
+    if (open) {
+      loadSkills();
+    }
+  }, [open, loadSkills]);
 
   // Debounce timer ref for auto-save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);

@@ -1,12 +1,13 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { redirect } from "next/navigation";
 import postgres, { type Sql } from "postgres";
 import { z } from "zod";
 import { user, workspace, workspaceUser } from "@/lib/db/schema";
 import { getAppMode } from "@/lib/server/tenant/context";
+import type { DbClient } from "@/lib/server/tenant/context";
 import { seedDefaultRoles } from "@/lib/server/tenant/default-roles";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,7 +78,10 @@ export async function verifyOTP(
     }
 
     let sql: Sql;
-    let db: PostgresJsDatabase;
+    // DbClient, not a bare PostgresJsDatabase: the unparameterised form defaults
+    // to Record<string, never> and omits the `$client` intersection that
+    // drizzle() actually returns, which seedDefaultRoles requires.
+    let db: DbClient;
     try {
       sql = postgres(process.env.POSTGRES_URL);
       db = drizzle(sql);

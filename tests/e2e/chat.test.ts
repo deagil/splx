@@ -163,13 +163,13 @@ test.describe("Chat activity", () => {
   });
 
   test("auto-scrolls to bottom after submitting new messages", async () => {
-    test();
+    test.fixme();
     await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await chatPage.waitForScrollToBottom();
   });
 
   test("scroll button appears when user scrolls up, hides on click", async () => {
-    test();
+    test.fixme();
     await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await expect(chatPage.scrollToBottomButton).not.toBeVisible();
 

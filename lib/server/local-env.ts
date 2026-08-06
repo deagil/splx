@@ -43,7 +43,7 @@ export async function upsertLocalEnv(updates: EnvUpdates): Promise<void> {
     const formatted = `${key}=${formatEnvValue(value)}`;
     const index = keyIndex.get(key);
     if (index === undefined) {
-      if (lines.length > 0 && lines.at(-1).trim() !== "") {
+      if (lines.length > 0 && lines.at(-1)?.trim() !== "") {
         lines.push("");
       }
       keyIndex.set(key, lines.length);

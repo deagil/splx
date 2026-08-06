@@ -8,7 +8,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
  * RLS policies and detect permission gaps.
  */
 
-export interface RlsPolicy {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+export type RlsPolicy = {
   cmd: string;
   permissive: string;
   policyname: string;
@@ -17,7 +21,7 @@ export interface RlsPolicy {
   schemaname: string;
   tablename: string;
   with_check: string | null;
-}
+};
 
 export interface PolicyPermissionRef {
   permission: string;
@@ -26,13 +30,17 @@ export interface PolicyPermissionRef {
   tablename: string;
 }
 
-export interface TableRlsStatus {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+export type TableRlsStatus = {
   has_policies: boolean;
   policy_count: number;
   rls_enabled: boolean;
   rls_forced: boolean;
   table_name: string;
-}
+};
 
 export interface GapAnalysis {
   incompleteCrud: Array<{

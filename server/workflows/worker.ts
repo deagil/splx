@@ -26,7 +26,11 @@ export interface ProcessResult {
   succeeded: number;
 }
 
-interface ClaimedSchedule {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+type ClaimedSchedule = {
   actor_user_id: string | null;
   attempts: number;
   context: Record<string, unknown>;
@@ -38,7 +42,7 @@ interface ClaimedSchedule {
   trigger_source: string;
   workflow_id: string;
   workspace_id: string;
-}
+};
 
 /**
  * Claims due `workflow_schedule` rows and executes their workflows.

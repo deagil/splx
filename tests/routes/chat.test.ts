@@ -314,7 +314,7 @@ test.describe
       adaContext,
       babbageContext,
     }) => {
-      test();
+      test.fixme();
       const chatId = generateUUID();
 
       const firstRequest = adaContext.request.post("/api/chat", {

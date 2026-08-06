@@ -7,13 +7,17 @@ interface Params {
   tableName: string;
 }
 
-interface ColumnInfo {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+type ColumnInfo = {
   character_maximum_length: number | null;
   column_default: string | null;
   column_name: string;
   data_type: string;
   is_nullable: string;
-}
+};
 
 /**
  * Column list for a table, used by the data grid to build its editor.

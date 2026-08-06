@@ -18,18 +18,26 @@ import type { DbClient, TenantContext } from "@/lib/server/tenant/context";
 import { getResourceStore } from "@/lib/server/tenant/resource-store";
 import { createClient } from "@/lib/supabase/server";
 
-interface ColumnInfo {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+type ColumnInfo = {
   column_default: string | null;
   column_name: string;
   data_type: string;
   is_nullable: string;
   is_unique: boolean;
-}
+};
 
-interface TableComment {
+// Used as a postgres.js row type, which is constrained to
+// Record<string, unknown>. Must stay a type alias: interfaces do not get
+// the implicit index signature that satisfies that constraint.
+// biome-ignore lint/style/useConsistentTypeDefinitions: needs implicit index signature
+type TableComment = {
   description: string | null;
   table_name: string;
-}
+};
 
 /**
  * Introspects columns for a given table from information_schema
