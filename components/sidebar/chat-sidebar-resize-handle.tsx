@@ -11,7 +11,7 @@ import {
   setSidebarWidthPx,
   writeRegularWidthPercent,
 } from "@/components/sidebar/chat-sidebar-resize";
-import { CHAT_SIDEBAR_SIDE } from "@/components/sidebar/chat-sidebar-side";
+import { useChatSidebarSide } from "@/components/sidebar/use-chat-sidebar-side";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { useScreenSize } from "@/hooks/use-screen-size";
@@ -25,6 +25,7 @@ export function ChatSidebarResizeHandle({
   isExpandedMode,
 }: ChatSidebarResizeHandleProps) {
   const { open } = useSidebar();
+  const { side: chatSidebarSide } = useChatSidebarSide();
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
   const { screenSize } = useScreenSize();
   const [isDragging, setIsDragging] = useState(false);
@@ -107,7 +108,7 @@ export function ChatSidebarResizeHandle({
       if (Math.abs(deltaX) > 2) {
         dragState.didMove = true;
       }
-      const signedDelta = CHAT_SIDEBAR_SIDE === "left" ? deltaX : -deltaX;
+      const signedDelta = chatSidebarSide === "left" ? deltaX : -deltaX;
       const nextWidthPx = clampSidebarWidthPx(
         dragState.startWidthPx + signedDelta,
         window.innerWidth
@@ -202,7 +203,7 @@ export function ChatSidebarResizeHandle({
         showHighlight || isDragging
           ? "cursor-col-resize after:bg-border"
           : "cursor-default",
-        CHAT_SIDEBAR_SIDE === "left"
+        chatSidebarSide === "left"
           ? "right-1 translate-x-1/2"
           : "left-1 -translate-x-1/2"
       )}

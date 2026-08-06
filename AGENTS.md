@@ -7,12 +7,18 @@
 - Pin the Chat trigger to the far header edge (left or right by sidebar side); constrain only the main nav items to the page max-width column.
 - Use singular “Automation” for the top-level nav label and routes (not “Automations”).
 - Automation subpages (Events, Listeners, Workflows) should stay single-purpose — no secondary “bonus” sections on the same route.
+- Chat sidebar width: allow drag-resize in regular desktop mode only (not expanded), with opinionated min/max guardrails so users cannot overshrink the main content or overgrow the panel.
+- When cleaning up Ultracite/Biome lint, prefer fixing offenders over dialing back or disabling rules.
+- Chat sidebar empty state should use the shared animated `Greeting` (not a plain “No messages yet” placeholder), including when Eve is enabled.
+- Chat sidebar footer fade / composer pad should use sidebar background tokens (`--sidebar-background` / `bg-sidebar`), not the page background.
 
 ## Learned Workspace Facts
 
-- Chat sidebar side is controlled by `CHAT_SIDEBAR_SIDE` in `components/sidebar/chat-sidebar-side.ts` and drives panel edge, flex order, trigger placement, and header control mirroring.
+- Chat sidebar side is persisted in localStorage (`chat-sidebar-side`) via `useChatSidebarSide()` / `chat-sidebar-side.ts`; it drives panel edge, flex order, trigger placement, header mirroring, and the status-bar side-toggle button.
+- Chat sidebar regular-mode width is user-resizable via `components/sidebar/chat-sidebar-resize.ts` (persisted percent, min/max rem and viewport caps); resize is disabled in expanded mode and when an artifact is visible.
 - Next.js Instant: keep uncached auth (`getAuthenticatedUser`) inside Suspense as a sibling of `{children}` in `app/(app)/layout.tsx`; pages that call auth or tenant context (`resolveTenantContext`, `requireDevAccess`) also need their own Suspense wrappers around the async work.
 - TanStack Table v9: use `useLegacyTable` and row-model helpers from `@tanstack/react-table/legacy` rather than `useReactTable` / `getCoreRowModel` from the main package.
 - Automation UI lives under `/automation/*` (Events, Listeners, Workflows); workflows design is documented in `docs/WORKFLOWS.md` on top of the control-plane event model in `docs/API_CONTROL_PLANE.md`.
 - Workflows split three concepts: append-only `event_logs` (facts), `workflow_schedule` (queue/leases/retries), and `workflow_runs` (execution). `emitEvent()` fans out matching schedule rows in the same transaction — no dispatch cursor.
 - Claudia’s Postgres-function workflow docs are not Splx’s architecture; only product ideas (action catalog, step shapes) transfer.
+- Eve sidebar agent is behind `NEXT_PUBLIC_AGENT_RUNTIME=eve` (`agent/`, `components/agent/`; see `docs/EVE_AGENT_PORT.md`). Prompt: `agent/instructions.ts`; models: `agent/lib/models.ts` via AI Gateway; threads: `/api/v1/agent-threads` — sidebar history should use those when Eve is on.

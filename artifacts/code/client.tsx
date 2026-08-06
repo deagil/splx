@@ -62,6 +62,70 @@ function detectRequiredHandlers(code: string): string[] {
   return handlers;
 }
 
+const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/";
+const PYODIDE_SCRIPT_URL = `${PYODIDE_INDEX_URL}pyodide.js`;
+
+interface PyodideInstance {
+  loadPackagesFromImports: (
+    code: string,
+    options: { messageCallback: (message: string) => void }
+  ) => Promise<void>;
+  runPythonAsync: (code: string) => Promise<unknown>;
+  setStdout: (options: { batched: (output: string) => void }) => void;
+}
+
+type LoadPyodide = (config: { indexURL: string }) => Promise<PyodideInstance>;
+
+type PyodideGlobal = typeof globalThis & {
+  loadPyodide?: LoadPyodide;
+};
+
+let pyodideScriptPromise: Promise<void> | null = null;
+
+function ensurePyodideScript(): Promise<void> {
+  const { loadPyodide } = globalThis as PyodideGlobal;
+  if (loadPyodide) {
+    return Promise.resolve();
+  }
+
+  if (pyodideScriptPromise) {
+    return pyodideScriptPromise;
+  }
+
+  pyodideScriptPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${PYODIDE_SCRIPT_URL}"]`
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error("Failed to load Pyodide")),
+        { once: true }
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = PYODIDE_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Pyodide"));
+    document.head.appendChild(script);
+  });
+
+  return pyodideScriptPromise;
+}
+
+async function loadPyodideRuntime() {
+  await ensurePyodideScript();
+  const { loadPyodide } = globalThis as PyodideGlobal;
+  if (!loadPyodide) {
+    throw new Error("Pyodide failed to initialize");
+  }
+  return loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+}
+
 interface Metadata {
   outputs: ConsoleOutput[];
 }
@@ -89,10 +153,7 @@ export const codeArtifact = new Artifact<"code", Metadata>({
         }));
 
         try {
-          // @ts-expect-error - loadPyodide is not defined
-          const currentPyodideInstance = await globalThis.loadPyodide({
-            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/",
-          });
+          const currentPyodideInstance = await loadPyodideRuntime();
 
           currentPyodideInstance.setStdout({
             batched: (output: string) => {

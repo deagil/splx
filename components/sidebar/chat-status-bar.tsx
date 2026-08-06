@@ -3,14 +3,16 @@
 // The raw primitive, not the SelectTrigger wrapper: this call site supplies its
 // own Button and does not want the wrapper's size variants or chevron icon.
 import { Select as SelectPrimitive } from "@base-ui/react/select";
-import { SignatureIcon } from "lucide-react";
+import { PanelLeftIcon, PanelRightIcon, SignatureIcon } from "lucide-react";
 import { useState } from "react";
+import { ChatHelpDialog } from "@/components/chat/chat-help-dialog";
 import { ContextIcon } from "@/components/elements/context";
 import {
   PromptInputModelSelect,
   PromptInputModelSelectContent,
 } from "@/components/elements/prompt-input";
 import { PersonalizationPanel } from "@/components/sidebar/personalization-panel";
+import { useChatSidebarSide } from "@/components/sidebar/use-chat-sidebar-side";
 import { Button } from "@/components/ui/button";
 import {
   HoverCard,
@@ -20,6 +22,11 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chatModels } from "@/lib/ai/models";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
@@ -299,7 +306,34 @@ function PersonalizationButton() {
   );
 }
 
-import { ChatHelpDialog } from "@/components/chat/chat-help-dialog";
+function ChatSidebarSideToggle() {
+  const { side, toggleSide } = useChatSidebarSide();
+  const moveToRight = side === "left";
+  const label = moveToRight ? "Move chat to right" : "Move chat to left";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          aria-label={label}
+          className="h-8 p-1 text-muted-foreground/50 text-xs transition-opacity hover:text-foreground md:h-fit md:p-2"
+          onClick={toggleSide}
+          type="button"
+          variant="ghost"
+        >
+          {moveToRight ? (
+            <PanelRightIcon size={12} />
+          ) : (
+            <PanelLeftIcon size={12} />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent align="end" className="hidden md:block">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function ChatStatusBar({
   usage,
@@ -311,7 +345,7 @@ export function ChatStatusBar({
   onModelChange?: (modelId: string) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-2 pb-2 text-xs">
+    <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-2 text-xs">
       <div className="flex items-center gap-2">
         {/* TODO: Show context length meter when usage > 50% */}
         {/* <ContextUsageButton usage={usage} /> */}
@@ -321,7 +355,8 @@ export function ChatStatusBar({
         />
         <PersonalizationButton />
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center gap-0.5">
+        <ChatSidebarSideToggle />
         <ChatHelpDialog />
       </div>
     </div>

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { TablesListView } from "@/components/data/tables-list-view";
+import { AppLoader } from "@/components/shared/app-loader";
 import { resolveTenantContext } from "@/lib/server/tenant/context";
 import { requireCapability } from "@/lib/server/tenant/permissions";
 
@@ -7,7 +9,7 @@ import { requireCapability } from "@/lib/server/tenant/permissions";
  * Uses custom component rather than page/block system since it displays
  * database metadata (from information_schema) rather than configured tables
  */
-export default async function TablesPage() {
+async function TablesPageContent() {
   const tenant = await resolveTenantContext();
   requireCapability(tenant, "pages.view");
 
@@ -22,5 +24,13 @@ export default async function TablesPage() {
       </div>
       <TablesListView />
     </div>
+  );
+}
+
+export default function TablesPage() {
+  return (
+    <Suspense fallback={<AppLoader label="Loading tables" />}>
+      <TablesPageContent />
+    </Suspense>
   );
 }

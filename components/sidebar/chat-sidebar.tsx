@@ -39,10 +39,10 @@ import type { Vote } from "@/lib/db/schema";
 import type { Attachment, ChatMessage, User } from "@/lib/types";
 import { cn, generateUUID } from "@/lib/utils";
 import { ChatSidebarResizeHandle } from "./chat-sidebar-resize-handle";
-import { CHAT_SIDEBAR_SIDE } from "./chat-sidebar-side";
 import { SidebarAgentHistory } from "./sidebar-agent-history";
 import type { ChatHistory } from "./sidebar-history";
 import { SidebarHistory } from "./sidebar-history";
+import { useChatSidebarSide } from "./use-chat-sidebar-side";
 
 const USE_EVE_AGENT = process.env.NEXT_PUBLIC_AGENT_RUNTIME === "eve";
 
@@ -68,6 +68,7 @@ export function ChatSidebar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toggleSidebar, open } = useSidebar();
+  const { side: chatSidebarSide } = useChatSidebarSide();
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
   const { setArtifact } = useArtifact();
   const [isExpandedMode, setIsExpandedMode] = useState(false);
@@ -195,10 +196,10 @@ export function ChatSidebar({
     <>
       <Sidebar
         className={cn(
-          CHAT_SIDEBAR_SIDE === "right" ? "md:order-last" : "md:order-first",
+          chatSidebarSide === "right" ? "md:order-last" : "md:order-first",
           "**:data-[sidebar=sidebar]:bg-transparent! **:data-[slot=sidebar-container]:p-0!"
         )}
-        side={CHAT_SIDEBAR_SIDE}
+        side={chatSidebarSide}
         variant="inset"
       >
         <SidebarHeader>
@@ -206,7 +207,7 @@ export function ChatSidebar({
             <div
               className={cn(
                 "flex flex-row items-center justify-between gap-2 p-1 transition-opacity duration-250 ease-in-out",
-                CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse",
+                chatSidebarSide === "left" && "flex-row-reverse",
                 open ? "opacity-100" : "opacity-0",
                 !controlsReady && "pointer-events-none"
               )}
@@ -214,7 +215,7 @@ export function ChatSidebar({
               <div
                 className={cn(
                   "flex flex-row items-center gap-1",
-                  CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse"
+                  chatSidebarSide === "left" && "flex-row-reverse"
                 )}
               >
                 {!!hasMessages && (
@@ -271,7 +272,7 @@ export function ChatSidebar({
               <div
                 className={cn(
                   "flex flex-row items-center gap-1",
-                  CHAT_SIDEBAR_SIDE === "left" && "flex-row-reverse"
+                  chatSidebarSide === "left" && "flex-row-reverse"
                 )}
               >
                 <Tooltip delayDuration={1000}>
