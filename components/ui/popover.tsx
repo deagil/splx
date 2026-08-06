@@ -2,40 +2,67 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Popover as PopoverPrimitive } from 'radix-ui';
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />;
 }
 
-function PopoverTrigger({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Trigger>) {
-  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
-}
-
-function PopoverContent({
-  className,
-  align = 'center',
-  sideOffset = 4,
+function PopoverTrigger({
+  asChild,
+  children,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Trigger> & { asChild?: boolean }) {
+  const renderChild = asChild && React.isValidElement(children) ? children : undefined;
+
   return (
-    <PopoverPrimitive.PopoverPortal>
-      <PopoverPrimitive.Content
-        data-slot="popover-content"
-        align={align}
-        sideOffset={sideOffset}
-        className={cn(
-          'z-50 w-72 rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md shadow-black/5 outline-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-          className,
-        )}
-        {...props}
-      />
-    </PopoverPrimitive.PopoverPortal>
+    <PopoverPrimitive.Trigger data-slot="popover-trigger" render={renderChild} {...props}>
+      {asChild ? undefined : children}
+    </PopoverPrimitive.Trigger>
   );
 }
 
-function PopoverAnchor({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
-  return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />;
+// Radix's Content becomes Portal > Positioner > Popup. Positioning props live on
+// the Positioner, so they must be destructured here and forwarded explicitly —
+// left in `...props` they would land on the Popup and silently do nothing.
+function PopoverContent({
+  className,
+  align = 'center',
+  alignOffset,
+  side,
+  sideOffset = 4,
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Popup> &
+  Pick<
+    React.ComponentProps<typeof PopoverPrimitive.Positioner>,
+    'align' | 'alignOffset' | 'side' | 'sideOffset'
+  >) {
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Positioner
+        className="isolate z-50"
+        align={align}
+        alignOffset={alignOffset}
+        side={side}
+        sideOffset={sideOffset}
+      >
+        <PopoverPrimitive.Popup
+          data-slot="popover-content"
+          className={cn(
+            'w-72 origin-[var(--transform-origin)] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md shadow-black/5 outline-hidden',
+            // Base UI drives enter/exit with CSS transitions and the
+            // data-starting-style / data-ending-style hooks, rather than Radix's
+            // data-[state] keyframe classes.
+            'transition-[opacity,transform,scale] duration-150 ease-out',
+            'data-starting-style:scale-95 data-starting-style:opacity-0',
+            'data-ending-style:scale-95 data-ending-style:opacity-0',
+            className,
+          )}
+          {...props}
+        />
+      </PopoverPrimitive.Positioner>
+    </PopoverPrimitive.Portal>
+  );
 }
 
-export { Popover, PopoverContent, PopoverTrigger, PopoverAnchor };
+export { Popover, PopoverContent, PopoverTrigger };
