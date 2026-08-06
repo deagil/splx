@@ -1,13 +1,19 @@
-import * as React from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
-type UseControllableStateParams<T> = {
-  /** The controlled value. When `undefined`, the hook manages state internally. */
-  prop?: T | undefined;
+interface UseControllableStateParams<T> {
   /** The initial value used while uncontrolled. */
   defaultProp: T;
   /** Called whenever the value changes, in both controlled and uncontrolled mode. */
   onChange?: ((state: T) => void) | undefined;
-};
+  /** The controlled value. When `undefined`, the hook manages state internally. */
+  prop?: T | undefined;
+}
 
 /**
  * Local replacement for `@radix-ui/react-use-controllable-state`.
@@ -22,11 +28,8 @@ export function useControllableState<T>({
   prop,
   defaultProp,
   onChange,
-}: UseControllableStateParams<T>): [
-  T,
-  React.Dispatch<React.SetStateAction<T>>,
-] {
-  const [uncontrolled, setUncontrolled] = React.useState<T>(defaultProp);
+}: UseControllableStateParams<T>): [T, Dispatch<SetStateAction<T>>] {
+  const [uncontrolled, setUncontrolled] = useState<T>(defaultProp);
 
   const isControlled = prop !== undefined;
   const value = (isControlled ? prop : uncontrolled) as T;
@@ -34,29 +37,26 @@ export function useControllableState<T>({
   // Latest-ref pattern: lets the setter stay referentially stable (consumers
   // put it in useMemo deps and pass it straight to onOpenChange) while still
   // reading current values. Written during render but never read during render.
-  const latest = React.useRef({ isControlled, onChange, value });
+  const latest = useRef({ isControlled, onChange, value });
   latest.current = { isControlled, onChange, value };
 
-  const setValue = React.useCallback<React.Dispatch<React.SetStateAction<T>>>(
-    (next) => {
-      const {
-        value: current,
-        isControlled: controlled,
-        onChange: handler,
-      } = latest.current;
+  const setValue = useCallback<Dispatch<SetStateAction<T>>>((next) => {
+    const {
+      value: current,
+      isControlled: controlled,
+      onChange: handler,
+    } = latest.current;
 
-      const resolved =
-        typeof next === "function" ? (next as (prev: T) => T)(current) : next;
+    const resolved =
+      typeof next === "function" ? (next as (prev: T) => T)(current) : next;
 
-      if (!controlled) {
-        setUncontrolled(resolved);
-      }
-      if (!Object.is(resolved, current)) {
-        handler?.(resolved);
-      }
-    },
-    []
-  );
+    if (!controlled) {
+      setUncontrolled(resolved);
+    }
+    if (!Object.is(resolved, current)) {
+      handler?.(resolved);
+    }
+  }, []);
 
   return [value, setValue];
 }
