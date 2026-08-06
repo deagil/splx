@@ -24,6 +24,7 @@ For comprehensive documentation on major features, see:
 - **[AI_CHAT_MENTIONS.md](./docs/AI_CHAT_MENTIONS.md)** - Detailed mention system architecture and implementation
 - **[DATABASE_ARCHITECTURE.md](./docs/DATABASE_ARCHITECTURE.md)** - Database structure, multi-tenancy, and data access patterns
 - **[API_CONTROL_PLANE.md](./docs/API_CONTROL_PLANE.md)** - The `endpoint()` API layer: auth, declarative permissions, audit log, and event outbox. **Read this before adding an API route.**
+- **[EVE_AGENT_PORT.md](./docs/EVE_AGENT_PORT.md)** - In-progress work: replacing the sidebar's AI-SDK agent with the Eve-based agent from `~/developer/web/agent`. Phase 1 (Radix → Base UI) is done; Phases 2-5 are specified and not started.
 
 ## Development Commands
 
