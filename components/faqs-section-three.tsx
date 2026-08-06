@@ -54,7 +54,7 @@ export default function FAQs() {
             {faqItems.map((item) => (
               <div className="group" key={item.id}>
                 <AccordionItem
-                  className="peer rounded-xl border-none px-5 py-1 data-[state=open]:border-none data-[state=open]:bg-muted md:px-7"
+                  className="peer rounded-xl border-none px-5 py-1 data-[open]:border-none data-[open]:bg-muted md:px-7"
                   value={item.id}
                 >
                   <AccordionTrigger className="cursor-pointer text-base hover:no-underline">
@@ -64,7 +64,7 @@ export default function FAQs() {
                     <p className="text-base">{item.answer}</p>
                   </AccordionContent>
                 </AccordionItem>
-                <hr className="mx-5 -mb-px group-last:hidden peer-data-[state=open]:opacity-0 md:mx-7" />
+                <hr className="mx-5 -mb-px group-last:hidden peer-data-[open]:opacity-0 md:mx-7" />
               </div>
             ))}
           </Accordion>
