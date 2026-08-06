@@ -1,59 +1,111 @@
 "use client"
 
 import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
 
+// Radix's `delayDuration` is `delay` in Base UI. Both names are accepted here so
+// the 11 existing `delayDuration` call sites keep working. The 0 default
+// preserves splx's instant tooltips — Base UI's own default is 600ms.
 function TooltipProvider({
-  delayDuration = 0,
+  delay,
+  delayDuration,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Provider> & {
+  delayDuration?: number
+}) {
   return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delayDuration={delayDuration}
-      {...props}
-    />
+    <TooltipPrimitive.Provider delay={delay ?? delayDuration ?? 0} {...props} />
   )
 }
 
+// Radix took `delayDuration` on Root; in Base UI the delay lives on Provider and
+// Trigger. Since this wrapper already renders its own Provider, the value is
+// simply forwarded there rather than threaded down to the Trigger via context.
 function Tooltip({
+  delayDuration,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Root> & {
+  delayDuration?: number
+}) {
   return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    <TooltipProvider delayDuration={delayDuration}>
+      <TooltipPrimitive.Root {...props} />
     </TooltipProvider>
   )
 }
 
 function TooltipTrigger({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
-}
-
-function TooltipContent({
-  className,
-  sideOffset = 0,
+  asChild,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger> & {
+  asChild?: boolean
+}) {
+  const renderChild =
+    asChild && React.isValidElement(children) ? children : undefined
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      render={renderChild}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </TooltipPrimitive.Trigger>
+  )
+}
+
+// Content becomes Portal > Positioner > Popup. Positioning props must be
+// destructured and forwarded to the Positioner — left in `...props` they land on
+// the Popup and silently stop working.
+function TooltipContent({
+  className,
+  align,
+  alignOffset,
+  side,
+  sideOffset = 4,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Popup> &
+  Pick<
+    React.ComponentProps<typeof TooltipPrimitive.Positioner>,
+    "align" | "alignOffset" | "side" | "sideOffset"
+  >) {
   return (
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        data-slot="tooltip-content"
+      <TooltipPrimitive.Positioner
+        className="isolate z-50"
+        align={align}
+        alignOffset={alignOffset}
+        side={side}
         sideOffset={sideOffset}
-        className={cn(
-          "bg-foreground text-background animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
-          className
-        )}
-        {...props}
       >
-        {children}
-        <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
-      </TooltipPrimitive.Content>
+        <TooltipPrimitive.Popup
+          data-slot="tooltip-content"
+          className={cn(
+            "bg-foreground text-background w-fit origin-[var(--transform-origin)] rounded-md px-3 py-1.5 text-xs text-balance",
+            "transition-[opacity,transform,scale] duration-150 ease-out",
+            "data-starting-style:scale-95 data-starting-style:opacity-0",
+            "data-ending-style:scale-95 data-ending-style:opacity-0",
+            className
+          )}
+          {...props}
+        >
+          {children}
+          {/* Base UI's Arrow renders a <div>, and unlike Radix it is not
+              auto-rotated per side — it needs explicit per-side offsets. */}
+          <TooltipPrimitive.Arrow
+            className={cn(
+              "bg-foreground z-50 size-2.5 rotate-45 rounded-[2px]",
+              "data-[side=bottom]:top-1 data-[side=top]:-bottom-1",
+              "data-[side=left]:right-[-3px] data-[side=left]:top-1/2! data-[side=left]:-translate-y-1/2",
+              "data-[side=right]:left-[-3px] data-[side=right]:top-1/2! data-[side=right]:-translate-y-1/2"
+            )}
+          />
+        </TooltipPrimitive.Popup>
+      </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>
   )
 }
