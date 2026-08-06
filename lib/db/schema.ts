@@ -21,6 +21,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { AgentThreadState } from "../types/agent-thread";
 import type { AppUsage } from "../usage";
 
 export const user = pgTable("users", {
@@ -584,3 +585,33 @@ export const workflowRun = pgTable("workflow_runs", {
 });
 
 export type WorkflowRun = InferSelectModel<typeof workflowRun>;
+
+/**
+ * Threads for the eve sidebar agent.
+ *
+ * Separate from `chat`/`message` on purpose: the two runtimes run side by side
+ * behind NEXT_PUBLIC_AGENT_RUNTIME, and eve's event log does not round-trip
+ * from AI SDK UIMessages. See docs/EVE_AGENT_PORT.md.
+ */
+export const agentThread = pgTable("agent_threads", {
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  state: jsonb("state")
+    .$type<AgentThreadState>()
+    .notNull()
+    .default({ events: [], session: { streamIndex: 0 } }),
+  title: text("title"),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  user_id: uuid("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+});
+
+export type AgentThread = InferSelectModel<typeof agentThread>;

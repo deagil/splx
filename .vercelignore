@@ -1,0 +1,7 @@
+# Local build artifacts that must never be uploaded from a `vercel deploy`.
+# The eve agent service is built on Vercel from source; shipping a local Nitro
+# output would shadow it.
+.eve/
+.output/
+.next/
+node_modules/

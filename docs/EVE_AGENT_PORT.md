@@ -1,8 +1,15 @@
 # Porting the Agent C (Eve) agent into the splx sidebar — Phases 2–5
 
-**Status:** Phase 1 complete and merged to `feat/base-ui-migration`. Phases 2–5 not started.
+**Status:** Phases 1–5 complete. Eve mounts behind
+`NEXT_PUBLIC_AGENT_RUNTIME=eve`; flag off keeps the legacy AI-SDK sidebar.
+§8 (mentions, skills, splx tools, artifacts, history migration) is deferred.
 **Last updated:** 2026-08-06
 **Source project:** `~/developer/web/agent` (referred to throughout as **Agent C**)
+
+> **Resuming?** §12 is the live worklist. Phases 4–5 are done; remaining items
+> are deploy-only checks (§12.1), mid-stream E2E (§12.2), §8 product follow-ups,
+> and Phase 1 browser QA (§12.5). Sections 4–7 are the original design and are
+> still accurate.
 
 ---
 
@@ -537,3 +544,172 @@ Left for follow-up passes, in rough priority order:
 - splx API conventions: `docs/API_CONTROL_PLANE.md` — **read before adding any API route**
 - splx DB architecture: `docs/DATABASE_ARCHITECTURE.md`
 - Agent C source: `~/developer/web/agent`
+
+---
+
+## 12. Worklist — resume here
+
+Working-tree state on `feat/base-ui-migration` (Phases 2–5). `git status`
+shows the shape of it. Remaining open items: deploy checks (§12.1), mid-stream
+E2E (§12.2), Phase 1 browser QA (§12.5), and §8 product follow-ups.
+
+### 12.1 Phase 2 — DONE and verified running
+
+Eve boots inside splx and the runtime is proven end to end.
+
+| What | Where |
+|---|---|
+| `eve@0.30.8` installed, `eve` + `thinking-orbs` added to `minimumReleaseAgeExclude` | `package.json`, `pnpm-workspace.yaml` |
+| Agent root | `agent/agent.ts`, `agent/instructions.ts`, `agent/channels/eve.ts`, `agent/lib/`, `agent/tools/` (empty, README only) |
+| `proxy.ts` fixed at **both** ends | early return for `/eve/` and `/_eve_internal/` next to the `/ping` guard, **and** both prefixes added to the matcher's negative lookahead |
+| `next.config.ts` | `export default withEve(nextConfig)` — `cacheComponents`, `images` and the `NEXT_PUBLIC_GIT_BRANCH` env block all preserved |
+| Ignores | `.eve/` + `.output/` in `.gitignore`; new `.vercelignore` |
+
+**Verified against the running dev server:**
+
+```
+curl -i localhost:3000/eve/v1/health   → 200 {"ok":true,"status":"ready",...}   (not a 307 to /signin)
+curl -X POST localhost:3000/eve/v1/session → 401                                 (channel auth is fail-closed)
+```
+
+Two things Phase 2 did **differently** from the original §4 sketch, both deliberate:
+
+- **Auth is cookie-first, not a `next/headers` port.** `agent/lib/auth-internal.ts`
+  parses the `Cookie:` header itself, builds a Supabase SSR client over it, and
+  resolves the workspace with a **module-level `postgres()` singleton** plus a
+  60s per-user memo. A per-request pool here would reproduce exactly the
+  `proxy.ts` problem §4.3(b) is about. An explicit `x-workspace-id` is always
+  re-validated against `workspace_users`; only the implicit answer is cached.
+- **The model switcher already works server-side.** The switcher writes a
+  `chat-model` cookie (it already did — `components/sidebar/chat-status-bar.tsx:180`).
+  The channel stamps it onto the principal as `attributes.modelId`, and
+  `agent/agent.ts` resolves it on `session.started` via `agent/lib/models.ts`.
+  So §7.2.2 is **already handled** — no `useChat` argument is involved. Both
+  tiers map to `openai/gpt-5-mini` (matching `lib/ai/providers.ts`) and differ
+  by `reasoningEffort`, because Eve's dynamic model resolver can only return
+  `{ model, modelOptions }` — `reasoning` is agent-level.
+
+**Still unverified (needs a deploy, not a dev server):**
+
+- [ ] Vercel Build Output `services` is enabled for the team (§10 risk).
+- [ ] The `/api/internal/workflows/tick` cron survives `withEve`'s merge into
+      `.vercel/output/config.json`. `vercel.json` is untouched; confirm on the
+      first preview deploy.
+- [ ] No per-request `postgres()` connection during a live
+      `/eve/v1/session/*/stream`. The guards are in place and health/401 both
+      prove the middleware is bypassed, but this was never watched under an
+      open stream.
+
+### 12.2 Phase 3 — DONE (server side)
+
+| What | Where |
+|---|---|
+| Migration, **applied to the local DB** | `supabase/migrations/20260806120000_agent_threads.sql` |
+| Drizzle table + `AgentThread` type | end of `lib/db/schema.ts` |
+| Shared state types | `lib/types/agent-thread.ts` |
+| Repository | `server/repositories/agent-threads.ts` |
+| Routes (`endpoint()`, `chat.view` / `chat.create`) | `app/api/v1/agent-threads/route.ts`, `app/api/v1/agent-threads/[threadId]/route.ts` |
+| Tests | `server/repositories/agent-threads.test.ts` — 5 tests over the never-shrink invariant |
+
+`pnpm test:unit` → **78 passed / 23 skipped** (baseline 73/23; +5 new).
+
+RLS: `agent_threads_select` requires workspace membership **and**
+`user_id = auth.uid()` — a thread is private to its author, unlike other
+workspace-scoped tables. The PATCH audit entry records `eventCount` and
+`titleChanged` rather than the state blob, or every persist would write a
+multi-kilobyte audit row.
+
+Not done, and only matters once the UI is mounted:
+
+- [ ] End-to-end check: create a thread, send messages, **hard-refresh
+      mid-stream**, confirm history replays and `workspace_id` is set.
+
+### 12.3 Phase 4 — DONE
+
+UI tree typechecks and the research-agent strip is finished.
+
+**Layout** — `components/agent/`: `agent-sidebar-content.tsx` (exports
+`AgentSidebarContent`), `message-list.tsx`, `chat-message.tsx`, `chat-layout.ts`,
+`chat-error-banner.tsx`, `agent-presence.tsx`, plus `parts/`, `ui/`, `lib/`,
+`hooks/`.
+
+**Dependencies installed:** `@shadcn/react@0.2.1`, `shadcn@4.16.1`,
+`thinking-orbs@0.2.0` (+ `patches/thinking-orbs@0.2.0.patch` and the
+`patchedDependencies` entry), `@streamdown/{code,math,mermaid,cjk}`,
+`@tanstack/react-query@5.101.4`.
+
+**Errors cleared (was 20):**
+
+- Button vocabulary mapped to base-nova (`icon-sm` → `icon`, `default` → `primary`).
+- Types renamed to `AgentThreadRecord` / `AgentThreadState` / `AgentThreadSummary`;
+  persist uses `PATCH /api/v1/agent-threads/:id`.
+- Added `components/ui/button-group.tsx`; streamdown-config import fixed;
+  `tool.tsx` uses `@/components/elements/code-block`.
+- `DetailPanelHost` removed; export renamed to `AgentSidebarContent`.
+- `AlertAction` → `AlertToolbar` for splx's alert API.
+
+**Strip / polish completed:**
+
+- [x] **`tool-icons.tsx`** — brand image entries removed; lucide categories kept.
+- [x] **`orb-activity.ts`** — connector names removed from `SEARCH_CATEGORIES`.
+- [x] **`hooks/use-thread-title.ts`** — day-one no-op stub (no generate-title route).
+- [x] **`lib/query-keys.ts`** — trimmed to `thread` / `threads`.
+- [x] **`app/globals.css`** — `.chat-footer-fade`, skill/ref-mention keyframes
+      ported; dual `@theme inline` resolved to
+      `--color-sidebar: var(--sidebar-background)` (+ brand/highlight merged).
+- [x] **Composer card contrast** — uses `bg-card` + border/shadow instead of
+      hard-coded `bg-white`.
+
+### 12.4 Phase 5 — DONE
+
+Mounted behind the flag at `components/sidebar/chat-sidebar.tsx`:
+
+```tsx
+process.env.NEXT_PUBLIC_AGENT_RUNTIME === "eve"
+  ? <AgentSidebarContent key={chatId} threadId={chatId} ... />
+  : <ChatSidebarContent key={chatId} ... />
+```
+
+| What | Where |
+|---|---|
+| Flag | `NEXT_PUBLIC_AGENT_RUNTIME=eve` (listed in `lib/env.ts` + commented in `.env.local`) |
+| Ensure thread | `ensureAgentThread` GET→404→POST before session start |
+| QueryClientProvider | `components/providers/query-provider.tsx` in `app/layout.tsx` |
+| ChatStatusBar | Re-parented under Eve composer (cookie model routing unchanged) |
+| Artifacts | Eve path leaves `artifactProps` null; legacy unchanged |
+| hasMessages | Eve reports boolean via `onMessagesChange` |
+
+**How to try it:** uncomment `NEXT_PUBLIC_AGENT_RUNTIME=eve` in `.env.local`,
+restart `pnpm dev`, open the sidebar. Flag off (default) = legacy AI-SDK chat.
+
+### 12.5 Carried over from Phase 1 — still outstanding
+
+Neither of these has been done, and both predate this port:
+
+- [ ] Browser pass on the Base UI migration. `.migration/project.md` lists
+      eight flagged behaviour changes; **alert-dialog no longer focusing Cancel
+      on open** is the one that matters (destructive confirmations). Do this
+      **before** judging the port's UI, or the two get confounded.
+- [ ] The TanStack Table v9 migration (`ca65251`) has never been visually
+      exercised.
+
+### 12.6 Verification state
+
+| Check | Baseline | Now |
+|---|---|---|
+| `npx tsc --noEmit --incremental false` | 0 | **0** |
+| `pnpm test:unit` | 73 / 23 skipped | **78 / 23 skipped** |
+| `pnpm build` | passes | **passes** |
+| `npx ultracite@latest check` | 678 | **not re-run** (no intentional lint debt added) |
+
+Always pass `--incremental false` or `rm -f tsconfig.tsbuildinfo` first — the
+incremental cache reported false zeros twice during Phase 1.
+
+Note that `tsc` colourises output, so `grep -c "error TS"` returns 0 against a
+pretty run. Use `--pretty false` when counting.
+
+**Still open after Phases 4–5:**
+
+- Deploy-only items in §12.1 (Build Output `services`, cron merge, stream pool watch).
+- Mid-stream hard-refresh E2E in §12.2 (needs an authenticated browser session).
+- §8 follow-ups (mentions, skills, splx tools, HITL, artifacts, history migration).

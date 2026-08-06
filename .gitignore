@@ -17,6 +17,10 @@ coverage
 out/
 /build
 
+# eve agent runtime (build cache and Nitro output)
+.eve/
+.output/
+
 # misc
 .DS_Store
 *.pem

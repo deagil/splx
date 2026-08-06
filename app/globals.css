@@ -408,6 +408,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-highlight: var(--highlight);
 }
 
 /*
@@ -576,17 +578,173 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-@theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-brand: var(--brand);
-  --color-highlight: var(--highlight);
+/* Ease-out fade above the floating composer — matches the chat sidebar surface. */
+.chat-footer-fade {
+  background: linear-gradient(
+    to top,
+    var(--sidebar-background) 0%,
+    color-mix(in oklab, var(--sidebar-background) 92%, transparent) 28%,
+    color-mix(in oklab, var(--sidebar-background) 55%, transparent) 55%,
+    color-mix(in oklab, var(--sidebar-background) 18%, transparent) 78%,
+    transparent 100%
+  );
+}
+
+/*
+ * Composer skill mention: orange highlight wave + per-character warp on insert.
+ * Letters stay as permanent spans so spacing never snaps when the animation ends.
+ */
+.skill-mention {
+  --skill-mention: #ea580c;
+  --skill-mention-peak: #ffedd5;
+  --skill-mention-mid: #fb923c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .skill-mention {
+    --skill-mention: #fb923c;
+    --skill-mention-peak: #fff7ed;
+    --skill-mention-mid: #fdba74;
+  }
+}
+
+.dark .skill-mention {
+  --skill-mention: #fb923c;
+  --skill-mention-peak: #fff7ed;
+  --skill-mention-mid: #fdba74;
+}
+
+.skill-mention-char {
+  display: inline-block;
+}
+
+.skill-mention[data-inserting] .skill-mention-icon {
+  animation: skill-mention-icon-wave 0.78s ease-out both;
+}
+
+.skill-mention[data-inserting] .skill-mention-char {
+  animation: skill-mention-char-wave 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+@keyframes skill-mention-char-wave {
+  0% {
+    color: var(--skill-mention);
+    transform: translateY(0) rotate(0deg);
+  }
+  32% {
+    color: var(--skill-mention-peak);
+    transform: translateY(-0.14em) rotate(-5deg);
+  }
+  55% {
+    color: var(--skill-mention-mid);
+    transform: translateY(0.06em) rotate(3.5deg);
+  }
+  100% {
+    color: var(--skill-mention);
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes skill-mention-icon-wave {
+  0% {
+    color: var(--skill-mention);
+    filter: brightness(1);
+  }
+  32% {
+    color: var(--skill-mention-peak);
+    filter: brightness(1.25);
+  }
+  55% {
+    color: var(--skill-mention-mid);
+    filter: brightness(1.08);
+  }
+  100% {
+    color: var(--skill-mention);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-mention[data-inserting] .skill-mention-icon,
+  .skill-mention[data-inserting] .skill-mention-char {
+    animation: none;
+  }
+}
+
+/* Composer @ refs — leafy green. */
+.ref-mention {
+  --ref-mention: #4d7c0f;
+  --ref-mention-peak: #ecfccb;
+  --ref-mention-mid: #a3e635;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ref-mention {
+    --ref-mention: #a3e635;
+    --ref-mention-peak: #f7fee7;
+    --ref-mention-mid: #bef264;
+  }
+}
+
+.dark .ref-mention {
+  --ref-mention: #a3e635;
+  --ref-mention-peak: #f7fee7;
+  --ref-mention-mid: #bef264;
+}
+
+.ref-mention-char {
+  display: inline-block;
+}
+
+.ref-mention[data-inserting] .ref-mention-icon {
+  animation: ref-mention-icon-wave 0.78s ease-out both;
+}
+
+.ref-mention[data-inserting] .ref-mention-char {
+  animation: ref-mention-char-wave 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+@keyframes ref-mention-char-wave {
+  0% {
+    color: var(--ref-mention);
+    transform: translateY(0) rotate(0deg);
+  }
+  32% {
+    color: var(--ref-mention-peak);
+    transform: translateY(-0.14em) rotate(-5deg);
+  }
+  55% {
+    color: var(--ref-mention-mid);
+    transform: translateY(0.06em) rotate(3.5deg);
+  }
+  100% {
+    color: var(--ref-mention);
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes ref-mention-icon-wave {
+  0% {
+    filter: brightness(1);
+  }
+  32% {
+    filter: brightness(1.25);
+  }
+  55% {
+    filter: brightness(1.08);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ref-mention[data-inserting] .ref-mention-icon,
+  .ref-mention[data-inserting] .ref-mention-char {
+    animation: none;
+  }
 }
 
 @layer base {

@@ -6,6 +6,7 @@ import { FileXCorner, Maximize2, Minimize2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
+import { AgentSidebarContent } from "@/components/agent/agent-sidebar-content";
 import { Artifact } from "@/components/artifact/artifact";
 import { DataStreamHandler } from "@/components/shared/data-stream-handler";
 import { ClockRewind, CrossIcon, PlusIcon } from "@/components/shared/icons";
@@ -39,8 +40,11 @@ import type { Attachment, ChatMessage, User } from "@/lib/types";
 import { cn, generateUUID } from "@/lib/utils";
 import { ChatSidebarResizeHandle } from "./chat-sidebar-resize-handle";
 import { CHAT_SIDEBAR_SIDE } from "./chat-sidebar-side";
+import { SidebarAgentHistory } from "./sidebar-agent-history";
 import type { ChatHistory } from "./sidebar-history";
 import { SidebarHistory } from "./sidebar-history";
+
+const USE_EVE_AGENT = process.env.NEXT_PUBLIC_AGENT_RUNTIME === "eve";
 
 export function ChatSidebar({
   chatId: initialChatId,
@@ -172,6 +176,10 @@ export function ChatSidebar({
     onMessagesChange?.(messages);
   };
 
+  const handleEveMessagesChange = (nextHasMessages: boolean) => {
+    setHasMessages(nextHasMessages);
+  };
+
   useEffect(() => {
     if (!isArtifactVisible) {
       setArtifactProps(null);
@@ -248,10 +256,14 @@ export function ChatSidebar({
                     className="max-h-[400px] w-64 overflow-y-auto p-0"
                   >
                     <div className="p-2">
-                      <SidebarHistory
-                        initialHistory={initialHistory}
-                        user={user}
-                      />
+                      {USE_EVE_AGENT ? (
+                        <SidebarAgentHistory />
+                      ) : (
+                        <SidebarHistory
+                          initialHistory={initialHistory}
+                          user={user}
+                        />
+                      )}
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -322,17 +334,26 @@ export function ChatSidebar({
                   : "flex h-full flex-1 flex-col overflow-hidden"
               }
             >
-              <ChatSidebarContent
-                autoResume={!!chatIdFromUrl}
-                chatId={chatId}
-                initialChatModel={initialChatModel}
-                initialMessages={initialMessages}
-                initialVisibilityType={initialVisibilityType}
-                isReadonly={isReadonly}
-                key={chatId}
-                onArtifactPropsReady={setArtifactProps}
-                onMessagesChange={handleMessagesChange}
-              />
+              {USE_EVE_AGENT ? (
+                <AgentSidebarContent
+                  initialChatModel={initialChatModel}
+                  key={chatId}
+                  onMessagesChange={handleEveMessagesChange}
+                  threadId={chatId}
+                />
+              ) : (
+                <ChatSidebarContent
+                  autoResume={!!chatIdFromUrl}
+                  chatId={chatId}
+                  initialChatModel={initialChatModel}
+                  initialMessages={initialMessages}
+                  initialVisibilityType={initialVisibilityType}
+                  isReadonly={isReadonly}
+                  key={chatId}
+                  onArtifactPropsReady={setArtifactProps}
+                  onMessagesChange={handleMessagesChange}
+                />
+              )}
             </div>
             {!!isArtifactVisible && artifactProps && (
               <div className="flex min-w-0 flex-[2] flex-col overflow-hidden">

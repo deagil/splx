@@ -20,6 +20,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // The eve agent runtime is a separate service; withEve() rewrites these paths
+  // to it. Middleware runs before beforeFiles rewrites, so without this guard
+  // /eve/v1/* is neither an API route nor a public route and gets redirected to
+  // /signin. The eve channel does its own Supabase auth (agent/channels/eve.ts),
+  // and running the body below would also open a postgres() connection per
+  // request — ruinous on a streaming reconnect. The matcher in `config` excludes
+  // these prefixes too; this guard is here so editing the matcher cannot
+  // silently reintroduce the redirect.
+  if (pathname.startsWith("/eve/") || pathname.startsWith("/_eve_internal/")) {
+    return NextResponse.next();
+  }
+
   // Set workspace ID header for tenant context resolution
   const mode = getAppMode();
   const requestHeaders = new Headers(request.headers);
@@ -231,7 +243,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - eve/, _eve_internal/ (the eve agent service, proxied by withEve)
      */
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|eve/|_eve_internal/).*)",
   ],
 };

@@ -6,6 +6,14 @@ overrides:
   # breaks lib/editor/functions.tsx and components/editor/sheet-editor.tsx.
   prosemirror-model: 1.25.11
 minimumReleaseAgeExclude:
+  - eve
+  - thinking-orbs
+  - '@shadcn/react'
+  - shadcn
+  - '@streamdown/cjk'
+  - '@streamdown/code'
+  - '@streamdown/math'
+  - '@streamdown/mermaid'
   - '@ai-sdk/gateway@4.0.41'
   - '@ai-sdk/mcp@2.0.25'
   - '@ai-sdk/openai-compatible@3.0.23'
@@ -38,3 +46,5 @@ minimumReleaseAgeExclude:
   - shiki@4.4.2
   - tsx@4.23.7
   - ultracite@7.10.1
+patchedDependencies:
+  thinking-orbs@0.2.0: patches/thinking-orbs@0.2.0.patch
