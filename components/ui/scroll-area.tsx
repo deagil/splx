@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui';
+import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 
 function ScrollArea({
   className,
@@ -20,7 +20,10 @@ function ScrollArea({
         ref={viewportRef}
         className={cn('h-full w-full rounded-[inherit]', viewportClassName)}
       >
-        {children}
+        {/* Base UI adds a Content part between Viewport and children; it applies
+            `min-width: fit-content`, which is what lets content overflow
+            horizontally and drive the horizontal scrollbar. */}
+        <ScrollAreaPrimitive.Content>{children}</ScrollAreaPrimitive.Content>
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />
       <ScrollAreaPrimitive.Corner />
@@ -28,13 +31,17 @@ function ScrollArea({
   );
 }
 
+// Radix's `ScrollAreaScrollbar` / `ScrollAreaThumb` are `Scrollbar` / `Thumb` in
+// Base UI. Radix's `type` prop ("auto" | "always" | "scroll" | "hover") is gone;
+// Base UI instead exposes `keepMounted`, which defaults to false (the scrollbar
+// is absent from the DOM while the viewport is not scrollable).
 function ScrollBar({
   className,
   orientation = 'vertical',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Scrollbar>) {
   return (
-    <ScrollAreaPrimitive.ScrollAreaScrollbar
+    <ScrollAreaPrimitive.Scrollbar
       data-slot="scroll-area-scrollbar"
       orientation={orientation}
       className={cn(
@@ -45,8 +52,8 @@ function ScrollBar({
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
-    </ScrollAreaPrimitive.ScrollAreaScrollbar>
+      <ScrollAreaPrimitive.Thumb className="relative flex-1 rounded-full bg-border" />
+    </ScrollAreaPrimitive.Scrollbar>
   );
 }
 
