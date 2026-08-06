@@ -247,7 +247,10 @@ function DataGridColumnHeader<TData extends RowData, TValue>({
                           <DropdownMenuCheckboxItem
                             key={col.id}
                             checked={col.getIsVisible()}
-                            onSelect={(event) => event.preventDefault()}
+                            // Base UI's CheckboxItem already defaults to
+                            // closeOnClick={false}, which is what the Radix
+                            // onSelect+preventDefault idiom was emulating.
+                            closeOnClick={false}
                             onCheckedChange={(value) => col.toggleVisibility(!!value)}
                             className="capitalize"
                           >
