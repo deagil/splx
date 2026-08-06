@@ -7,6 +7,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 import { AgentSidebarContent } from "@/components/agent/agent-sidebar-content";
+import {
+  MOCK_MODE_AVAILABLE,
+  useAgentMockMode,
+} from "@/components/agent/dev/mock-mode";
 import { Artifact } from "@/components/artifact/artifact";
 import { DataStreamHandler } from "@/components/shared/data-stream-handler";
 import { ClockRewind, CrossIcon, PlusIcon } from "@/components/shared/icons";
@@ -144,6 +148,11 @@ export function ChatSidebar({
 
   const chatIdFromUrl = searchParams.get("chatId");
   const chatId = chatIdFromUrl || initialChatId;
+  // Mock mode reviews the Eve pane, so it mounts that pane regardless of the
+  // runtime flag. History stays on the real flag — it still talks to the API.
+  const agentMockMode = useAgentMockMode();
+  const showAgentPane =
+    USE_EVE_AGENT || (MOCK_MODE_AVAILABLE && agentMockMode.enabled);
   const [hasMessages, setHasMessages] = useState(initialMessages.length > 0);
   const [artifactProps, setArtifactProps] = useState<{
     addToolApprovalResponse: ChatAddToolApproveResponseFunction;
@@ -335,7 +344,7 @@ export function ChatSidebar({
                   : "flex h-full flex-1 flex-col overflow-hidden"
               }
             >
-              {USE_EVE_AGENT ? (
+              {showAgentPane ? (
                 <AgentSidebarContent
                   initialChatModel={initialChatModel}
                   key={chatId}

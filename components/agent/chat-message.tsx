@@ -7,6 +7,7 @@ import {
   getAssistantMarkdown,
   isAssistantMessageComplete,
 } from "@/components/agent/lib/message-content";
+import type { SubagentActivity } from "@/components/agent/lib/subagent-activity";
 import { Message, MessageContent } from "@/components/agent/ui/message";
 import type { ActivityItem } from "./parts/activity-types";
 import { AgentActivityGroup } from "./parts/agent-activity-group";
@@ -63,9 +64,12 @@ function segmentParts(parts: readonly EveMessagePart[]): RenderSegment[] {
 export function ChatMessage({
   message,
   onRespond,
+  subagents,
 }: {
   message: EveMessage;
   onRespond: (requestId: string, optionId: string) => void;
+  /** Set only on the live message — replaces its handoff row with pills. */
+  subagents?: readonly SubagentActivity[];
 }) {
   const segments = segmentParts(message.parts);
   const showFooter =
@@ -85,6 +89,7 @@ export function ChatMessage({
                 items={segment.items}
                 key={`activity-${segment.startIndex}`}
                 onRespond={onRespond}
+                subagents={subagents}
               />
             );
           }

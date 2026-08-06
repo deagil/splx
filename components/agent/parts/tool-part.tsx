@@ -71,11 +71,6 @@ export function ToolPart({
         onSelect={(optionId) => onRespond(request.requestId, optionId)}
         options={request.options}
         respondedWith={respondedWith}
-        statusLabel={
-          request.display === "confirmation"
-            ? "Awaiting approval"
-            : "Waiting for you"
-        }
         title={getInputRequestTitle(part)}
       />
     );

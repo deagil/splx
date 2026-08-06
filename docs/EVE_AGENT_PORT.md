@@ -693,7 +693,60 @@ Neither of these has been done, and both predate this port:
 - [ ] The TanStack Table v9 migration (`ca65251`) has never been visually
       exercised.
 
-### 12.6 Verification state
+### 12.6 Mock harness for UI review — DONE
+
+`?agentMock=1` on any `/app` URL swaps the live Eve session for a scripted
+harness, so the chat UI states can be reviewed and tuned without spending
+tokens. Full guide: **`components/agent/dev/README.md`**.
+
+Structurally, the one thing to know before editing `components/agent/`:
+
+- `AgentChatPane` (`components/agent/agent-chat-pane.tsx`) now holds everything
+  the sidebar chat renders and is **prop-driven and runtime-free**.
+  `AgentSidebarContent` is the live adapter over `useChatSession`; the harness
+  is the mock adapter. Both mount the same pane — keep it that way, or the
+  harness stops reflecting what ships.
+- `components/agent/dev/` is dev-only: compiled out via `MOCK_MODE_AVAILABLE`
+  (`NODE_ENV !== "production"`) and lazily chunked. The live path imports
+  nothing from it except that flag.
+- Scenarios live in `dev/scenarios.ts` as short scripts; `dev/scenario-script.ts`
+  expands each step into every intermediate frame (partial text, tool state
+  transitions), which is what makes mid-stream states scrubbable.
+- Mock mode mounts the Eve pane **regardless of `NEXT_PUBLIC_AGENT_RUNTIME`**,
+  so the legacy sidebar can stay the default while reviewing Eve's UI.
+
+Covers the §8 states that are not wired up yet (approval gates, input requests,
+connector authorization) — the renderers exist, so the harness exercises them
+ahead of the runtime work.
+
+### 12.7 Subagent presence — DONE
+
+eve streams a child subagent's own events inside `subagent.event`, but
+`defaultMessageReducer` drops them, so a handoff projected as one opaque tool
+call. `components/agent/lib/subagent-activity.ts` unwraps those child streams
+off `agent.events` and folds each through its own `defaultMessageReducer`,
+reusing the parent's orb resolution so labels and categories stay identical.
+
+- **In the feed** — `parts/subagent-activity-rows.tsx` replaces the live
+  "Working via subagent" row with one pill per running child. That row now
+  reads "Creating subagents" / "Dismissing subagents" on either side of the
+  children's lifetime.
+- **In the dock** — `components/agent/dock/` renders a floating presence in the
+  corner when the sidebar is **closed** and a turn is running, with subagents
+  layered behind the parent pill, fanning on hover, each expanding into a
+  read-only message preview. Desktop only: the mobile Sheet unmounts its
+  content, ending the session.
+- **Colour** — `lib/subagent-color.ts` tints child orbs by `hue-rotate`, since
+  the `thinking-orbs` patch hardcodes its orange ink. Assignment is by subagent
+  identity with collision probing, so colours stay stable and distinct as the
+  roster shrinks.
+
+Caveat worth confirming against a real handoff: `subagent.event` covers
+*inline* subagents. A child running as a separate workflow session
+(`subagent.called`, remote) may not stream its inner events back, in which case
+its pill shows a generic "Thinking…" for the duration.
+
+### 12.8 Verification state
 
 | Check | Baseline | Now |
 |---|---|---|

@@ -351,6 +351,20 @@ export function getToolDisplayInfo(
     };
   }
 
+  if (
+    name === "ask_question" ||
+    name === "request_input" ||
+    name.includes("ask_question")
+  ) {
+    return {
+      category: "question",
+      completedLabel: "Asked a question",
+      runningLabel: "Waiting for an answer",
+      showCategory: false,
+      summaryLabel: "Asked a question",
+    };
+  }
+
   if (isWebSearch(name)) {
     const query = getSearchQuery(input);
     return {

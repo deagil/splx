@@ -53,6 +53,22 @@ export function isWaitingForUser(message: EveMessage): boolean {
   });
 }
 
+/**
+ * True when the turn is blocked on the user — an approval gate, an input
+ * request, or an OAuth prompt. Drives the attention treatment on activity
+ * chips, which is the only cue a user gets when the sidebar is closed.
+ */
+export function isAwaitingUserInput(
+  messages: readonly EveMessage[],
+  status: ChatStatus | undefined
+): boolean {
+  if (status !== "submitted" && status !== "streaming") {
+    return false;
+  }
+  const last = messages.at(-1);
+  return last?.role === "assistant" ? isWaitingForUser(last) : false;
+}
+
 function isVisiblePart(part: EveMessagePart): boolean {
   if (part.type === "step-start") {
     return false;

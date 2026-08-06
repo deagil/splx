@@ -1,12 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BotIcon,
   BrainIcon,
   Code2Icon,
   GlobeIcon,
   InfoIcon,
   MessageCircleQuestionIcon,
   NotebookPenIcon,
-  SquareArrowOutUpRightIcon,
   ToolCaseIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -57,7 +57,7 @@ const iconConfigs: Record<string, IconConfig> = {
   },
   handoff: {
     bgClass: "bg-sky-500/15",
-    icon: SquareArrowOutUpRightIcon,
+    icon: BotIcon,
     iconClass: "text-sky-600 dark:text-sky-400",
     kind: "lucide",
   },

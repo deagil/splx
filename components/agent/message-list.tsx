@@ -3,6 +3,7 @@
 import type { ChatStatus } from "ai";
 import type { EveMessage } from "eve/react";
 import { hasVisibleAssistantParts } from "@/components/agent/lib/orb-activity";
+import type { SubagentActivity } from "@/components/agent/lib/subagent-activity";
 import {
   MessageScroller,
   MessageScrollerContent,
@@ -19,11 +20,14 @@ export function MessageList({
   onRespond,
   status,
   className,
+  subagents = [],
 }: {
   className?: string;
   messages: readonly EveMessage[];
   onRespond: (requestId: string, optionId: string) => void;
   status?: ChatStatus;
+  /** Running subagents — attached to the live message only. */
+  subagents?: readonly SubagentActivity[];
 }) {
   const isBusy = status === "submitted" || status === "streaming";
   const displayMessages = isBusy
@@ -48,14 +52,22 @@ export function MessageList({
               <Greeting />
             </div>
           ) : (
-            displayMessages.map((message) => (
+            displayMessages.map((message, index) => (
               <MessageScrollerItem
                 key={message.id}
                 messageId={message.id}
                 scrollAnchor={message.role === "user"}
               >
                 <div className={chatMessageColumnClass}>
-                  <ChatMessage message={message} onRespond={onRespond} />
+                  <ChatMessage
+                    message={message}
+                    onRespond={onRespond}
+                    subagents={
+                      index === displayMessages.length - 1
+                        ? subagents
+                        : undefined
+                    }
+                  />
                 </div>
               </MessageScrollerItem>
             ))

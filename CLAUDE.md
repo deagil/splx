@@ -24,7 +24,7 @@ For comprehensive documentation on major features, see:
 - **[AI_CHAT_MENTIONS.md](./docs/AI_CHAT_MENTIONS.md)** - Detailed mention system architecture and implementation
 - **[DATABASE_ARCHITECTURE.md](./docs/DATABASE_ARCHITECTURE.md)** - Database structure, multi-tenancy, and data access patterns
 - **[API_CONTROL_PLANE.md](./docs/API_CONTROL_PLANE.md)** - The `endpoint()` API layer: auth, declarative permissions, audit log, and event outbox. **Read this before adding an API route.**
-- **[EVE_AGENT_PORT.md](./docs/EVE_AGENT_PORT.md)** - Eve sidebar agent port. Phases 1–5 are done (Base UI migration, Eve runtime, `agent_threads` persistence, chat UI, flag mount). Enable with `NEXT_PUBLIC_AGENT_RUNTIME=eve`. See §12 for remaining deploy/E2E items and deferred §8 follow-ups before extending `components/agent/` or `agent/`.
+- **[EVE_AGENT_PORT.md](./docs/EVE_AGENT_PORT.md)** - Eve sidebar agent port. Phases 1–5 are done (Base UI migration, Eve runtime, `agent_threads` persistence, chat UI, flag mount). Enable with `NEXT_PUBLIC_AGENT_RUNTIME=eve`. See §12 for remaining deploy/E2E items and deferred §8 follow-ups before extending `components/agent/` or `agent/`. To review or tune the chat UI without spending tokens, use the mock harness: `?agentMock=1` on any `/app` URL — see [components/agent/dev/README.md](./components/agent/dev/README.md).
 
 ## Development Commands
 

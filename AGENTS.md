@@ -1,16 +1,16 @@
 ## Learned User Preferences
 
-- Prefer an in-code constant for experimental UI toggles (for example chat panel side) before building user-facing preference controls.
+- Prefer an in-code constant for experimental UI toggles before building user-facing preference controls.
 - When the chat sidebar is on the left, mirror its header controls so close/resize sit on the outer (left) edge and history on the inner (right) side.
-- Chat open/close should crossfade the top-nav Chat trigger with the sidebar header controls (~250ms); collapse the trigger’s layout space when open (not opacity alone), and keep sidebar controls non-interactive until the fade-in finishes.
-- Keep the Chat top-nav trigger in document flow (not absolutely positioned) so TopNav reserves space for it when the sidebar is closed.
-- Pin the Chat trigger to the far header edge (left or right by sidebar side); constrain only the main nav items to the page max-width column.
+- Chat open/close should crossfade the top-nav Chat trigger with the sidebar header controls (~250ms); collapse the trigger’s layout space when open (not opacity alone), and keep sidebar controls non-interactive until the fade-in finishes. Keep the Chat trigger in document flow pinned to the far header edge (left or right by sidebar side); constrain only the main nav items to the page max-width column.
 - Use singular “Automation” for the top-level nav label and routes (not “Automations”).
 - Automation subpages (Events, Listeners, Workflows) should stay single-purpose — no secondary “bonus” sections on the same route.
 - Chat sidebar width: allow drag-resize in regular desktop mode only (not expanded), with opinionated min/max guardrails so users cannot overshrink the main content or overgrow the panel.
 - When cleaning up Ultracite/Biome lint, prefer fixing offenders over dialing back or disabling rules.
-- Chat sidebar empty state should use the shared animated `Greeting` (not a plain “No messages yet” placeholder), including when Eve is enabled.
+- Chat sidebar empty state should use the shared animated `Greeting` (not a plain “No messages yet” placeholder), including when Eve is enabled; vertically center it in the message area.
 - Chat sidebar footer fade / composer pad should use sidebar background tokens (`--sidebar-background` / `bg-sidebar`), not the page background.
+- Agent presence pill should morph width fluidly between states (Dynamic Island–style layout springs), not snap between text lengths.
+- Agent ask_question / input-request UX: questionnaire card with purple question icon and title beside the icon; pending uses contrasting `bg-background`; no “Waiting for you” status badge; after answer, settle briefly then fold into the normal tool-call activity feed.
 
 ## Learned Workspace Facts
 
@@ -22,3 +22,4 @@
 - Workflows split three concepts: append-only `event_logs` (facts), `workflow_schedule` (queue/leases/retries), and `workflow_runs` (execution). `emitEvent()` fans out matching schedule rows in the same transaction — no dispatch cursor.
 - Claudia’s Postgres-function workflow docs are not Splx’s architecture; only product ideas (action catalog, step shapes) transfer.
 - Eve sidebar agent is behind `NEXT_PUBLIC_AGENT_RUNTIME=eve` (`agent/`, `components/agent/`; see `docs/EVE_AGENT_PORT.md`). Prompt: `agent/instructions.ts`; models: `agent/lib/models.ts` via AI Gateway; threads: `/api/v1/agent-threads` — sidebar history should use those when Eve is on.
+- Eve chat UI can be reviewed without spending tokens via `?agentMock=1` on any `/app` URL (see `components/agent/dev/README.md`).

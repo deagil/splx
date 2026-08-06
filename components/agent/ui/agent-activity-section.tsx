@@ -1,9 +1,16 @@
 "use client";
 
 import { ChevronDownIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Streamdown } from "streamdown";
+import { formatElapsed } from "@/components/agent/lib/format-elapsed";
+import {
+  agentIconPop,
+  agentLayoutSpring,
+  agentRevealEase,
+} from "@/components/agent/lib/motion";
 import {
   streamdownAnimation,
   streamdownPlugins,
@@ -33,18 +40,6 @@ import { streamdownLinkSafety } from "@/components/agent/ui/streamdown-link-safe
 import { cn } from "@/lib/utils";
 
 export type { ActivityStep, ReasoningStep, ToolCallEntry };
-
-function formatElapsed(seconds: number | undefined): string | null {
-  if (seconds === undefined || seconds < 0) {
-    return null;
-  }
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const rem = seconds % 60;
-  return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
-}
 
 function DefaultContent({ content }: { content: unknown }) {
   const text =
@@ -254,7 +249,12 @@ function SoloReasoningSection({
   });
 
   return (
-    <div className={cn("not-prose w-full", className)}>
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={cn("not-prose w-full", className)}
+      initial={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.35, ease: agentRevealEase }}
+    >
       <button
         aria-expanded={isExpanded}
         className="flex cursor-pointer items-center gap-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -290,7 +290,7 @@ function SoloReasoningSection({
           <ReasoningDetails isStreaming={step.isStreaming} text={step.text} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -319,7 +319,12 @@ function SoloTodosSection({
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
-    <div className={cn("not-prose w-full", className)}>
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={cn("not-prose w-full", className)}
+      initial={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.35, ease: agentRevealEase }}
+    >
       <button
         aria-expanded={isExpanded}
         className="flex cursor-pointer items-center gap-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -348,7 +353,7 @@ function SoloTodosSection({
           <TodosChecklist todos={todos} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -369,6 +374,7 @@ export function AgentActivitySection({
   iconSize = 16,
   maxIconsToShow = 10,
 }: AgentActivitySectionProps) {
+  const reduceMotion = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(
     () => new Set()
@@ -482,104 +488,172 @@ export function AgentActivitySection({
       });
     }
 
+    if (liveTool && !seen.has(liveTool.category)) {
+      icons.push({
+        category: liveTool.category,
+        key: `live-${liveTool.category}`,
+      });
+    }
+
     const displayIcons = icons.slice(0, maxIconsToShow);
 
     return (
       <span className="flex items-center -space-x-1.5">
-        {displayIcons.map((item, index) => (
-          <span
-            className="relative inline-flex items-center justify-center"
-            key={item.key}
-            style={{
-              rotate:
-                displayIcons.length > 1
-                  ? index % 2 === 0
-                    ? "8deg"
-                    : "-8deg"
-                  : item.category === "reasoning"
-                    ? "-8deg"
-                    : "0deg",
-              zIndex: index,
-            }}
-          >
-            {iconRenderer(item.category, iconSize)}
-          </span>
-        ))}
+        <AnimatePresence initial={false} mode="popLayout">
+          {displayIcons.map((item, index) => (
+            <motion.span
+              animate={{ filter: "blur(0px)", opacity: 1, scale: 1 }}
+              className="relative inline-flex items-center justify-center"
+              exit={
+                reduceMotion
+                  ? undefined
+                  : { filter: "blur(4px)", opacity: 0, scale: 0.25 }
+              }
+              initial={
+                reduceMotion
+                  ? false
+                  : { filter: "blur(4px)", opacity: 0, scale: 0.25 }
+              }
+              key={item.key}
+              layout={!reduceMotion}
+              style={{
+                rotate:
+                  displayIcons.length > 1
+                    ? index % 2 === 0
+                      ? "8deg"
+                      : "-8deg"
+                    : item.category === "reasoning"
+                      ? "-8deg"
+                      : "0deg",
+                zIndex: index,
+              }}
+              transition={{
+                ...agentIconPop,
+                layout: agentLayoutSpring,
+              }}
+            >
+              {iconRenderer(item.category, iconSize)}
+            </motion.span>
+          ))}
+        </AnimatePresence>
         {icons.length > maxIconsToShow ? (
-          <span className="relative z-10 ml-1 text-muted-foreground text-xs">
+          <motion.span
+            animate={{ opacity: 1 }}
+            className="relative z-10 ml-1 text-muted-foreground text-xs"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            key={`overflow-${icons.length}`}
+            layout={!reduceMotion}
+          >
             +{icons.length - maxIconsToShow}
-          </span>
+          </motion.span>
         ) : null}
       </span>
     );
   };
 
   return (
-    <div className={cn("not-prose w-full", className)}>
-      <button
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={cn("not-prose w-full", className)}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      transition={{ duration: 0.35, ease: agentRevealEase }}
+    >
+      <motion.button
         aria-expanded={isExpanded}
-        className="flex cursor-pointer items-center gap-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        className="flex cursor-pointer items-center gap-2 overflow-hidden py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        layout={!reduceMotion}
         onClick={() => setIsExpanded((open) => !open)}
+        style={{ borderRadius: 8 }}
+        transition={{ layout: agentLayoutSpring }}
         type="button"
       >
         {renderStackedIcons()}
-        <span
-          className={cn(
-            "font-medium text-xs",
-            liveReasoning?.isStreaming && "shimmer shimmer-duration-1000"
-          )}
-        >
-          {summaryLabel}
+        <span className="relative min-w-0 overflow-hidden">
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.span
+              animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
+              className={cn(
+                "block font-medium text-xs",
+                liveReasoning?.isStreaming && "shimmer shimmer-duration-1000"
+              )}
+              exit={
+                reduceMotion
+                  ? undefined
+                  : { filter: "blur(4px)", opacity: 0, y: -3 }
+              }
+              initial={
+                reduceMotion ? false : { filter: "blur(4px)", opacity: 0, y: 3 }
+              }
+              key={summaryLabel}
+              layout="position"
+              transition={{
+                duration: reduceMotion ? 0 : 0.22,
+                ease: agentRevealEase,
+                layout: agentLayoutSpring,
+              }}
+            >
+              {summaryLabel}
+            </motion.span>
+          </AnimatePresence>
         </span>
         <ChevronDownIcon
           className={cn(
-            "size-3.5 transition-transform duration-200",
+            "size-3.5 shrink-0 transition-transform duration-200",
             isExpanded && "rotate-180"
           )}
         />
-      </button>
+      </motion.button>
 
-      {liveTool || (liveReasoning && steps.length > 0) ? (
-        <div className="flex flex-col gap-0.5 py-1 text-muted-foreground">
-          {liveTool ? (
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0">
-                {iconRenderer(liveTool.category, 14)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="animate-pulse text-xs">
-                    {liveTool.label}
-                  </span>
-                  {formatElapsed(liveToolElapsed) ? (
-                    <span className="text-[11px] text-muted-foreground/80 tabular-nums">
-                      {formatElapsed(liveToolElapsed)}
+      <AnimatePresence initial={false}>
+        {liveTool || (liveReasoning && steps.length > 0) ? (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-0.5 py-1 text-muted-foreground"
+            exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+            key={liveTool ? `live-tool-${liveTool.category}` : "live-reasoning"}
+            transition={{ duration: 0.28, ease: agentRevealEase }}
+          >
+            {liveTool ? (
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0">
+                  {iconRenderer(liveTool.category, 14)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="animate-pulse text-xs">
+                      {liveTool.label}
                     </span>
+                    {formatElapsed(liveToolElapsed) ? (
+                      <span className="text-[11px] text-muted-foreground/80 tabular-nums">
+                        {formatElapsed(liveToolElapsed)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {liveTool.detail ? (
+                    <p className="mt-0.5 line-clamp-3 text-[11px] text-muted-foreground/90 leading-snug">
+                      {liveTool.detail}
+                    </p>
                   ) : null}
                 </div>
-                {liveTool.detail ? (
-                  <p className="mt-0.5 line-clamp-3 text-[11px] text-muted-foreground/90 leading-snug">
-                    {liveTool.detail}
-                  </p>
-                ) : null}
               </div>
-            </div>
-          ) : liveReasoning ? (
-            <div className="flex items-center gap-2">
-              <span style={{ rotate: "-8deg" }}>
-                {iconRenderer("reasoning", 14)}
-              </span>
-              <span className="shimmer shimmer-duration-1000 animate-pulse text-xs">
-                {getReasoningSummaryLabel({
-                  durationSeconds: liveReasoningDuration,
-                  isStreaming: true,
-                  text: liveReasoning.text,
-                })}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+            ) : liveReasoning ? (
+              <div className="flex items-center gap-2">
+                <span style={{ rotate: "-8deg" }}>
+                  {iconRenderer("reasoning", 14)}
+                </span>
+                <span className="shimmer shimmer-duration-1000 animate-pulse text-xs">
+                  {getReasoningSummaryLabel({
+                    durationSeconds: liveReasoningDuration,
+                    isStreaming: true,
+                    text: liveReasoning.text,
+                  })}
+                </span>
+              </div>
+            ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <div
         className={cn(
@@ -588,105 +662,130 @@ export function AgentActivitySection({
         )}
       >
         <div className="flex flex-col gap-1 pt-1 pb-1">
-          {steps.map((step, index) => {
-            if (step.kind === "reasoning") {
-              return (
-                <ReasoningTimelineRow
-                  defaultExpanded={false}
-                  iconSize={iconSize}
-                  isLast={index === steps.length - 1}
-                  key={step.step.id}
-                  step={step.step}
-                />
+          <AnimatePresence initial={false}>
+            {steps.map((step, index) => {
+              if (step.kind === "reasoning") {
+                return (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    key={step.step.id}
+                    layout={!reduceMotion}
+                    transition={{
+                      duration: 0.3,
+                      ease: agentRevealEase,
+                      layout: agentLayoutSpring,
+                    }}
+                  >
+                    <ReasoningTimelineRow
+                      defaultExpanded={false}
+                      iconSize={iconSize}
+                      isLast={index === steps.length - 1}
+                      step={step.step}
+                    />
+                  </motion.div>
+                );
+              }
+
+              const call = step.entry;
+              const hasCategoryText =
+                call.show_category !== false &&
+                Boolean(call.tool_category) &&
+                call.tool_category !== "unknown" &&
+                call.tool_category !== "general";
+              const hasDetails = Boolean(call.inputs) || Boolean(call.output);
+              const isTodosCall = call.tool_category === "todos";
+              const isHandoffCall = call.tool_category === "handoff";
+              const isStepExpanded =
+                isTodosCall || isHandoffCall || expandedSteps.has(index);
+              const label = call.message || formatToolName(call.tool_name);
+              const contentRenderer = (content: unknown) => (
+                <DefaultContent content={content} />
               );
-            }
+              const stepKey =
+                call.tool_call_id ?? `${call.tool_name}-step-${index}`;
 
-            const call = step.entry;
-            const hasCategoryText =
-              call.show_category !== false &&
-              Boolean(call.tool_category) &&
-              call.tool_category !== "unknown" &&
-              call.tool_category !== "general";
-            const hasDetails = Boolean(call.inputs) || Boolean(call.output);
-            const isTodosCall = call.tool_category === "todos";
-            const isHandoffCall = call.tool_category === "handoff";
-            const isStepExpanded =
-              isTodosCall || isHandoffCall || expandedSteps.has(index);
-            const label = call.message || formatToolName(call.tool_name);
-            const contentRenderer = (content: unknown) => (
-              <DefaultContent content={content} />
-            );
-
-            return (
-              <div
-                className="flex gap-2"
-                key={call.tool_call_id ?? `${call.tool_name}-step-${index}`}
-              >
-                <div className="flex w-7 shrink-0 flex-col items-center">
-                  <span className="flex size-7 shrink-0 items-center justify-center">
-                    {iconRenderer(call.tool_category, iconSize)}
-                  </span>
-                  {index < steps.length - 1 ? (
-                    <span className="mt-0.5 min-h-2 w-px flex-1 bg-border" />
-                  ) : null}
-                </div>
-
-                <div className="min-w-0 flex-1 pb-2">
-                  <div className="flex min-h-7 items-center gap-1">
-                    {hasDetails && !isTodosCall && !isHandoffCall ? (
-                      <button
-                        aria-expanded={isStepExpanded}
-                        className="group/parent flex min-w-0 cursor-pointer items-center gap-1 text-left"
-                        onClick={() => toggleStepExpansion(index)}
-                        type="button"
-                      >
-                        <span className="font-medium text-foreground/80 text-xs group-hover/parent:text-foreground">
-                          {label}
-                        </span>
-                        <ChevronDownIcon
-                          className={cn(
-                            "size-3 shrink-0 text-muted-foreground transition-transform duration-200",
-                            isStepExpanded && "rotate-180"
-                          )}
-                        />
-                      </button>
-                    ) : (
-                      <p className="font-medium text-foreground/80 text-xs">
-                        {label}
-                      </p>
-                    )}
+              return (
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-2"
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  key={stepKey}
+                  layout={!reduceMotion}
+                  transition={{
+                    duration: 0.3,
+                    ease: agentRevealEase,
+                    layout: agentLayoutSpring,
+                  }}
+                >
+                  <div className="flex w-7 shrink-0 flex-col items-center">
+                    <span className="flex size-7 shrink-0 items-center justify-center">
+                      {iconRenderer(call.tool_category, iconSize)}
+                    </span>
+                    {index < steps.length - 1 ? (
+                      <span className="mt-0.5 min-h-2 w-px flex-1 bg-border" />
+                    ) : null}
                   </div>
 
-                  {hasCategoryText ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      {call.integration_name ||
-                        call.tool_category
-                          .replace(/_/g, " ")
-                          .split(" ")
-                          .map(
-                            (word) =>
-                              word.charAt(0).toUpperCase() +
-                              word.slice(1).toLowerCase()
-                          )
-                          .join(" ")}
-                    </p>
-                  ) : null}
-
-                  {isStepExpanded && hasDetails ? (
-                    <div className="mt-2 flex flex-col gap-2">
-                      <ToolCallDetails
-                        call={call}
-                        contentRenderer={contentRenderer}
-                      />
+                  <div className="min-w-0 flex-1 pb-2">
+                    <div className="flex min-h-7 items-center gap-1">
+                      {hasDetails && !isTodosCall && !isHandoffCall ? (
+                        <button
+                          aria-expanded={isStepExpanded}
+                          className="group/parent flex min-w-0 cursor-pointer items-center gap-1 text-left"
+                          onClick={() => toggleStepExpansion(index)}
+                          type="button"
+                        >
+                          <span className="font-medium text-foreground/80 text-xs group-hover/parent:text-foreground">
+                            {label}
+                          </span>
+                          <ChevronDownIcon
+                            className={cn(
+                              "size-3 shrink-0 text-muted-foreground transition-transform duration-200",
+                              isStepExpanded && "rotate-180"
+                            )}
+                          />
+                        </button>
+                      ) : (
+                        <p className="font-medium text-foreground/80 text-xs">
+                          {label}
+                        </p>
+                      )}
                     </div>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
+
+                    {hasCategoryText ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        {call.integration_name ||
+                          call.tool_category
+                            .replace(/_/g, " ")
+                            .split(" ")
+                            .map(
+                              (word) =>
+                                word.charAt(0).toUpperCase() +
+                                word.slice(1).toLowerCase()
+                            )
+                            .join(" ")}
+                      </p>
+                    ) : null}
+
+                    {isStepExpanded && hasDetails ? (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <ToolCallDetails
+                          call={call}
+                          contentRenderer={contentRenderer}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

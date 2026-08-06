@@ -312,7 +312,7 @@ function ChatSidebarSideToggle() {
   const label = moveToRight ? "Move chat to right" : "Move chat to left";
 
   return (
-    <Tooltip>
+    <Tooltip delayDuration={1000}>
       <TooltipTrigger asChild>
         <Button
           aria-label={label}
@@ -345,7 +345,7 @@ export function ChatStatusBar({
   onModelChange?: (modelId: string) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-2 text-xs">
+    <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-2 text-xs">
       <div className="flex items-center gap-2">
         {/* TODO: Show context length meter when usage > 50% */}
         {/* <ContextUsageButton usage={usage} /> */}
