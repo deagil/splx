@@ -9,17 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90 data-[state=open]:bg-primary/90',
-        mono: 'bg-zinc-950 text-white dark:bg-zinc-300 dark:text-black hover:bg-zinc-950/90 dark:hover:bg-zinc-300/90 data-[state=open]:bg-zinc-950/90 dark:data-[state=open]:bg-zinc-300/90',
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90 data-[popup-open]:bg-primary/90',
+        mono: 'bg-zinc-950 text-white dark:bg-zinc-300 dark:text-black hover:bg-zinc-950/90 dark:hover:bg-zinc-300/90 data-[popup-open]:bg-zinc-950/90 dark:data-[popup-open]:bg-zinc-300/90',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90 data-[state=open]:bg-destructive/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 data-[state=open]:bg-secondary/90',
-        outline: 'bg-background text-accent-foreground border border-input hover:bg-accent data-[state=open]:bg-accent',
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 data-[popup-open]:bg-destructive/90',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 data-[popup-open]:bg-secondary/90',
+        outline: 'bg-background text-accent-foreground border border-input hover:bg-accent data-[popup-open]:bg-accent',
         dashed:
-          'text-accent-foreground border border-input border-dashed bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:text-accent-foreground',
+          'text-accent-foreground border border-input border-dashed bg-background hover:bg-accent hover:text-accent-foreground data-[popup-open]:text-accent-foreground',
         ghost:
-          'text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-        dim: 'text-muted-foreground hover:text-foreground data-[state=open]:text-foreground',
+          'text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[popup-open]:bg-accent data-[popup-open]:text-accent-foreground',
+        dim: 'text-muted-foreground hover:text-foreground data-[popup-open]:text-foreground',
         foreground: '',
         inverse: '',
       },
@@ -53,12 +53,12 @@ const buttonVariants = cva(
       mode: {
         default: 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         icon: 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shrink-0',
-        link: 'text-primary h-auto p-0 bg-transparent rounded-none hover:bg-transparent data-[state=open]:bg-transparent',
+        link: 'text-primary h-auto p-0 bg-transparent rounded-none hover:bg-transparent data-[popup-open]:bg-transparent',
         input: `
-            justify-start font-normal hover:bg-background [&_svg]:transition-colors [&_svg]:hover:text-foreground data-[state=open]:bg-background 
+            justify-start font-normal hover:bg-background [&_svg]:transition-colors [&_svg]:hover:text-foreground data-[popup-open]:bg-background 
             focus-visible:border-ring focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/30 
-            [[data-state=open]>&]:border-ring [[data-state=open]>&]:outline-hidden [[data-state=open]>&]:ring-[3px] 
-            [[data-state=open]>&]:ring-ring/30 
+            [[data-popup-open]>&]:border-ring [[data-popup-open]>&]:outline-hidden [[data-popup-open]>&]:ring-[3px] 
+            [[data-popup-open]>&]:ring-ring/30 
             aria-invalid:border-destructive/60 aria-invalid:ring-destructive/10 dark:aria-invalid:border-destructive dark:aria-invalid:ring-destructive/20
             in-data-[invalid=true]:border-destructive/60 in-data-[invalid=true]:ring-destructive/10  dark:in-data-[invalid=true]:border-destructive dark:in-data-[invalid=true]:ring-destructive/20
           `,
@@ -293,12 +293,12 @@ const buttonVariants = cva(
       {
         variant: 'primary',
         appearance: 'ghost',
-        className: 'bg-transparent text-primary/90 hover:bg-primary/5 data-[state=open]:bg-primary/5',
+        className: 'bg-transparent text-primary/90 hover:bg-primary/5 data-[popup-open]:bg-primary/5',
       },
       {
         variant: 'destructive',
         appearance: 'ghost',
-        className: 'bg-transparent text-destructive/90 hover:bg-destructive/5 data-[state=open]:bg-destructive/5',
+        className: 'bg-transparent text-destructive/90 hover:bg-destructive/5 data-[popup-open]:bg-destructive/5',
       },
       {
         variant: 'ghost',
@@ -416,7 +416,7 @@ function Button({
       )}
       nativeButton={!asChild}
       render={renderChild}
-      {...(selected && { 'data-state': 'open' })}
+      {...(selected && { 'data-popup-open': '' })}
       {...props}
     >
       {asChild ? undefined : children}

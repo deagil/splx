@@ -43,7 +43,7 @@ export function SidebarUserNav({ user }: { user: User }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="h-10 bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="h-10 bg-background data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground"
               data-testid="user-nav-button"
             >
               <Image
