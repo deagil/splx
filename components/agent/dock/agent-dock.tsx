@@ -137,9 +137,7 @@ export function AgentDock({
 
   // Stay while working, briefly after settling so the finish is visible, and
   // for as long as a preview is open — never yank it out mid-read.
-  if (!(busy || settling || expanded)) {
-    return null;
-  }
+  const visible = busy || settling || Boolean(expanded);
 
   // Hovering only matters while there is a stack to fan out.
   const fanned = (hovered || expanded !== null) && subagents.length > 0;
@@ -157,179 +155,197 @@ export function AgentDock({
   const parentState = activity?.state ?? "breathing";
   const opensSidebar = needsInput || complete;
   const alignClass = side === "right" ? "items-end" : "items-start";
+  const enterTransition = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const };
 
   return (
-    // Hover/focus zone for the whole dock. Focus matters as much as hover: the
-    // pills are buttons, so tabbing into them fans the stack out the same way.
-    // The container itself is a landmark, not a control — giving it an
-    // interactive role to satisfy the rule would announce a button that does
-    // nothing and bury the real ones inside it.
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: hover zone wrapping the real controls; keyboard parity is provided by onFocus/onBlur
-    <section
-      aria-label="Agent activity"
-      className={cn(
-        "pointer-events-none fixed bottom-4 z-50 flex flex-col gap-2",
-        alignClass,
-        side === "right" ? "right-4" : "left-4"
-      )}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setHovered(false);
-        }
-      }}
-      onFocus={hover.open}
-      onMouseEnter={hover.open}
-      onMouseLeave={hover.closeSoon}
-    >
-      <AnimatePresence>
-        {expanded ? (
-          <motion.div
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="pointer-events-auto origin-bottom"
-            exit={reduceMotion ? undefined : { opacity: 0, scale: 0.97, y: 8 }}
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 12 }}
-            key="preview"
-            transition={SPRING}
-          >
-            <AgentActivityPreview
-              colorFilter={
-                showingSubagent
-                  ? colors.get(expandedSubagent.callId)
-                  : undefined
-              }
-              label={showingSubagent ? expandedSubagent.label : parentLabel}
-              messages={showingSubagent ? expandedSubagent.messages : messages}
-              onClose={closePreview}
-              onOpenSidebar={onOpenSidebar}
-              state={showingSubagent ? expandedSubagent.state : parentState}
-              title={showingSubagent ? expandedSubagent.name : "Eve"}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-
-      {/* Fanned-out subagents sit above the parent pill; collapsed, they tuck
-          behind it as offset cards. While fanned the column itself takes
-          pointer events, so the gaps between pills stay part of the hover
-          surface and travelling between them never drops the hover. */}
-      <div
-        className={cn(
-          "flex flex-col gap-1.5",
-          alignClass,
-          fanned ? "pointer-events-auto -m-1 p-1" : "pointer-events-none"
-        )}
-      >
-        <AnimatePresence initial={false}>
-          {layered.map((subagent, index) => {
-            const depth = layered.length - index;
-            return (
-              <motion.button
-                animate={
-                  fanned
-                    ? { marginBottom: 0, opacity: 1, scale: 1, y: 0 }
-                    : {
-                        // Tucked behind the parent: only a sliver shows.
-                        marginBottom: -34,
-                        opacity: 0.9,
-                        scale: 1 - depth * STACK_SCALE_STEP,
-                        y: depth * STACK_PEEK_PX,
-                      }
-                }
-                className="pointer-events-auto max-w-[min(20rem,60vw)] origin-bottom cursor-pointer text-left"
+    <AnimatePresence>
+      {visible ? (
+        // Hover/focus zone for the whole dock. Focus matters as much as hover: the
+        // pills are buttons, so tabbing into them fans the stack out the same way.
+        // The container itself is a landmark, not a control — giving it an
+        // interactive role to satisfy the rule would announce a button that does
+        // nothing and bury the real ones inside it.
+        <motion.section
+          animate={{ opacity: 1, y: 0 }}
+          aria-label="Agent activity"
+          className={cn(
+            "pointer-events-none fixed bottom-4 z-50 flex flex-col gap-2",
+            alignClass,
+            side === "right" ? "right-4" : "left-4"
+          )}
+          exit={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          key="agent-dock"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setHovered(false);
+            }
+          }}
+          onFocus={hover.open}
+          onMouseEnter={hover.open}
+          onMouseLeave={hover.closeSoon}
+          transition={enterTransition}
+        >
+          <AnimatePresence>
+            {expanded ? (
+              <motion.div
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="pointer-events-auto origin-bottom"
                 exit={
-                  reduceMotion
-                    ? undefined
-                    : {
-                        opacity: 0,
-                        scale: 0.96,
-                        transition: { duration: 0.18 },
-                      }
+                  reduceMotion ? undefined : { opacity: 0, scale: 0.97, y: 8 }
                 }
                 initial={
-                  reduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }
+                  reduceMotion ? false : { opacity: 0, scale: 0.97, y: 12 }
                 }
-                key={subagent.callId}
-                layout
-                onClick={() =>
-                  setExpanded((current) =>
-                    current?.kind === "subagent" &&
-                    current.callId === subagent.callId
-                      ? null
-                      : { callId: subagent.callId, kind: "subagent" }
-                  )
-                }
-                style={{ zIndex: index }}
-                transition={reduceMotion ? { duration: 0 } : SPRING}
-                type="button"
+                key="preview"
+                transition={SPRING}
               >
-                <SubagentPill
-                  colorFilter={colors.get(subagent.callId)}
-                  subagent={subagent}
+                <AgentActivityPreview
+                  colorFilter={
+                    showingSubagent
+                      ? colors.get(expandedSubagent.callId)
+                      : undefined
+                  }
+                  label={showingSubagent ? expandedSubagent.label : parentLabel}
+                  messages={
+                    showingSubagent ? expandedSubagent.messages : messages
+                  }
+                  onClose={closePreview}
+                  onOpenSidebar={onOpenSidebar}
+                  state={showingSubagent ? expandedSubagent.state : parentState}
+                  title={showingSubagent ? expandedSubagent.name : "Eve"}
                 />
-              </motion.button>
-            );
-          })}
-        </AnimatePresence>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
-        {/* Parent pill — always the front card, so the corner anchor never moves. */}
-        <motion.button
-          className={cn(
-            "pointer-events-auto relative z-10 inline-flex items-center gap-2.5",
-            "max-w-[min(22rem,70vw)] cursor-pointer rounded-full",
-            "border py-1.5 pr-3.5 pl-2",
-            "bg-[color-mix(in_oklab,var(--card)_92%,var(--background))]",
-            "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_20px_rgba(0,0,0,0.08)]",
-            // No text weight or colour shift on hover — the label is live and
-            // reflowing already; a lift is enough to read as interactive.
-            "text-muted-foreground transition-shadow",
-            "hover:shadow-[0_1px_2px_rgba(0,0,0,0.06),0_10px_28px_rgba(0,0,0,0.12)]",
-            "dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_8px_28px_rgba(0,0,0,0.35)]",
-            needsInput && "attention-shimmer border-amber-500/50",
-            complete && "border-emerald-500/50",
-            !(needsInput || complete) && "border-border/50 dark:border-white/10"
-          )}
-          layout
-          onClick={() => {
-            if (opensSidebar) {
-              onOpenSidebar();
-              return;
-            }
-            setExpanded((current) =>
-              current?.kind === "agent" ? null : { kind: "agent" }
-            );
-          }}
-          transition={reduceMotion ? { duration: 0 } : SPRING}
-          type="button"
-        >
-          {complete ? (
-            <CheckCircle2Icon className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          ) : (
-            <AgentOrb
-              aria-label={parentLabel}
-              paused={parentState === "listening"}
-              state={parentState}
-            />
-          )}
-          <span
+          {/* Fanned-out subagents sit above the parent pill; collapsed, they tuck
+              behind it as offset cards. While fanned the column itself takes
+              pointer events, so the gaps between pills stay part of the hover
+              surface and travelling between them never drops the hover. */}
+          <div
             className={cn(
-              "min-w-0 truncate text-left font-medium text-xs",
-              complete && "text-emerald-700/90 dark:text-emerald-300/90"
+              "flex flex-col gap-1.5",
+              alignClass,
+              fanned ? "pointer-events-auto -m-1 p-1" : "pointer-events-none"
             )}
           >
-            {parentLabel}
-          </span>
-          {subagents.length > 0 && !fanned ? (
-            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
-              {subagents.length}
-            </span>
-          ) : null}
-          {hiddenCount > 0 && fanned ? (
-            <span className="shrink-0 text-[10px] text-muted-foreground/70">
-              +{hiddenCount}
-            </span>
-          ) : null}
-        </motion.button>
-      </div>
-    </section>
+            <AnimatePresence initial={false}>
+              {layered.map((subagent, index) => {
+                const depth = layered.length - index;
+                return (
+                  <motion.button
+                    animate={
+                      fanned
+                        ? { marginBottom: 0, opacity: 1, scale: 1, y: 0 }
+                        : {
+                            // Tucked behind the parent: only a sliver shows.
+                            marginBottom: -34,
+                            opacity: 0.9,
+                            scale: 1 - depth * STACK_SCALE_STEP,
+                            y: depth * STACK_PEEK_PX,
+                          }
+                    }
+                    className="pointer-events-auto max-w-[min(20rem,60vw)] origin-bottom cursor-pointer text-left"
+                    exit={
+                      reduceMotion
+                        ? undefined
+                        : {
+                            opacity: 0,
+                            scale: 0.96,
+                            transition: { duration: 0.18 },
+                          }
+                    }
+                    initial={
+                      reduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }
+                    }
+                    key={subagent.callId}
+                    layout
+                    onClick={() =>
+                      setExpanded((current) =>
+                        current?.kind === "subagent" &&
+                        current.callId === subagent.callId
+                          ? null
+                          : { callId: subagent.callId, kind: "subagent" }
+                      )
+                    }
+                    style={{ zIndex: index }}
+                    transition={reduceMotion ? { duration: 0 } : SPRING}
+                    type="button"
+                  >
+                    <SubagentPill
+                      colorFilter={colors.get(subagent.callId)}
+                      subagent={subagent}
+                    />
+                  </motion.button>
+                );
+              })}
+            </AnimatePresence>
+
+            {/* Parent pill — always the front card, so the corner anchor never moves. */}
+            <motion.button
+              className={cn(
+                "pointer-events-auto relative z-10 inline-flex items-center gap-2.5",
+                "max-w-[min(22rem,70vw)] cursor-pointer rounded-full",
+                "border py-1.5 pr-3.5 pl-2",
+                "bg-[color-mix(in_oklab,var(--card)_92%,var(--background))]",
+                "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_20px_rgba(0,0,0,0.08)]",
+                // No text weight or colour shift on hover — the label is live and
+                // reflowing already; a lift is enough to read as interactive.
+                "text-muted-foreground transition-shadow",
+                "hover:shadow-[0_1px_2px_rgba(0,0,0,0.06),0_10px_28px_rgba(0,0,0,0.12)]",
+                "dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_8px_28px_rgba(0,0,0,0.35)]",
+                needsInput && "attention-shimmer border-amber-500/50",
+                complete && "border-emerald-500/50",
+                !(needsInput || complete) &&
+                  "border-border/50 dark:border-white/10"
+              )}
+              layout
+              onClick={() => {
+                if (opensSidebar) {
+                  onOpenSidebar();
+                  return;
+                }
+                setExpanded((current) =>
+                  current?.kind === "agent" ? null : { kind: "agent" }
+                );
+              }}
+              transition={reduceMotion ? { duration: 0 } : SPRING}
+              type="button"
+            >
+              {complete ? (
+                <CheckCircle2Icon className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <AgentOrb
+                  aria-label={parentLabel}
+                  paused={parentState === "listening"}
+                  state={parentState}
+                />
+              )}
+              <span
+                className={cn(
+                  "min-w-0 truncate text-left font-medium text-xs",
+                  complete && "text-emerald-700/90 dark:text-emerald-300/90"
+                )}
+              >
+                {parentLabel}
+              </span>
+              {subagents.length > 0 && !fanned ? (
+                <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
+                  {subagents.length}
+                </span>
+              ) : null}
+              {hiddenCount > 0 && fanned ? (
+                <span className="shrink-0 text-[10px] text-muted-foreground/70">
+                  +{hiddenCount}
+                </span>
+              ) : null}
+            </motion.button>
+          </div>
+        </motion.section>
+      ) : null}
+    </AnimatePresence>
   );
 }
