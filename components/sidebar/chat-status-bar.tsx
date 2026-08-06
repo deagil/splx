@@ -1,6 +1,8 @@
 "use client";
 
-import { Trigger } from "@radix-ui/react-select";
+// The raw primitive, not the SelectTrigger wrapper: this call site supplies its
+// own Button and does not want the wrapper's size variants or chevron icon.
+import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { SignatureIcon } from "lucide-react";
 import { useState } from "react";
 import { ContextIcon } from "@/components/elements/context";
@@ -180,24 +182,26 @@ function ModelSelectorButton({
       }}
       value={selectedModel?.name}
     >
-      <Trigger asChild>
-        <Button
-          className={cn(
-            "h-8 p-1 text-muted-foreground text-sm hover:text-foreground md:h-fit md:p-2",
-            "rounded-md transition-colors",
-            selectedModelId === "chat-model"
-              ? "bg-muted hover:bg-muted"
-              : "bg-blue-200 hover:bg-blue-300 dark:bg-slate-700/60 dark:hover:bg-slate-700/90"
-          )}
-          type="button"
-          variant="ghost"
-        >
-          {!!IconComponent && <IconComponent className="mr-0.5" size={12} />}
-          <span className="hidden text-[10px] sm:inline">
-            {selectedModel?.name}
-          </span>
-        </Button>
-      </Trigger>
+      <SelectPrimitive.Trigger
+        render={
+          <Button
+            className={cn(
+              "h-8 p-1 text-muted-foreground text-sm hover:text-foreground md:h-fit md:p-2",
+              "rounded-md transition-colors",
+              selectedModelId === "chat-model"
+                ? "bg-muted hover:bg-muted"
+                : "bg-blue-200 hover:bg-blue-300 dark:bg-slate-700/60 dark:hover:bg-slate-700/90"
+            )}
+            type="button"
+            variant="ghost"
+          >
+            {!!IconComponent && <IconComponent className="mr-0.5" size={12} />}
+            <span className="hidden text-[10px] sm:inline">
+              {selectedModel?.name}
+            </span>
+          </Button>
+        }
+      />
       <PromptInputModelSelectContent className="min-w-[280px] p-1">
         <div className="mb-1 px-2 py-1 font-medium text-[10px] text-muted-foreground">
           What are you working on?

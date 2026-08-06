@@ -1,6 +1,5 @@
 "use client";
 
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { AnimatedMarkdown } from "flowtoken";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -19,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useControllableState } from "@/hooks/use-controllable-state";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "./shimmer";
 
