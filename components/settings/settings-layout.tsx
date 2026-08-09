@@ -16,6 +16,8 @@ export interface SettingsSection {
 
 interface SettingsLayoutProps {
   description?: string;
+  /** When set and present in `sections`, opens on that section instead of the first. */
+  initialSectionId?: string;
   sections: SettingsSection[];
   title: string;
 }
@@ -24,10 +26,17 @@ export function SettingsLayout({
   title,
   description,
   sections,
+  initialSectionId,
 }: SettingsLayoutProps) {
-  const [activeSection, setActiveSection] = useState(
-    () => sections[0]?.id ?? ""
-  );
+  const [activeSection, setActiveSection] = useState(() => {
+    if (
+      initialSectionId &&
+      sections.some((section) => section.id === initialSectionId)
+    ) {
+      return initialSectionId;
+    }
+    return sections[0]?.id ?? "";
+  });
 
   const sectionMap = useMemo(
     () =>

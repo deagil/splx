@@ -52,6 +52,7 @@ Registered in [`server/workflows/actions/`](../server/workflows/actions/):
 | `row` | create / update / delete via [`dataRepository`](../server/repositories/data.ts) |
 | `http` | Outbound request with SSRF guard, timeout, capped body |
 | `condition` | Stop the run unless a comparison matches |
+| `send_email` | Send a Comms email template (see [COMMS.md](./COMMS.md)) |
 
 Step inputs support path-only templates: `{{event.payload.record.id}}`, `{{steps.0.output.status}}`. No expression evaluation.
 

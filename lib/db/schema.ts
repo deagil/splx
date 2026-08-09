@@ -21,6 +21,11 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type {
+  EmailBlock,
+  EmailTemplateStatus,
+  EmailTemplateVariable,
+} from "../comms/types";
 import type { AgentThreadState } from "../types/agent-thread";
 import type { AppUsage } from "../usage";
 
@@ -615,3 +620,88 @@ export const agentThread = pgTable("agent_threads", {
 });
 
 export type AgentThread = InferSelectModel<typeof agentThread>;
+
+/**
+ * Workspace email templates for Comms (blocks + declared merge variables).
+ * See docs/COMMS.md.
+ */
+export const emailTemplate = pgTable("email_templates", {
+  blocks: jsonb("blocks").$type<EmailBlock[]>().notNull().default([]),
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  created_by: uuid("created_by").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  description: text("description"),
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  name: text("name").notNull(),
+  preview_text: text("preview_text"),
+  /** Author-supplied preview values keyed by variable key; never used for real sends. */
+  sample_data: jsonb("sample_data")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
+  slug: text("slug").notNull(),
+  status: text("status")
+    .$type<EmailTemplateStatus>()
+    .notNull()
+    .default("draft"),
+  subject: text("subject").notNull().default(""),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  variables: jsonb("variables")
+    .$type<EmailTemplateVariable[]>()
+    .notNull()
+    .default([]),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+});
+
+export type EmailTemplate = InferSelectModel<typeof emailTemplate>;
+
+export const emailSettings = pgTable("email_settings", {
+  from_email: text("from_email"),
+  from_name: text("from_name"),
+  reply_to: text("reply_to"),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  workspace_id: uuid("workspace_id")
+    .primaryKey()
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+});
+
+export type EmailSettings = InferSelectModel<typeof emailSettings>;
+
+export type EmailSendStatus = "queued" | "sent" | "failed";
+
+export const emailSend = pgTable("email_sends", {
+  created_at: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  error: text("error"),
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  provider_message_id: text("provider_message_id"),
+  status: text("status").$type<EmailSendStatus>().notNull().default("queued"),
+  subject: text("subject").notNull().default(""),
+  template_id: uuid("template_id").references(() => emailTemplate.id, {
+    onDelete: "set null",
+  }),
+  to: text("to").notNull(),
+  variables: jsonb("variables")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  workflow_run_id: uuid("workflow_run_id").references(() => workflowRun.id, {
+    onDelete: "set null",
+  }),
+  workspace_id: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+});
+
+export type EmailSend = InferSelectModel<typeof emailSend>;

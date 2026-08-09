@@ -8,6 +8,10 @@ import {
   formatTimestamp,
   JsonBlock,
 } from "@/components/build/activity-log-view";
+import {
+  SendEmailStepForm,
+  type SendEmailStepInput,
+} from "@/components/comms/send-email-step-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +55,12 @@ interface WorkflowRun {
   workflowId: string;
 }
 
+interface WorkflowStep {
+  input?: Record<string, unknown>;
+  label?: string;
+  type: string;
+}
+
 const fetcher = async (url: string) => {
   const response = await fetch(url);
   const body = await response.json();
@@ -70,6 +80,38 @@ const DEFAULT_STEPS_JSON = `[
     }
   }
 ]`;
+
+function parseSteps(json: string): WorkflowStep[] | null {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as WorkflowStep[];
+  } catch {
+    return null;
+  }
+}
+
+function sendEmailInputFromStep(step: WorkflowStep): SendEmailStepInput {
+  const input = step.input ?? {};
+  const mappingRaw = input.mapping;
+  const mapping: Record<string, string> = {};
+  if (mappingRaw && typeof mappingRaw === "object") {
+    for (const [key, value] of Object.entries(
+      mappingRaw as Record<string, unknown>
+    )) {
+      mapping[key] = typeof value === "string" ? value : String(value ?? "");
+    }
+  }
+  return {
+    mapping,
+    replyTo: typeof input.replyTo === "string" ? input.replyTo : undefined,
+    templateId:
+      typeof input.templateId === "string" ? input.templateId : undefined,
+    to: typeof input.to === "string" ? input.to : undefined,
+  };
+}
 
 export function WorkflowsView() {
   const router = useRouter();
@@ -107,6 +149,48 @@ export function WorkflowsView() {
   const [editStepsJson, setEditStepsJson] = useState("");
   const [editEnabled, setEditEnabled] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const editSteps = useMemo(() => parseSteps(editStepsJson), [editStepsJson]);
+
+  const updateSendEmailStep = (index: number, input: SendEmailStepInput) => {
+    const steps = parseSteps(editStepsJson);
+    if (!steps) {
+      setEditError("Steps must be valid JSON before editing send_email");
+      return;
+    }
+    const next = [...steps];
+    const existing = next[index];
+    if (existing?.type !== "send_email") {
+      return;
+    }
+    next[index] = {
+      ...existing,
+      input: {
+        mapping: input.mapping ?? {},
+        replyTo: input.replyTo,
+        templateId: input.templateId,
+        to: input.to,
+      },
+      label: existing.label ?? "Send email",
+      type: "send_email",
+    };
+    setEditStepsJson(JSON.stringify(next, null, 2));
+    setEditError(null);
+  };
+
+  const addSendEmailStep = () => {
+    const steps = parseSteps(editStepsJson) ?? [];
+    steps.push({
+      input: {
+        mapping: {},
+        to: "{{event.payload.record.email}}",
+      },
+      label: "Send email",
+      type: "send_email",
+    });
+    setEditStepsJson(JSON.stringify(steps, null, 2));
+    setEditError(null);
+  };
 
   const selectWorkflow = useCallback(
     (id: string | null) => {
@@ -432,6 +516,40 @@ export function WorkflowsView() {
                       ? selected.eventName
                       : "manual"}
                   </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm">Send email steps</p>
+                    <Button
+                      onClick={addSendEmailStep}
+                      type="button"
+                      variant="outline"
+                    >
+                      Add send email
+                    </Button>
+                  </div>
+                  {editSteps
+                    ?.map((step, index) =>
+                      step.type === "send_email" ? (
+                        <SendEmailStepForm
+                          key={`send-email-${index}`}
+                          onChange={(input) =>
+                            updateSendEmailStep(index, input)
+                          }
+                          value={sendEmailInputFromStep(step)}
+                        />
+                      ) : null
+                    )
+                    .filter(Boolean)}
+                  {editSteps &&
+                  !editSteps.some((step) => step.type === "send_email") ? (
+                    <p className="text-muted-foreground text-xs">
+                      No send_email steps yet. Add one or include{" "}
+                      <code className="text-xs">"type": "send_email"</code> in
+                      the JSON below.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { CommsSettingsView } from "@/components/comms/settings-view";
 import { ConnectedAppsSettings } from "@/components/settings/connected-apps-section";
 import {
   ConnectedNodes,
@@ -47,10 +48,17 @@ function createSections(
       id: "connected-apps",
       title: "Connected apps",
     },
+    {
+      content: <CommsSettingsView />,
+      description:
+        "From address used for outbound email. Domain verification is managed in your email provider (Resend).",
+      id: "email",
+      title: "Email",
+    },
   ];
 }
 
-async function WorkplaceSettingsContent() {
+async function WorkplaceSettingsContent({ section }: { section?: string }) {
   const mode = getAppMode();
   const workspace = await getWorkspaceData();
 
@@ -63,16 +71,23 @@ async function WorkplaceSettingsContent() {
   return (
     <SettingsLayout
       description="Manage the identity, structure, and policies for your organisation."
+      initialSectionId={section}
       sections={sections}
       title="Workplace Settings"
     />
   );
 }
 
-export default function WorkplaceSettingsPage() {
+export default async function WorkplaceSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string }>;
+}) {
+  const params = await searchParams;
+
   return (
     <Suspense fallback={<AppLoader label="Loading workspace settings" />}>
-      <WorkplaceSettingsContent />
+      <WorkplaceSettingsContent section={params.section} />
     </Suspense>
   );
 }

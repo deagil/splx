@@ -43,6 +43,9 @@ export const PERMISSIONS = [
   "workflows.view",
   "workflows.edit",
   "workflows.run",
+
+  "comms.view",
+  "comms.edit",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -96,6 +99,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
     "workflows.view",
     "workflows.edit",
     "workflows.run",
+    "comms.view",
+    "comms.edit",
   ],
   user: [
     "pages.view",
@@ -109,6 +114,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
     "chat.create",
     "workflows.view",
     "workflows.run",
+    "comms.view",
   ],
   viewer: [
     "pages.view",
@@ -117,5 +123,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
     "reports.view",
     "chat.view",
     "workflows.view",
+    "comms.view",
   ],
 };

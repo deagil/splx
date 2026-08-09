@@ -9,8 +9,9 @@
 - When cleaning up Ultracite/Biome lint, prefer fixing offenders over dialing back or disabling rules.
 - Chat sidebar empty state should use the shared animated `Greeting` (not a plain “No messages yet” placeholder), including when Eve is enabled; vertically center it in the message area.
 - Chat sidebar footer fade / composer pad should use sidebar background tokens (`--sidebar-background` / `bg-sidebar`), not the page background.
-- Agent presence pill should morph width fluidly between states (Dynamic Island–style layout springs), not snap between text lengths.
+- Agent presence pill (sidebar and closed-sidebar AgentDock) should morph width from the center (Dynamic Island–style), not snap or slide left/right; AgentDock should fade in when the sidebar closes; turn failures surface in the pill (full message, max width ≈ composer) with close/copy — not a separate alert popup.
 - Agent ask_question / input-request UX: questionnaire card with purple question icon and title beside the icon; pending uses contrasting `bg-background`; no “Waiting for you” status badge; after answer, settle briefly then fold into the normal tool-call activity feed.
+- Tool-call activity feed: new icons/sections should fade and slide into place (Greeting-like reveal for questionnaire/todos), not pop in instantly.
 
 ## Learned Workspace Facts
 

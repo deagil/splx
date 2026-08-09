@@ -74,6 +74,14 @@ const automationOptions: MenuOption[] = [
   },
 ];
 
+const commsOptions: MenuOption[] = [
+  {
+    description: "Transactional email templates",
+    href: "/comms/templates",
+    title: "Templates",
+  },
+];
+
 const dataOptions: MenuOption[] = [
   {
     description: "Browse and manage your raw data",
@@ -225,6 +233,24 @@ export function NavigationMenuDemo() {
           <NavigationMenuContent>
             <ul className="grid w-[320px] gap-2">
               {automationOptions.map((option) => (
+                <ListItem
+                  disabled={option.disabled}
+                  href={option.href}
+                  key={option.title}
+                  title={option.title}
+                >
+                  {option.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        {/* comms menu */}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>Comms</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[300px] gap-2">
+              {commsOptions.map((option) => (
                 <ListItem
                   disabled={option.disabled}
                   href={option.href}
