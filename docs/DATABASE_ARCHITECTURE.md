@@ -55,15 +55,25 @@ try {
 
 **Contains**:
 - **Application Tables** (tenant-managed):
-  - `chats` - AI chat conversations
-  - `messages` - Chat messages
+  - `chats` - AI chat conversations (legacy chat)
+  - `messages` - Chat messages (legacy chat)
   - `documents` - User documents
   - `suggestions` - Document suggestions
   - `votes` - Message votes
   - `streams` - Stream data
-  - `tables` - Dynamic table definitions
-  - `pages` - Page configurations
-  - Any custom tables created by the tenant
+  - Any custom tables created by the tenant, and their rows
+
+> **Correction (2026-08-10):** earlier revisions of this document listed `tables`
+> and `pages` here. **They are not in the resource store.** Configuration —
+> `pages`, the `tables` config registry, `reports`, `email_templates` and
+> `agent_threads` — lives in the **control plane** in both modes:
+> `lib/server/pages/repository.ts` and `lib/server/tables/repository.ts` use the
+> Supabase client (`NEXT_PUBLIC_SUPABASE_URL`), and `loadTableConfig` in
+> `server/repositories/data.ts` uses `getControlPlaneDb()`.
+>
+> This is deliberate and load-bearing: configuration must be queryable across
+> tenants for the harvest loop. Do not "fix" the code to match the old text.
+> See [DATA_PLACEMENT.md](./DATA_PLACEMENT.md).
 
 **When to Use**:
 - Querying tenant application data (chats, messages, documents, etc.)

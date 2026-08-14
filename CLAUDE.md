@@ -18,6 +18,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For comprehensive documentation on major features, see:
 
+**Start at [docs/README.md](./docs/README.md)** — documentation index, current state, direction, and progress tracking.
+
+**Direction and design intent** (read these before proposing architectural changes):
+
+- **[BACKLOG.md](./docs/BACKLOG.md)** - Ticket-ready work items `SPX-nnn` with acceptance criteria, dependencies, and touched paths. Phase 0 and 1 are specified; later phases are epics.
+- **[SYSTEM_THESIS.md](./docs/SYSTEM_THESIS.md)** - Why splx exists post-AI, the core primitives of a business system, the Form object (data definition), the three correctness tiers, and the platform/blueprint/tenant config model. Numbered requirements `R-1`–`R-38`.
+- **[ARCHITECTURE_REVIEW.md](./docs/ARCHITECTURE_REVIEW.md)** - Assessment of the implementation against the thesis, with an alignment scorecard and defect register `D-1`–`D-11`.
+- **[DEVELOPMENT_PLAN.md](./docs/DEVELOPMENT_PLAN.md)** - Phased plan from the present state to the thesis, with open decisions `Q-1`–`Q-7`.
+- **[DELIVERY_LIFECYCLE.md](./docs/DELIVERY_LIFECYCLE.md)** - How a client goes from first conversation to a running system: the blueprint model (and why tenant config does not need git), and the five operating loops.
+
+**Implemented features:**
+
 - **[AI_CHAT_SYSTEM.md](./docs/AI_CHAT_SYSTEM.md)** - Complete guide to the AI chat system including mentions, streaming, personalization, and server-side processing
 - **[PAGES_SYSTEM.md](./docs/PAGES_SYSTEM.md)** - Visual page builder with blocks, URL parameters, filtering, and dynamic data binding
 - **[ONBOARDING_OTP.md](./docs/ONBOARDING_OTP.md)** - User authentication, OTP verification, and multi-step onboarding flow

@@ -72,11 +72,24 @@ pnpm dev
 - `pnpm test` – run tests (Playwright/Jest where configured)
 
 ## Documentation
-- `docs/API_CONTROL_PLANE.md` – planned shared `endpoint()` API layer, audit/events, migration phases
+
+**Start at [`docs/README.md`](docs/README.md)** – documentation index, current state, direction, and progress tracking.
+
+### Direction and planning
+- [`docs/SYSTEM_THESIS.md`](docs/SYSTEM_THESIS.md) – why splx exists post-AI, capability primitives, the Form object, correctness tiers, the blueprint model
+- [`docs/ARCHITECTURE_REVIEW.md`](docs/ARCHITECTURE_REVIEW.md) – the implementation measured against the thesis; scorecard and defect register
+- [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) – phased plan, milestones, open decisions
+- [`docs/DELIVERY_LIFECYCLE.md`](docs/DELIVERY_LIFECYCLE.md) – client delivery walkthrough and the five operating loops
+- [`docs/BACKLOG.md`](docs/BACKLOG.md) – ticket-ready work items with acceptance criteria
+
+### Implemented features
+- `docs/API_CONTROL_PLANE.md` – the shared `endpoint()` API layer, audit/events, migration phases
 - `docs/PAGES_SYSTEM.md` – visual page builder and block types
 - `docs/AI_CHAT_SYSTEM.md` – chat, mentions, and streaming flow
 - `docs/DATABASE_ARCHITECTURE.md` – main DB vs resource store
+- `docs/WORKFLOWS.md` – event-driven workflows, schedule worker, action catalog
 - `docs/RBAC_SYSTEM.md` – roles, RLS, and API capability checks
+- `docs/COMMS.md` – email templates and the `send_email` action
 - `docs/INTEGRATION_CARDS.md` – integration UI guidelines
 - `docs/ONBOARDING_OTP.md` – authentication and onboarding flow
 - `docs/pages-migration.md` – page migration notes

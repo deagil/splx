@@ -68,8 +68,15 @@ A workflow that writes a row emits `db.<table>.*` with `caused_by_run_id` set. F
 
 ## Manual and Trigger-block runs
 
-- `POST /api/v1/workflows/[id]/run` enqueues a schedule row (`trigger_source: manual` or `trigger_block`).
-- Page Trigger blocks use `hookName` as the workflow id.
+**Today:** `POST /api/v1/workflows/[id]/run` enqueues a schedule row
+(`trigger_source: manual` or `trigger_block`). Page Trigger blocks use
+`hookName` as the workflow id. Runs use workspace authority.
+
+**Direction (R-17b, Phase 1 / SPX-105):** on-demand POST must execute
+**in-request**, synchronously, under the caller's permissions. Event- and
+timer-triggered starts keep the queue. Write steps apply a Form rather than
+raw `row`. See [SYSTEM_THESIS.md §3](./SYSTEM_THESIS.md) and
+[DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) 1.5.
 
 ## UI
 
